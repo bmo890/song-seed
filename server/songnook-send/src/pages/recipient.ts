@@ -1,166 +1,38 @@
 /**
- * Recipient page (`/t/:id`). SSR — one page for everyone, content-negotiated
- * only in the CTA block:
- *  - iOS/Android → "Open in SongNook" button (deferred deep link below).
- *  - Desktop → a QR code ("scan with your phone") instead, since a store
- *    deep-link isn't clickable-useful on a laptop. Scanning it opens this
- *    same URL on the phone, which then hits the mobile branch above.
- * Everything else — hero, "what's SongNook" pitch, the living app-preview
- * gallery, and a quiet "take the raw files" disclosure at the very bottom —
- * is identical for both, so the marketing pitch isn't desktop-only.
+ * The parcel page (`/t/:id`): what someone sees when a SongNook Send link opens in a
+ * browser instead of the app. In the voice and the look of songnook.app, in the
+ * reader's language (sendI18n.ts).
  *
- * After installing, the recipient opens this link again and the app takes it (universal
- * / app links). No deferred deep link in v1: the iOS clipboard handoff was removed
- * (founder, 2026-10-23: iOS shows every new user a paste banner on first launch). The
- * Android store link still carries `referrer=<transferId>` for a future Install
- * Referrer reader.
+ * Who lands here, and the one door each gets:
+ *  - The app is installed: a tap on the link usually opens the app before this page
+ *    loads (universal / app links). In-app browsers (WhatsApp, Instagram, Gmail) often
+ *    don't, so the page offers "Have SongNook? Open it there": the app's own scheme on
+ *    iPhone, an Android intent that falls back to the store.
+ *  - The app isn't installed: Apple's / Google's badge for this phone. Google's only
+ *    once SongNook is on Play (ANDROID_LIVE); until then Android is told it's coming
+ *    and the files open right below.
+ *  - A computer: a QR code back to this same link, for the phone.
+ * After installing, the person opens the link again and the app takes it: no deferred
+ * deep link in v1 (the iOS clipboard handoff was removed, founder 2026-10-23). The Play
+ * address still carries `referrer=transferId=…` for a future Install Referrer reader.
+ * In the app, the first-run welcome plays over the parcel screen, and nothing is saved
+ * until the person taps Save on it.
  */
 import type { Config } from "../env";
 import type { TransferPayload } from "../lib/serialize";
 import { qrSvgPath } from "../lib/qr";
-import { describeKind } from "../lib/shareKind";
+import type { ShareKind } from "../lib/shareKind";
 import { escapeHtml, formatBytes, page } from "./shell";
-import { GALLERY_CSS, GALLERY_HTML, GALLERY_SCRIPT, GALLERY_SPRITE } from "./appPreviewGallery";
+import { GALLERY_CSS, GALLERY_SCRIPT, GALLERY_SPRITE, galleryHtml } from "./appPreviewGallery";
 import { SEAL_JS } from "./sealJs";
+import { STRINGS, type Lang } from "./landingI18n";
+import { SEND_STRINGS, fill, plural, type SendStrings } from "./sendI18n";
+import { SITE_PARTS_CSS, SITE_PARTS_JS, langMenu, storeBadges } from "./siteParts";
 
 export interface Platform {
   isMobile: boolean;
   isIOS: boolean;
   isAndroid: boolean;
-}
-
-/** The locked one-line description — the same voice everywhere. */
-const SONGNOOK_DESC =
-  "SongNook is a quiet corner for songwriters and musicians — a place to catch an idea, " +
-  "shape it into a song, and practice it till it's yours, wherever you are.";
-
-/** Page-specific chrome (the gallery's own CSS ships in appPreviewGallery). */
-const FUNNEL_CSS = `
-.about{margin-top:34px}
-.about .eyebrow + .lede{margin-bottom:22px}
-.lede{font-family:Lora,Georgia,serif;font-weight:400;font-size:20px;line-height:1.5;
-  color:var(--ink);margin:0 0 22px;max-width:31ch}
-.cta-fine{text-align:center;font-size:12.5px;color:var(--ink-faint);margin:12px 0 0}
-.qr-cta{display:flex;flex-direction:column;align-items:center;gap:2px}
-.qr-card{background:#fff;padding:12px;border-radius:6px;line-height:0;
-  box-shadow:0 1px 0 rgba(0,0,0,.05)}
-.grab{margin-top:30px;text-align:center}
-.grab summary{font-size:12.5px;color:var(--ink-faint);cursor:pointer;list-style:none;display:inline-block}
-.grab summary::-webkit-details-marker{display:none}
-.grab summary:hover{color:var(--ink-soft)}
-.grab .tracklist{text-align:left;margin-top:16px}
-`;
-
-/** "A War In Me.wav" reads as a song, not a file. The download keeps the real name. */
-function displayName(fileName: string): string {
-  return fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
-}
-
-function expiresLabel(expiresAtIso: string): string {
-  const days = Math.max(0, Math.ceil((Date.parse(expiresAtIso) - Date.now()) / 86400000));
-  if (days <= 0) return "expiring today";
-  return days === 1 ? "1 day left" : `${days} days left`;
-}
-
-function isPackageFile(fileName: string): boolean {
-  return /\.songnook$/i.test(fileName);
-}
-
-/** "3 songs", "1 SongNook package", "3 songs · 1 SongNook package" — then the
- *  sender's intent, named: a running order, a chart book, a collection or a
- *  whole workspace arrives in SongNook as exactly that. */
-function songCount(t: TransferPayload): string {
-  const packages = t.items.filter((it) => isPackageFile(it.fileName)).length;
-  const songs = t.items.length - packages;
-  const parts: string[] = [];
-  if (songs > 0) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`);
-  // Songs beside a package are its plain copies: the package is how those
-  // same songs open in SongNook, not more to count.
-  if (packages > 0 && songs === 0) parts.push(`${packages} SongNook ${packages === 1 ? "package" : "packages"}`);
-  const described = describeKind(t.kind);
-  if (described) parts.push(described);
-  return parts.join(" · ");
-}
-
-/** The raw files: the audio itself. A package rides here only when it is all
- *  there is (a setlist, a chart book). */
-function tracklist(t: TransferPayload): string {
-  const audio = t.items.filter((it) => !isPackageFile(it.fileName));
-  return (audio.length > 0 ? audio : t.items)
-    .map(
-      (it) => `<li>
-        <span class="trk-name">${escapeHtml(displayName(it.fileName))}</span>
-        <span class="trk-size">${formatBytes(it.size)}</span>
-        <a class="trk-dl" href="${escapeHtml(it.downloadUrl)}">Download</a>
-      </li>`
-    )
-    .join("");
-}
-
-/** The CTA panel's inner content: a store button on mobile, a scannable
- *  QR code (pointed at this same URL) everywhere else. */
-function ctaBlock(cfg: Config, t: TransferPayload, plat: Platform, transferUrl: string): string {
-  if (plat.isMobile && (plat.isIOS || plat.isAndroid)) {
-    const androidStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(
-      cfg.androidPackage
-    )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
-    const storeUrl = plat.isAndroid ? androidStore : cfg.iosAppStoreUrl;
-    return `<a id="get" class="btn btn-block" href="${escapeHtml(storeUrl)}">Open in SongNook</a>
-  <p class="cta-fine">Install SongNook, then open this link again.</p>`;
-  }
-  const { d, modules } = qrSvgPath(transferUrl);
-  return `<div class="qr-cta">
-    <div class="qr-card"><svg class="qr" width="132" height="132" viewBox="0 0 ${modules} ${modules}" role="img" aria-label="QR code to open this parcel in SongNook">
-      <path d="${d}" fill="#1b1208"/>
-    </svg></div>
-    <p class="cta-fine">Scan with your phone to open in SongNook.</p>
-  </div>`;
-}
-
-export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platform): string {
-  if (t.sealed) return renderSealedRecipientPage(cfg, t, plat);
-  const senderName = t.sender.name || "Someone";
-  const title = t.title || "some music";
-  const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
-  const note = t.message ? `<p class="note rise d2">"${escapeHtml(t.message)}"</p>` : "";
-
-  // CTA first — most people arriving here just want the parcel. The pitch
-  // (what SongNook is + the living gallery) sits right under it for the
-  // curious, and the raw-files escape hatch is a quiet disclosure at the
-  // very bottom.
-  const body = `
-${GALLERY_SPRITE}
-<h1 class="rise d1">${escapeHtml(senderName)} sent you <em>${escapeHtml(title)}</em>.</h1>
-${note}
-
-<section class="panel rise d1">
-  <p class="meta-line"><b>${escapeHtml(title)}</b> <span>·</span>
-    <span>${songCount(t)}</span> <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
-  ${ctaBlock(cfg, t, plat, transferUrl)}
-</section>
-
-<section class="about rise d2">
-  <p class="eyebrow">What's SongNook?</p>
-  <p class="lede">${SONGNOOK_DESC}</p>
-  <p class="eyebrow">See it in the app · swipe →</p>
-</section>
-
-${GALLERY_HTML}
-
-<details class="grab rise d3">
-  <summary>Prefer the raw files? Take them directly.</summary>
-  <ul class="tracklist">${tracklist(t)}</ul>
-</details>`;
-
-
-  return page({
-    title: `${senderName} sent you music — SongNook Send`,
-    body,
-    bodyScript: GALLERY_SCRIPT,
-    extraStyle: GALLERY_CSS + FUNNEL_CSS,
-    noindex: true,
-    reportHref: `/report/${encodeURIComponent(t.transferId)}`,
-  });
 }
 
 export function detectPlatform(userAgent: string): Platform {
@@ -171,33 +43,251 @@ export function detectPlatform(userAgent: string): Platform {
   return { isMobile, isIOS, isAndroid };
 }
 
-// ── Sealed parcels (docs/product-plan/send-e2e-encryption.md) ────────────────
-// The server can't read a sealed parcel, so it sends the same page with its
-// words left blank; the visitor's browser takes the key from the link's #k=,
-// opens the envelope and fills them in. Files open in the browser the same
-// way when played or saved. Every name goes in as text, never as markup.
-
-const SEALED_CSS = `
-.grab .trk-dl{background:none;border:none;padding:0;font:inherit;color:var(--terra);cursor:pointer}
+const RECIPIENT_CSS = `
+.parcel .meta-line{margin-bottom:6px}
+.items{list-style:none;margin:6px 0 0;padding:0;border-top:1px solid var(--rule)}
+.items li{padding:11px 0;border-bottom:1px solid var(--rule);font-family:Lora,Georgia,serif;font-size:18px;
+  color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.items li.more{font-family:inherit;font-size:13.5px;color:var(--ink-faint)}
+.items:empty{display:none}
+.cta{margin-top:22px}
+.open-lead{color:var(--ink-soft);font-size:15.5px;line-height:1.55;margin:0 0 18px;max-width:46ch}
+.have{display:inline-flex;align-items:center;gap:6px;margin-top:16px;color:var(--terra);font-weight:600;font-size:14.5px;text-decoration:none}
+.have:hover{text-decoration:underline}
+[dir="rtl"] .have svg{transform:scaleX(-1)}
+.cta-fine{font-size:12.5px;color:var(--ink-faint);margin:12px 0 0}
+.soon{color:var(--ink-soft);font-size:15px;line-height:1.55;margin:0}
+.qr-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.qr-card{background:#fff;padding:12px;border-radius:10px;line-height:0;border:1px solid var(--rule)}
+.qr-cta .cta-fine{margin:0;max-width:24ch;font-size:14px;color:var(--ink-soft)}
+.qr-cta + .stores{margin-top:20px}
+.about{margin-top:clamp(52px,9vw,80px)}
+.about h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(27px,4.4vw,36px);line-height:1.12;margin:0 0 10px;text-wrap:balance}
+.about .sub{margin:0 0 30px}
+.see{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin:0 0 14px}
+:lang(he) .see{letter-spacing:.02em}
+.more-at{display:inline-block;margin-top:18px;font-size:14px;color:var(--terra);font-weight:600;text-decoration:none}
+.more-at:hover{text-decoration:underline}
+.grab{margin-top:40px;border-top:1px solid var(--rule);padding-top:18px}
+.grab summary{font-size:14px;color:var(--ink-soft);cursor:pointer;list-style:none}
+.grab summary::-webkit-details-marker{display:none}
+.grab summary:hover{color:var(--ink)}
+.grab .tracklist{margin-top:12px}
+.grab .trk-dl{background:none;border:none;padding:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--terra);cursor:pointer}
 .grab .trk-dl[disabled]{color:var(--ink-faint);cursor:default}
 `;
+
+const ARROW = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+
+/** "A War In Me.wav" reads as a song, not a file. The download keeps the real name. */
+const displayName = (fileName: string) => fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
+const isPackageFile = (fileName: string) => /\.songnook$/i.test(fileName);
+
+function expiresLabel(S: SendStrings, expiresAtIso: string): string {
+  const days = Math.max(0, Math.ceil((Date.parse(expiresAtIso) - Date.now()) / 86400000));
+  return days <= 0 ? S.expiresToday : plural(S.daysLeft, days);
+}
+
+const kindLabel = (S: SendStrings, kind: ShareKind) => (kind === "clips" ? null : S.kinds[kind]);
+
+/** "3 songs" or "1 SongNook package", then what the sender says it is. Songs beside a
+ *  package are its plain copies, so they aren't counted twice. */
+function countLine(S: SendStrings, names: string[], kind: ShareKind): string {
+  const packages = names.filter(isPackageFile).length;
+  const songs = names.length - packages;
+  const parts: string[] = [];
+  if (songs > 0) parts.push(plural(S.songs, songs));
+  if (packages > 0 && songs === 0) parts.push(plural(S.packages, packages));
+  const k = kindLabel(S, kind);
+  if (k) parts.push(k);
+  return parts.join(" · ");
+}
+
+/** The songs, by name, as the card's list: five, then "and 3 more". */
+function itemsList(S: SendStrings, names: string[]): string {
+  const audio = names.filter((n) => !isPackageFile(n));
+  const shown = (audio.length ? audio : names).map(displayName);
+  // People's names for things keep their own direction inside a Hebrew page (bdi).
+  const head = shown.slice(0, 5).map((n) => `<li><bdi>${escapeHtml(n)}</bdi></li>`).join("");
+  return head + (shown.length > 5 ? `<li class="more">${escapeHtml(fill(S.moreItems, { n: shown.length - 5 }))}</li>` : "");
+}
+
+/** "{sender} sent you {title}." with the names as spans the sealed script can fill. */
+function heroHtml(S: SendStrings, sender: string, title: string): string {
+  return S.sentYou
+    .split(/(\{sender\}|\{title\})/)
+    .map((part) =>
+      part === "{sender}"
+        ? `<span id="hero-sender" dir="auto">${escapeHtml(sender)}</span>`
+        : part === "{title}"
+          ? `<em id="hero-title" dir="auto">${escapeHtml(title)}</em>`
+          : escapeHtml(part)
+    )
+    .join("");
+}
+
+/**
+ * The way in. Phones get the store badge for their platform and the door into an
+ * installed app; a computer gets a QR code back to this link. `appPath` is the app's own
+ * route (`t/<id>`); a sealed link's key is added by the page script.
+ */
+function ctaBlock(cfg: Config, S: SendStrings, lang: Lang, t: TransferPayload, plat: Platform, transferUrl: string): string {
+  const appPath = `t/${encodeURIComponent(t.transferId)}`;
+  const playStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(cfg.androidPackage)}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
+  // Android: the intent opens SongNook when it's there, and the store when it isn't.
+  const androidIntent = (fallback: string) =>
+    `intent://${appPath}#Intent;scheme=songnook;package=${cfg.androidPackage};S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+  const have = (href: string) =>
+    `<a class="have" id="open-app" data-path="${escapeHtml(appPath)}" href="${escapeHtml(href)}">${escapeHtml(S.haveApp)} ${ARROW}</a>`;
+
+  if (plat.isIOS) {
+    return `<p class="open-lead">${escapeHtml(S.openLead)}</p>
+  ${storeBadges({ lang, appStoreUrl: cfg.iosAppStoreUrl, playHref: null })}
+  <p class="cta-fine">${escapeHtml(S.openAgain)}</p>
+  ${have(`songnook://${appPath}`)}`;
+  }
+  if (plat.isAndroid) {
+    if (cfg.playStoreUrl) {
+      return `<p class="open-lead">${escapeHtml(S.openLead)}</p>
+  <div class="stores"><a class="store" id="play-badge" data-path="${escapeHtml(appPath)}" href="${escapeHtml(androidIntent(playStore))}"><img src="/badges/google-play${lang === "en" ? "" : "-" + lang}.png" width="168" height="50" alt="${escapeHtml(STRINGS[lang].playAlt)}"></a></div>
+  <p class="cta-fine">${escapeHtml(S.openAgain)}</p>
+  ${have(androidIntent(playStore))}`;
+    }
+    // Not on Play yet: say so, and keep the door for the testers who have the app.
+    return `<p class="soon">${escapeHtml(S.androidSoon)}</p>
+  ${have(androidIntent(transferUrl + "#files"))}`;
+  }
+  const { d, modules } = qrSvgPath(transferUrl);
+  return `<p class="open-lead">${escapeHtml(S.openLead)}</p>
+  <div class="qr-cta">
+    <div class="qr-card" id="qr-slot"><svg class="qr" width="120" height="120" viewBox="0 0 ${modules} ${modules}" role="img" aria-label="${escapeHtml(S.qrLabel)}"><path d="${d}" fill="#1b1208"/></svg></div>
+    <p class="cta-fine">${escapeHtml(S.scan)}</p>
+  </div>
+  ${storeBadges({ lang, appStoreUrl: cfg.iosAppStoreUrl, playHref: cfg.playStoreUrl })}`;
+}
+
+/** The app's door carries a sealed link's key: songnook://t/<id>?key=…, and the same
+ *  inside an Android intent. */
+const KEY_DOOR_JS = `
+(function(){
+  var m = /(?:^|[#&])k=([A-Za-z0-9_-]{43})/.exec(location.hash || '');
+  if (!m) return;
+  ['open-app','play-badge'].forEach(function(id){
+    var a = document.getElementById(id); if (!a) return;
+    var path = a.getAttribute('data-path');
+    a.setAttribute('href', a.getAttribute('href').replace(path, path + '?key=' + m[1]));
+  });
+})();
+`;
+
+function aboutBlock(S: SendStrings, lang: Lang): string {
+  return `<section class="about">
+  <p class="eyebrow">${escapeHtml(S.aboutEyebrow)}</p>
+  <h2>${escapeHtml(S.aboutH2)}</h2>
+  <p class="sub">${escapeHtml(S.aboutSub)}</p>
+  <p class="see">${escapeHtml(S.seeIt)}</p>
+  ${galleryHtml(STRINGS[lang].cards)}
+  <a class="more-at" href="https://songnook.app/${lang}">${escapeHtml(S.moreAt)}</a>
+</section>`;
+}
+
+/** Everything every parcel page shares: language, direction, menu, footer. */
+function pageFor(lang: Lang, opts: { title: string; body: string; script: string; style: string; reportHref: string }) {
+  const S = SEND_STRINGS[lang];
+  return page({
+    title: opts.title,
+    body: opts.body,
+    bodyScript: SITE_PARTS_JS + opts.script,
+    extraStyle: SITE_PARTS_CSS + opts.style,
+    noindex: true,
+    lang,
+    dir: STRINGS[lang].dir,
+    mastRight: `<div class="mast-right">${langMenu(lang, (l) => `?lang=${l}`)}</div>`,
+    sendFoot: { hold: S.holdNote, tagline: S.tagline, report: S.report },
+    reportHref: opts.reportHref,
+  });
+}
+
+export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platform, lang: Lang = "en"): string {
+  if (t.sealed) return renderSealedRecipientPage(cfg, t, plat, lang);
+  const S = SEND_STRINGS[lang];
+  const sender = t.sender.name || S.someone;
+  const title = t.title || S.someMusic;
+  const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
+  const names = t.items.map((it) => it.fileName);
+  const noteHtml = t.message ? `<p class="note rise d2" dir="auto">“${escapeHtml(t.message)}”</p>` : "";
+  const android = plat.isAndroid && !cfg.playStoreUrl;
+
+  const body = `
+${GALLERY_SPRITE}
+<p class="eyebrow rise d1">${escapeHtml(S.sendTitle)}</p>
+<h1 class="rise d1">${heroHtml(S, sender, title)}</h1>
+${noteHtml}
+
+<section class="panel parcel rise d2">
+  <p class="meta-line"><b dir="auto">${escapeHtml(title)}</b> <span>·</span> <span>${escapeHtml(countLine(S, names, t.kind))}</span> <span>·</span> <span>${escapeHtml(expiresLabel(S, t.expiresAt))}</span></p>
+  <ul class="items">${itemsList(S, names)}</ul>
+  <div class="cta">${ctaBlock(cfg, S, lang, t, plat, transferUrl)}</div>
+</section>
+
+${aboutBlock(S, lang)}
+
+<details class="grab" id="files"${android ? " open" : ""}>
+  <summary>${escapeHtml(S.rawFiles)}</summary>
+  <ul class="tracklist">${(names.some((n) => !isPackageFile(n)) ? t.items.filter((it) => !isPackageFile(it.fileName)) : t.items)
+    .map(
+      (it) => `<li><span class="trk-name" dir="auto">${escapeHtml(displayName(it.fileName))}</span><span class="trk-size">${formatBytes(it.size)}</span><a class="trk-dl" href="${escapeHtml(it.downloadUrl)}">${escapeHtml(S.download)}</a></li>`
+    )
+    .join("")}</ul>
+</details>`;
+
+  return pageFor(lang, {
+    title: `${fill(S.sentYou, { sender, title }).replace(/\.$/, "")} · ${S.sendTitle}`,
+    body,
+    script: GALLERY_SCRIPT + KEY_DOOR_JS,
+    style: GALLERY_CSS + RECIPIENT_CSS,
+    reportHref: `/report/${encodeURIComponent(t.transferId)}`,
+  });
+}
+
+/** The page for a link that has run out or been taken back. */
+export function renderGonePage(lang: Lang = "en"): string {
+  const S = SEND_STRINGS[lang];
+  return page({
+    title: `${S.goneHead} · ${S.sendTitle}`,
+    body: `<p class="eyebrow">${escapeHtml(S.sendTitle)}</p><h1>${escapeHtml(S.goneHead)}</h1><p class="sub">${escapeHtml(S.goneSub)}</p>`,
+    noindex: true,
+    lang,
+    dir: STRINGS[lang].dir,
+    extraStyle: SITE_PARTS_CSS,
+    bodyScript: SITE_PARTS_JS,
+    mastRight: `<div class="mast-right">${langMenu(lang, (l) => `?lang=${l}`)}</div>`,
+    sendFoot: { hold: S.holdNote, tagline: S.tagline, report: S.report },
+  });
+}
+
+// ── Sealed parcels (docs/product-plan/send-e2e-encryption.md) ────────────────
+// The server can't read a sealed parcel, so it sends the same page with its words
+// left blank; the visitor's browser takes the key from the link's #k=, opens the
+// envelope and fills them in. Every name goes in as text, never as markup.
 
 /** Runs after SEAL_JS. Reads #parcel-data, opens the envelope, fills the page. */
 const SEALED_JS = `
 (function(){
   var Seal = window.SongNookSeal;
   var $ = function(id){ return document.getElementById(id); };
-  var data = JSON.parse($('parcel-data').textContent);
+  var data = JSON.parse($('parcel-data').textContent), T = data.t;
   function bytes(n){ if(!(n>0)) return '0 B'; var u=['B','KB','MB','GB'], i=Math.min(3,Math.floor(Math.log(n)/Math.log(1024)));
     return (n/Math.pow(1024,i)).toFixed(i===0?0:1)+' '+u[i]; }
-  function stem(name){ return String(name).replace(/\.[a-z0-9]{1,8}$/i,'') || name; }
-  function isPackage(name){ return /\.songnook$/i.test(name); }
+  function stem(name){ return String(name).replace(/\\.[a-z0-9]{1,8}$/i,'') || name; }
+  function isPackage(name){ return /\\.songnook$/i.test(name); }
+  function plural(p, n){ return (n === 1 ? p.one : p.other).replace('{n}', n); }
   function fail(head, sub){
     $('hero').textContent = head; $('hero-sub').textContent = sub; $('hero-sub').hidden = false;
-    $('parcel-panel').hidden = true; $('grab').hidden = true; $('note').hidden = true;
+    $('parcel-panel').hidden = true; $('files').hidden = true; $('note').hidden = true;
   }
   var key = Seal.keyFromHash(location.hash);
-  if (!key) return fail('This link is missing its key.', 'Ask the sender for the full link, including everything after the #.');
+  if (!key) return fail(T.noKeyHead, T.noKeySub);
 
   var slot = $('qr-slot');
   if (slot && window.qrcode){
@@ -205,106 +295,99 @@ const SEALED_JS = `
     var n = q.getModuleCount(), quiet = 2, d = '';
     for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M'+(c+quiet)+' '+(r+quiet)+'h1v1h-1z';
     var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
-    svg.setAttribute('width','132'); svg.setAttribute('height','132'); svg.setAttribute('viewBox','0 0 '+(n+quiet*2)+' '+(n+quiet*2));
-    svg.setAttribute('role','img'); svg.setAttribute('aria-label','QR code to open this parcel in SongNook');
-    path.setAttribute('d', d); path.setAttribute('fill', '#1b1208'); svg.appendChild(path); slot.appendChild(svg);
+    svg.setAttribute('width','120'); svg.setAttribute('height','120'); svg.setAttribute('viewBox','0 0 '+(n+quiet*2)+' '+(n+quiet*2));
+    svg.setAttribute('role','img'); svg.setAttribute('aria-label', T.qrLabel);
+    path.setAttribute('d', d); path.setAttribute('fill', '#1b1208'); svg.appendChild(path); slot.innerHTML = ''; slot.appendChild(svg);
   }
 
   Seal.openJson(key, data.sealedMeta).then(function(env){
     var items = (env.items || []).map(function(meta, i){ return { meta: meta, file: data.items[i] }; })
       .filter(function(it){ return it.file; });
-    var sender = env.senderName || 'Someone', title = env.title || 'some music';
+    var sender = env.senderName || T.someone, title = env.title || T.someMusic;
     $('hero-sender').textContent = sender; $('hero-title').textContent = title;
-    document.title = sender + ' sent you music — SongNook Send';
-    if (env.message){ $('note').textContent = '"' + env.message + '"'; $('note').hidden = false; }
+    document.title = T.sentYou.replace('{sender}', sender).replace('{title}', title).replace(/\\.$/, '') + ' · ' + T.sendTitle;
+    if (env.message){ $('note').textContent = '“' + env.message + '”'; $('note').hidden = false; }
     $('meta-title').textContent = title;
-    var packages = items.filter(function(it){ return isPackage(it.meta.name); }).length, songs = items.length - packages;
-    var count = [];
-    if (songs > 0) count.push(songs + (songs === 1 ? ' song' : ' songs'));
-    if (packages > 0 && songs === 0) count.push(packages + (packages === 1 ? ' SongNook package' : ' SongNook packages'));
+    var names = items.map(function(it){ return it.meta.name; });
+    var packages = names.filter(isPackage).length, songs = names.length - packages, count = [];
+    if (songs > 0) count.push(plural(T.songs, songs));
+    if (packages > 0 && songs === 0) count.push(plural(T.packages, packages));
     if (data.kindLabel) count.push(data.kindLabel);
     $('meta-count').textContent = count.join(' · ');
 
-    var audio = items.filter(function(it){ return !isPackage(it.meta.name); });
-    var list = $('tracklist');
-    (audio.length ? audio : items).forEach(function(it){
+    var audio = items.filter(function(it){ return !isPackage(it.meta.name); }), shown = audio.length ? audio : items;
+    var list = $('items');
+    shown.slice(0, 5).forEach(function(it){ var li = document.createElement('li'), b = document.createElement('bdi'); b.textContent = stem(it.meta.name); li.appendChild(b); list.appendChild(li); });
+    if (shown.length > 5){ var more = document.createElement('li'); more.className = 'more'; more.textContent = T.moreItems.replace('{n}', shown.length - 5); list.appendChild(more); }
+
+    var tl = $('tracklist');
+    shown.forEach(function(it){
       var li = document.createElement('li');
-      var name = document.createElement('span'); name.className = 'trk-name'; name.textContent = stem(it.meta.name);
+      var name = document.createElement('span'); name.className = 'trk-name'; name.dir = 'auto'; name.textContent = stem(it.meta.name);
       var size = document.createElement('span'); size.className = 'trk-size'; size.textContent = bytes(it.meta.size);
-      var dl = document.createElement('button'); dl.type = 'button'; dl.className = 'trk-dl'; dl.textContent = 'Download';
+      var dl = document.createElement('button'); dl.type = 'button'; dl.className = 'trk-dl'; dl.textContent = T.download;
       dl.addEventListener('click', function(){
-        dl.disabled = true; dl.textContent = 'Opening…';
+        dl.disabled = true; dl.textContent = T.opening;
         fetch(it.file.downloadUrl).then(function(res){ if (!res.ok) throw new Error(res.status); return res.blob(); })
           .then(function(blob){ return Seal.openBlob(key, blob, it.meta.mime); })
           .then(function(plain){
             var url = URL.createObjectURL(plain), a = document.createElement('a');
             a.href = url; a.download = it.meta.name || 'song'; document.body.appendChild(a); a.click(); a.remove();
             setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
-            dl.disabled = false; dl.textContent = 'Download';
+            dl.disabled = false; dl.textContent = T.download;
           })
-          .catch(function(){ dl.disabled = false; dl.textContent = 'Try again'; });
+          .catch(function(){ dl.disabled = false; dl.textContent = T.tryAgain; });
       });
-      li.appendChild(name); li.appendChild(size); li.appendChild(dl); list.appendChild(li);
+      li.appendChild(name); li.appendChild(size); li.appendChild(dl); tl.appendChild(li);
     });
-  }).catch(function(){
-    fail('This link’s key doesn’t fit.', 'Ask the sender for the full link again.');
-  });
+  }).catch(function(){ fail(T.badKeyHead, T.badKeySub); });
 })();
 `;
 
-function renderSealedRecipientPage(cfg: Config, t: TransferPayload, plat: Platform): string {
-  const mobile = plat.isMobile && (plat.isIOS || plat.isAndroid);
-  const androidStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(
-    cfg.androidPackage
-  )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
-  const cta = mobile
-    ? `<a id="get" class="btn btn-block" href="${escapeHtml(plat.isAndroid ? androidStore : cfg.iosAppStoreUrl)}">Open in SongNook</a>
-  <p class="cta-fine">Install SongNook, then open this link again.</p>`
-    : `<div class="qr-cta">
-    <div class="qr-card" id="qr-slot"></div>
-    <p class="cta-fine">Scan with your phone to open in SongNook.</p>
-  </div>`;
+function renderSealedRecipientPage(cfg: Config, t: TransferPayload, plat: Platform, lang: Lang): string {
+  const S = SEND_STRINGS[lang];
+  const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
+  const android = plat.isAndroid && !cfg.playStoreUrl;
+  const mobile = plat.isIOS || plat.isAndroid;
   // What the browser needs to open the parcel; `<` escaped so no name can end the script.
   const parcelData = JSON.stringify({
     sealedMeta: t.sealedMeta,
-    kindLabel: describeKind(t.kind),
+    kindLabel: kindLabel(S, t.kind),
     items: t.items.map((it) => ({ downloadUrl: it.downloadUrl })),
+    t: {
+      sentYou: S.sentYou, someone: S.someone, someMusic: S.someMusic, sendTitle: S.sendTitle, songs: S.songs,
+      packages: S.packages, moreItems: S.moreItems, download: S.download, opening: S.opening, tryAgain: S.tryAgain,
+      noKeyHead: S.noKeyHead, noKeySub: S.noKeySub, badKeyHead: S.badKeyHead, badKeySub: S.badKeySub, qrLabel: S.qrLabel,
+    },
   }).replace(/</g, "\\u003c");
 
   const body = `
 ${GALLERY_SPRITE}
-<h1 class="rise d1" id="hero"><span id="hero-sender">Someone</span> sent you <em id="hero-title">some music</em>.</h1>
+<p class="eyebrow rise d1">${escapeHtml(S.sendTitle)}</p>
+<h1 class="rise d1" id="hero">${heroHtml(S, S.someone, S.someMusic)}</h1>
 <p class="sub" id="hero-sub" hidden></p>
-<p class="note rise d2" id="note" hidden></p>
+<p class="note rise d2" id="note" dir="auto" hidden></p>
 
-<section class="panel rise d1" id="parcel-panel">
-  <p class="meta-line"><b id="meta-title">Opening…</b> <span>·</span>
-    <span id="meta-count"></span> <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
-  ${cta}
+<section class="panel parcel rise d2" id="parcel-panel">
+  <p class="meta-line"><b id="meta-title" dir="auto">${escapeHtml(S.opening)}</b> <span>·</span> <span id="meta-count"></span> <span>·</span> <span>${escapeHtml(expiresLabel(S, t.expiresAt))}</span></p>
+  <ul class="items" id="items"></ul>
+  <div class="cta">${ctaBlock(cfg, S, lang, t, plat, transferUrl)}</div>
 </section>
 
-<section class="about rise d2">
-  <p class="eyebrow">What's SongNook?</p>
-  <p class="lede">${SONGNOOK_DESC}</p>
-  <p class="eyebrow">See it in the app · swipe →</p>
-</section>
+${aboutBlock(S, lang)}
 
-${GALLERY_HTML}
-
-<details class="grab rise d3" id="grab">
-  <summary>Prefer the raw files? Take them directly.</summary>
+<details class="grab" id="files"${android ? " open" : ""}>
+  <summary>${escapeHtml(S.rawFiles)}</summary>
   <ul class="tracklist" id="tracklist"></ul>
 </details>
 <script type="application/json" id="parcel-data">${parcelData}</script>
 ${mobile ? "" : `<script src="/vendor/qrcode-generator.js"></script>`}`;
 
-  return page({
-    title: "Music for you — SongNook Send",
+  return pageFor(lang, {
+    title: S.sendTitle,
     body,
-    bodyScript: SEAL_JS + GALLERY_SCRIPT + SEALED_JS,
-    extraStyle: GALLERY_CSS + FUNNEL_CSS + SEALED_CSS,
-    noindex: true,
+    script: SEAL_JS + GALLERY_SCRIPT + KEY_DOOR_JS + SEALED_JS,
+    style: GALLERY_CSS + RECIPIENT_CSS,
     reportHref: `/report/${encodeURIComponent(t.transferId)}`,
   });
 }
-

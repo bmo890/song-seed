@@ -125,12 +125,14 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
 .eyebrow{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--terra);
   font-weight:700;margin:0 0 18px;display:flex;align-items:center;gap:14px}
 .eyebrow::after{content:"";height:1px;flex:1;background:var(--rule)}
+/* wide tracking breaks Hebrew letterforms */
+:lang(he) .eyebrow,:lang(he) .meta-line,:lang(he) .field label,:lang(he) .masthead .tag{letter-spacing:.02em}
 h1{font-family:Lora,Georgia,serif;font-weight:500;letter-spacing:-0.01em;
   font-size:clamp(38px,7.5vw,58px);line-height:1.04;margin:0 0 18px;text-wrap:balance}
 h1 em{font-style:italic;color:var(--terra)}
 .sub{color:var(--ink-soft);font-size:16.5px;margin:0 0 34px;max-width:46ch}
-.note{font-family:Lora,Georgia,serif;font-style:italic;font-size:20px;color:var(--ink-soft);
-  border-left:2px solid var(--terra);padding:2px 0 2px 18px;margin:0 0 34px}
+.note{font-family:Lora,Georgia,serif;font-style:italic;font-size:20px;line-height:1.5;color:var(--ink-soft);margin:0 0 30px;max-width:40ch}
+:lang(he) .note{font-style:normal}
 
 /* ── waveform signature ── */
 .wave{display:flex;align-items:center;gap:3px;height:44px;margin:0 0 34px}
@@ -140,13 +142,10 @@ h1 em{font-style:italic;color:var(--terra)}
 @keyframes sway{from{transform:scaleY(.55)}to{transform:scaleY(1.06)}}
 @media (prefers-reduced-motion:reduce){.wave i{animation:none}}
 
-/* ── panel ── */
-.panel{background:var(--card);border:1px solid var(--rule);border-radius:4px;
-  padding:clamp(22px,4.5vw,34px);position:relative}
+/* ── panel: the site's card (songnook.app plans), one border, 12 radius ── */
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  padding:clamp(22px,4.5vw,32px);position:relative}
 .panel + .panel{margin-top:18px}
-.panel::before{content:"";position:absolute;inset:6px;border:1px solid var(--rule);
-  border-radius:2px;pointer-events:none;opacity:.55}
-.panel > *{position:relative}
 
 /* ── tracklist ── */
 .tracklist{list-style:none;margin:0;padding:0;counter-reset:trk}
@@ -166,13 +165,12 @@ h1 em{font-style:italic;color:var(--terra)}
 
 /* ── buttons ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;
-  background:var(--terra);color:var(--terra-ink);border:1px solid var(--terra-deep);
-  border-radius:3px;padding:15px 26px;font:inherit;font-size:14px;font-weight:700;
-  letter-spacing:.14em;text-transform:uppercase;cursor:pointer;text-decoration:none;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 1px 0 var(--terra-deep);
-  transition:transform .12s ease, box-shadow .12s ease}
-.btn:hover{transform:translateY(-1px)}
-.btn:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
+  background:var(--terra);color:var(--terra-ink);border:0;
+  border-radius:10px;padding:14px 24px;font:inherit;font-size:15px;font-weight:600;
+  cursor:pointer;text-decoration:none;transition:background .15s ease, transform .12s ease}
+.btn:hover{background:var(--terra-deep)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--terra);outline-offset:3px}
 .btn:disabled{opacity:.45;cursor:default;transform:none}
 .btn-quiet{background:transparent;color:var(--ink);border:1px solid var(--rule);box-shadow:none}
 .btn-quiet:hover{border-color:var(--ink-soft)}
@@ -189,7 +187,7 @@ h1 em{font-style:italic;color:var(--terra)}
 .field ::placeholder{color:var(--ink-faint);font-style:italic;font-family:Lora,Georgia,serif}
 
 /* ── dropzone ── */
-.drop{border:1.5px dashed var(--rule);border-radius:4px;background:var(--paper-deep);
+.drop{border:1.5px dashed var(--rule);border-radius:12px;background:var(--paper-deep);
   padding:clamp(30px,6vw,48px) 20px;text-align:center;cursor:pointer;
   transition:border-color .15s, background .15s}
 .drop:hover,.drop.over{border-color:var(--terra);background:var(--card)}
@@ -198,14 +196,13 @@ h1 em{font-style:italic;color:var(--terra)}
 
 /* ── link output ── */
 .linkbox{display:flex;align-items:center;gap:12px;border:1px solid var(--rule);
-  border-radius:3px;background:var(--paper-deep);padding:13px 16px;margin-top:14px}
+  border-radius:10px;background:var(--paper-deep);padding:13px 16px;margin-top:14px}
 .linkbox code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
   word-break:break-all;flex:1;color:var(--ink)}
 .copybtn{background:none;border:none;color:var(--terra);font:inherit;font-size:12px;
   font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
 
-.notice{border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:3px;
-  background:var(--card);padding:13px 16px;font-size:14px;color:var(--ink-soft);margin-top:16px}
+.notice{font-size:14.5px;color:var(--ink);margin-top:18px}
 
 .progress{height:3px;background:var(--paper-deep);border-radius:99px;overflow:hidden;margin-top:20px}
 .progress > i{display:block;height:100%;width:0;background:var(--terra);transition:width .25s ease}
@@ -255,9 +252,16 @@ export function page(opts: {
   mastRight?: string;
   /** The site footer's link words in the page's language. */
   footLabels?: { support: string; privacy: string; terms: string };
+  /** Send's footer words in the page's language. */
+  sendFoot?: { hold: string; tagline: string; report: string };
 }): string {
   const site = opts.variant === "site";
   const foot = opts.footLabels ?? { support: "Support", privacy: "Privacy", terms: "Terms" };
+  const send = opts.sendFoot ?? {
+    hold: "Files are held for a limited time, then quietly let go.",
+    tagline: "SongNook — a quiet corner for songwriting and practice",
+    report: "Report",
+  };
   return `<!doctype html>
 <html lang="${escapeHtml(opts.lang ?? "en")}" dir="${opts.dir ?? "ltr"}">
 <head>
@@ -277,13 +281,13 @@ ${opts.head ?? ""}
 <div class="wrap${opts.wide ? " wide" : ""}">
 <header class="masthead rise">
   <a class="brand" href="/">Song<b>Nook</b>${site ? "" : " · Send"}</a>
-  ${site ? opts.mastRight ?? '<a class="tag tag-link" href="/#get">Get the app</a>' : '<span class="tag">Music, passed along</span>'}
+  ${opts.mastRight ?? (site ? '<a class="tag tag-link" href="/#get">Get the app</a>' : '')}
 </header>
 ${opts.body}
 <footer class="foot">
-  <span>${site ? `<a href="/support">${escapeHtml(foot.support)}</a> · <a href="/privacy">${escapeHtml(foot.privacy)}</a> · <a href="/terms">${escapeHtml(foot.terms)}</a>` : "Files are held for a limited time, then quietly let go."}</span>
-  <span>${site ? "© 2026 bmostudio" : "SongNook — a quiet corner for songwriting and practice"}${
-    opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
+  <span>${site ? `<a href="/support">${escapeHtml(foot.support)}</a> · <a href="/privacy">${escapeHtml(foot.privacy)}</a> · <a href="/terms">${escapeHtml(foot.terms)}</a>` : escapeHtml(send.hold)}</span>
+  <span>${site ? "© 2026 bmostudio" : `<a href="https://songnook.app/">${escapeHtml(send.tagline)}</a>`}${
+    opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">${escapeHtml(send.report)}</a>` : ""
   }</span>
 </footer>
 </div>

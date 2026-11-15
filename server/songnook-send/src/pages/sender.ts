@@ -1,136 +1,151 @@
 /**
- * Desktop web sender page. Drop files OR a folder → arrange the running order →
- * create → per-file presigned PUT (in that order; the server keeps `sort_order`,
- * the app imports in it) → finalize → share link. Client JS holds NO secrets:
- * it only calls the public API and PUTs to the short-lived presigned URLs the
- * API returns.
+ * Sending from a computer (send.songnook.app). Drop files OR a folder → arrange the
+ * running order → create → per-file presigned PUT (in that order; the server keeps
+ * `sort_order`, the app imports in it) → finalize → share link. Client JS holds NO
+ * secrets: it only calls the public API and PUTs to the short-lived presigned URLs the
+ * API returns. In the look and voice of songnook.app, in the reader's language.
  */
-import { page, waveformStrip } from "./shell";
+import { escapeHtml, page } from "./shell";
 import { SEAL_JS } from "./sealJs";
-import { FREE_LINKS } from "../lib/access";
 import { SEND_AUDIO_EXTENSIONS } from "../../../../src/domain/sendFormats.ts";
+import { STRINGS, type Lang } from "./landingI18n";
+import { SEND_STRINGS } from "./sendI18n";
+import { SITE_PARTS_CSS, SITE_PARTS_JS, langMenu } from "./siteParts";
 
 const SENDER_CSS = `
 /* The brand classes set display:flex/inline-flex, which beats the UA's [hidden]. */
 .btn[hidden],.list-tools[hidden]{display:none}
-.drop .alt{display:block;margin-top:10px;font-size:12.5px;color:var(--ink-faint)}
-.drop .alt button{background:none;border:none;padding:0;color:var(--terra);font:inherit;cursor:pointer;
-  border-bottom:1px solid transparent}
-.drop .alt button:hover{border-bottom-color:var(--terra)}
-.list-tools{display:flex;align-items:center;justify-content:space-between;margin-top:14px;
-  font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
-.list-tools button{background:none;border:none;color:var(--terra);font:inherit;cursor:pointer;
-  letter-spacing:.14em;padding:0}
+.panel{margin-top:30px}
+.panel h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:24px;margin:0 0 8px}
+.drop strong{font-size:24px}
+.drop .alt{display:block;margin-top:10px;font-size:13px;color:var(--ink-faint)}
+.drop .alt button{background:none;border:none;padding:0;color:var(--terra);font:inherit;font-weight:600;cursor:pointer}
+.drop .alt button:hover{text-decoration:underline}
+.list-tools{display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:13px;color:var(--ink-faint)}
+.list-tools button{background:none;border:none;color:var(--terra);font:inherit;font-weight:600;cursor:pointer;padding:0}
 .list-tools button:hover{text-decoration:underline}
 .tracklist li.draggable{cursor:grab;user-select:none}
 .tracklist li.dragging{opacity:.35}
 .tracklist li.drop-before{box-shadow:0 -2px 0 var(--terra)}
 .tracklist li.drop-after{box-shadow:0 2px 0 var(--terra)}
+.trk-name{font-family:Lora,Georgia,serif;font-weight:500;font-size:16.5px}
 .trk-grip{color:var(--ink-faint);font-size:16px;letter-spacing:-2px;padding:0 2px;cursor:grab}
 .trk-move{display:inline-flex;flex-direction:column;gap:0}
-.trk-move button{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:10px;
-  line-height:1;padding:2px 5px}
+.trk-move button{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:10px;line-height:1;padding:2px 5px}
 .trk-move button:hover{color:var(--terra)}
 .trk-move button:disabled{opacity:.3;cursor:default}
 .trk-prog{font-size:12.5px;color:var(--terra);font-variant-numeric:tabular-nums;white-space:nowrap}
-.kind-row{margin-top:22px}
-.kind-row .kind-label{display:block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--ink-faint);margin-bottom:8px;font-weight:700}
-.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
-.seg-btn{background:transparent;border:none;color:var(--ink-soft);font:inherit;font-size:13.5px;
-  padding:8px 16px;cursor:pointer;border-right:1px solid var(--rule)}
-.seg-btn:last-child{border-right:none}
-.seg-btn.on{background:var(--card);color:var(--ink);font-weight:600}
-.seg-btn:hover{color:var(--ink)}
-.kind-hint{display:block;margin-top:8px;font-size:12.5px;color:var(--ink-faint)}
-.inline-notice{margin-top:14px;font-size:13.5px;color:var(--terra-deep)}
+.kind-row{margin-top:26px}
+.kind-label{display:block;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;font-weight:700}
+:lang(he) .kind-label{letter-spacing:.02em}
+/* single choice as ink tabs, as on songnook.app's plans */
+.kind-tabs{display:flex;gap:22px;border-bottom:1px solid var(--rule)}
+.kind-tab{background:none;border:0;padding:0 0 10px;font:inherit;font-size:14.5px;font-weight:600;color:var(--ink-faint);cursor:pointer;position:relative}
+.kind-tab:hover{color:var(--ink-soft)}
+.kind-tab:focus-visible{outline:2px solid var(--terra);outline-offset:3px;border-radius:2px}
+.kind-tab[aria-checked="true"]{color:var(--ink)}
+.kind-tab[aria-checked="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ink)}
+.kind-hint{display:block;margin-top:10px;font-size:13.5px;color:var(--ink-soft)}
+.fields{margin-top:26px}
+.inline-notice{margin-top:14px;font-size:14px;color:var(--terra-deep)}
 .inline-notice[hidden]{display:none}
 .panel[hidden]{display:none}
 .pair-code{font-size:clamp(34px,8vw,46px);font-weight:600;letter-spacing:.18em;font-variant-numeric:tabular-nums;
-  margin:18px 0 6px;color:var(--ink)}
-.pair-steps{color:var(--ink-soft);font-size:15px;line-height:1.55;margin:8px 0 0}
-.pair-status{display:block;margin-top:10px;font-size:13.5px;color:var(--ink-faint)}
-.pair-again{background:none;border:none;padding:0;margin-top:10px;color:var(--terra);font:inherit;font-size:13.5px;cursor:pointer}
+  margin:20px 0 6px;color:var(--ink);direction:ltr;text-align:start}
+.pair-steps{color:var(--ink-soft);font-size:15.5px;line-height:1.6;margin:0;max-width:52ch}
+.pair-status{display:block;margin-top:8px;font-size:14px;color:var(--ink-faint)}
+.pair-again{background:none;border:none;padding:0;margin-top:10px;color:var(--terra);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .pair-again[hidden]{display:none}
-.session-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 16px;
-  font-size:12.5px;color:var(--ink-faint)}
-.session-line button{background:none;border:none;padding:0;color:var(--terra);font:inherit;cursor:pointer}
+.session-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 16px;font-size:13px;color:var(--ink-faint)}
+.session-line button{background:none;border:none;padding:0;color:var(--terra);font:inherit;font-weight:600;cursor:pointer}
+#send{margin-top:26px}
 `;
 
 /** `seal`: seal each file in this browser before it leaves (docs/product-plan/
  *  send-e2e-encryption.md). Off until the app build that opens sealed parcels
  *  is the one people have (SEAL_WEB_SENDS). */
-export function renderSenderPage(options: { seal: boolean } = { seal: false }): string {
+export function renderSenderPage(options: { seal: boolean; lang?: Lang } = { seal: false }): string {
+  const lang = options.lang ?? "en";
+  const S = SEND_STRINGS[lang];
+  const e = escapeHtml;
   const body = `
-<p class="eyebrow rise d1">Send a parcel of sound</p>
-<h1 class="rise d1">Pass a song along, <em>beautifully</em>.</h1>
-<p class="sub rise d2">Drop in a folder of bounces, a few sketches, or a SongNook file. Put them in
-the order you want heard. You'll get one clean, private link — no account, nothing to install
-on the other end.${options.seal ? ` It's sealed in this browser before it leaves: only people with the link can
-open it, not even SongNook.` : ""}</p>
-<div class="rise d2">${waveformStrip()}</div>
+<p class="eyebrow rise d1">${e(S.sendTitle)}</p>
+<h1 class="rise d1">${e(S.senderH1)}</h1>
+<p class="sub rise d2">${e(S.senderSub)}${options.seal ? " " + e(S.senderSealed) : ""}</p>
 
 <section id="pair-panel" class="panel rise d3" aria-live="polite">
-  <strong>Pair this browser</strong>
-  <p class="pair-steps">Sending from a computer works through your SongNook app. On your phone, open
-  SongNook, then Settings, Data &amp; storage, Send from a computer, and type this code.</p>
+  <h2>${e(S.pairTitle)}</h2>
+  <p class="pair-steps">${e(S.pairSteps)}</p>
   <div id="pair-code" class="pair-code">··· ···</div>
-  <span id="pair-status" class="pair-status">One moment…</span>
-  <button type="button" id="pair-again" class="pair-again" hidden>New code</button>
+  <span id="pair-status" class="pair-status">${e(S.oneMoment)}</span>
+  <button type="button" id="pair-again" class="pair-again" hidden>${e(S.newCode)}</button>
 </section>
 
 <section id="send-panel" class="panel rise d3" hidden>
   <p class="session-line"><span id="session-text"></span>
-    <button type="button" id="unpair">Unpair this browser</button></p>
-  <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose files or a folder to send">
-    <strong>Drop your music here</strong>
-    <span>files or a whole folder — audio &amp; SongNook files, up to 1 GB</span>
-    <span class="alt">or <button type="button" id="pick-files">choose files</button> ·
-      <button type="button" id="pick-folder">choose a folder</button></span>
+    <button type="button" id="unpair">${e(S.unpair)}</button></p>
+  <div id="drop" class="drop" role="button" tabindex="0" aria-label="${e(S.dropLabel)}">
+    <strong>${e(S.dropHere)}</strong>
+    <span>${e(S.dropHint)}</span>
+    <span class="alt">${e(S.orChoose)} <button type="button" id="pick-files">${e(S.chooseFiles)}</button> ·
+      <button type="button" id="pick-folder">${e(S.chooseFolder)}</button></span>
     <input id="picker" type="file" multiple hidden accept=".songnook,${SEND_AUDIO_EXTENSIONS.map((ext) => "." + ext).join(",")}">
     <input id="folder-picker" type="file" webkitdirectory hidden>
   </div>
   <div id="list-tools" class="list-tools" hidden>
     <span id="list-count"></span>
-    <span><button type="button" id="sort-az">Sort A→Z</button> · <button type="button" id="clear-all">Clear</button></span>
+    <span><button type="button" id="sort-az">${e(S.sortAz)}</button> · <button type="button" id="clear-all">${e(S.clear)}</button></span>
   </div>
   <ul id="items" class="tracklist" style="margin-top:4px"></ul>
   <p id="notice" class="inline-notice" hidden></p>
 
   <div class="kind-row">
-    <span class="kind-label">What is this?</span>
-    <div class="seg" role="radiogroup" aria-label="What this parcel is">
-      <button type="button" class="seg-btn on" data-kind="clips" role="radio" aria-checked="true">Files</button>
-      <button type="button" class="seg-btn" data-kind="playlist" role="radio" aria-checked="false">Playlist</button>
-      <button type="button" class="seg-btn" data-kind="setlist" role="radio" aria-checked="false">Setlist</button>
+    <span class="kind-label">${e(S.whatIsThis)}</span>
+    <div class="kind-tabs" role="radiogroup" aria-label="${e(S.whatIsThis)}">
+      <button type="button" class="kind-tab" data-kind="clips" role="radio" aria-checked="true">${e(S.kindFiles)}</button>
+      <button type="button" class="kind-tab" data-kind="playlist" role="radio" aria-checked="false">${e(S.kindPlaylist)}</button>
+      <button type="button" class="kind-tab" data-kind="setlist" role="radio" aria-checked="false">${e(S.kindSetlist)}</button>
     </div>
-    <span class="kind-hint" id="kind-hint">Loose files — the receiver keeps them as they are.</span>
+    <span class="kind-hint" id="kind-hint">${e(S.hintFiles)}</span>
   </div>
 
-  <div style="margin-top:22px">
-    <div class="field"><label for="sender">From</label>
-      <input id="sender" placeholder="Name" maxlength="80"></div>
-    <div class="field"><label for="title">Title</label>
-      <input id="title" placeholder="ex: Spring Show stems" maxlength="200"></div>
-    <div class="field"><label for="message">A note, if you like</label>
-      <textarea id="message" rows="2" maxlength="1000" placeholder="ex: Learn track two first…"></textarea></div>
+  <div class="fields">
+    <div class="field"><label for="sender">${e(S.from)}</label>
+      <input id="sender" placeholder="${e(S.fromPlaceholder)}" maxlength="80"></div>
+    <div class="field"><label for="title">${e(S.titleLabel)}</label>
+      <input id="title" placeholder="${e(S.titlePlaceholder)}" maxlength="200"></div>
+    <div class="field"><label for="message">${e(S.noteLabel)}</label>
+      <textarea id="message" rows="2" maxlength="1000" placeholder="${e(S.notePlaceholder)}"></textarea></div>
   </div>
 
-  <button id="send" class="btn btn-block" disabled>Seal &amp; get the link</button>
+  <button id="send" class="btn btn-block" disabled>${e(S.getLink)}</button>
   <div id="progress" class="progress" hidden><i></i></div>
   <div id="result" hidden>
-    <div class="notice">Sealed. Your link is ready — it quietly expires in 7 days.</div>
+    <p class="notice">${e(S.ready)}</p>
     <div class="linkbox"><code id="url"></code>
-      <button id="copy" class="copybtn">Copy</button></div>
+      <button id="copy" class="copybtn">${e(S.copy)}</button></div>
   </div>
 </section>`;
 
+  // The words the script says, in this page's language.
+  const T = JSON.stringify({
+    waiting: S.waiting, oneMoment: S.oneMoment, codeRanOut: S.codeRanOut, tooManyCodes: S.tooManyCodes, noCode: S.noCode,
+    paired: S.paired, freeLeft: S.freeLeft, fileCount: S.fileCount, inThisOrder: S.inThisOrder,
+    hints: { clips: S.hintFiles, playlist: S.hintPlaylist, setlist: S.hintSetlist },
+    moveUp: S.moveUp, moveDown: S.moveDown, remove: S.remove, packageAlone: S.packageAlone, onlyAudio: S.onlyAudio,
+    freeUsed: S.freeUsed, failed: S.failed, getLink: S.getLink, sealing: S.sealing, copied: S.copied,
+  }).replace(/</g, "\\u003c");
+
   return page({
-    title: "SongNook Send — pass a song along",
+    title: `${S.senderH1} · ${S.sendTitle}`,
     body,
-    bodyScript: SEAL_JS + `var SEAL_SENDS = ${options.seal ? "true" : "false"};` + SENDER_JS,
-    extraStyle: SENDER_CSS,
+    bodyScript: SITE_PARTS_JS + SEAL_JS + `var SEAL_SENDS = ${options.seal ? "true" : "false"}; var T = ${T};` + SENDER_JS,
+    extraStyle: SITE_PARTS_CSS + SENDER_CSS,
     noindex: true,
+    lang,
+    dir: STRINGS[lang].dir,
+    mastRight: `<div class="mast-right">${langMenu(lang, (l) => `?lang=${l}`)}</div>`,
+    sendFoot: { hold: S.holdNote, tagline: S.tagline, report: S.report },
   });
 }
 
@@ -144,17 +159,14 @@ const SENDER_JS = `
       sendBtn=$('send'), tools=$('list-tools'), notice=$('notice'), titleEl=$('title'), senderEl=$('sender');
 
   var kind = 'clips';
-  var KIND_HINT = {
-    clips: 'Loose files — the receiver keeps them as they are.',
-    playlist: 'Arrives in SongNook as a playlist, in this order.',
-    setlist: 'Arrives in SongNook as a setlist, in this order — ready for the band.'
-  };
-  Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function(btn){
+  var KIND_HINT = T.hints;
+  function plural(p, n){ return (n === 1 ? p.one : p.other).replace('{n}', n); }
+  Array.prototype.forEach.call(document.querySelectorAll('.kind-tab'), function(btn){
     btn.addEventListener('click', function(){
       if(sealing) return;
       kind = btn.getAttribute('data-kind');
-      Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function(b){
-        var on = b === btn; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+      Array.prototype.forEach.call(document.querySelectorAll('.kind-tab'), function(b){
+        b.setAttribute('aria-checked', b === btn ? 'true' : 'false');
       });
       $('kind-hint').textContent = KIND_HINT[kind];
     });
@@ -168,28 +180,27 @@ const SENDER_JS = `
   function showSend(s){
     if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
     pairPanel.hidden=true; sendPanel.hidden=false;
-    $('session-text').textContent = s.pro ? 'Paired with your SongNook app'
-      : (s.freeLeft===1 ? '1 free link left this month' : s.freeLeft+' free links left this month');
+    $('session-text').textContent = s.pro ? T.paired : plural(T.freeLeft, s.freeLeft);
   }
   function showCode(code, expiresAt){
     $('pair-code').textContent = code.slice(0,3)+' '+code.slice(3);
     codeExpiresAt = Date.parse(expiresAt);
-    $('pair-status').textContent='Waiting for your phone…';
+    $('pair-status').textContent=T.waiting;
     $('pair-again').hidden=true;
     if(pollTimer) clearInterval(pollTimer);
     pollTimer=setInterval(function(){
       if(Date.now()>codeExpiresAt){
         clearInterval(pollTimer); pollTimer=null;
-        $('pair-status').textContent='This code ran out.'; $('pair-again').hidden=false; return;
+        $('pair-status').textContent=T.codeRanOut; $('pair-again').hidden=false; return;
       }
       getSession().then(function(s){ if(s.paired) showSend(s); });
     }, 2000);
   }
   function startPairing(){
     sendPanel.hidden=true; pairPanel.hidden=false;
-    $('pair-status').textContent='One moment…'; $('pair-again').hidden=true;
+    $('pair-status').textContent=T.oneMoment; $('pair-again').hidden=true;
     fetch('/api/pairings',{method:'POST'}).then(function(r){
-      if(!r.ok) throw new Error(r.status===429 ? 'Too many codes. Wait a minute, then try again.' : 'Could not get a code.');
+      if(!r.ok) throw new Error(r.status===429 ? T.tooManyCodes : T.noCode);
       return r.json();
     }).then(function(p){ showCode(p.code, p.expiresAt); }).catch(function(err){
       $('pair-status').textContent = err.message; $('pair-again').hidden=false;
@@ -240,13 +251,13 @@ const SENDER_JS = `
         '<span class="trk-name">'+esc(pretty(f.name))+'</span>'+
         '<span class="trk-size" data-size="'+idx+'">'+fmt(f.size)+'</span>'+
         '<span class="trk-move">'+
-          '<button type="button" data-up="'+idx+'" aria-label="Move up"'+(idx===0?' disabled':'')+'>▲</button>'+
-          '<button type="button" data-down="'+idx+'" aria-label="Move down"'+(idx===files.length-1?' disabled':'')+'>▼</button>'+
+          '<button type="button" data-up="'+idx+'" aria-label="'+esc(T.moveUp)+'"'+(idx===0?' disabled':'')+'>▲</button>'+
+          '<button type="button" data-down="'+idx+'" aria-label="'+esc(T.moveDown)+'"'+(idx===files.length-1?' disabled':'')+'>▼</button>'+
         '</span>'+
-        '<button type="button" class="trk-x" data-x="'+idx+'" aria-label="Remove">✕</button></li>';
+        '<button type="button" class="trk-x" data-x="'+idx+'" aria-label="'+esc(T.remove)+'">✕</button></li>';
     }).join('');
     tools.hidden = files.length < 2;
-    $('list-count').textContent = files.length+' file'+(files.length===1?'':'s')+' · '+fmt(total)+' · in this order';
+    $('list-count').textContent = plural(T.fileCount, files.length)+' · '+fmt(total)+' · '+T.inThisOrder;
     sendBtn.disabled = files.length===0 || sealing;
   }
   function move(from,to){
@@ -302,12 +313,12 @@ const SENDER_JS = `
     var next = files.concat(added);
     var packages = next.filter(isPackage).length;
     if(packages > 0 && packages < next.length){
-      say('Send a SongNook file on its own, or audio files together.');
+      say(T.packageAlone);
       return;
     }
     files = next;
     render();
-    say(rejected.length ? 'Only audio (' + AUDIO_EXT.join(', ') + ') and SongNook files can be sent. Skipped: '+rejected.join(', ') : '');
+    say(rejected.length ? T.onlyAudio.replace('{list}', AUDIO_EXT.join(', ')).replace('{files}', rejected.join(', ')) : '');
   }
   // Walk a dropped directory tree (webkitGetAsEntry) and resolve its files.
   function readEntry(entry){
@@ -371,7 +382,7 @@ const SENDER_JS = `
   }
 
   sendBtn.addEventListener('click', async function(){
-    sealing=true; sendBtn.disabled=true; sendBtn.textContent='Sealing…'; say('');
+    sealing=true; sendBtn.disabled=true; sendBtn.textContent=T.sealing; say('');
     var total=files.reduce(function(s,f){return s+f.size;},0), doneBytes=0;
     // Sealed: one key for the parcel, made here and carried only in the link's #k=.
     var Seal = window.SongNookSeal, key = SEAL_SENDS ? Seal.newKey() : null;
@@ -382,9 +393,8 @@ const SENDER_JS = `
         : { senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind };
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify(createBody)});
-      if(create.status===401){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link'; startPairing(); return; }
-      if(create.status===402){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
-        say('${FREE_LINKS === 1 ? "This month’s free link is used." : `This month’s ${FREE_LINKS} free links are used.`} SongNook Pro sends without limit.'); return; }
+      if(create.status===401){ sealing=false; sendBtn.disabled=false; sendBtn.textContent=T.getLink; startPairing(); return; }
+      if(create.status===402){ sealing=false; sendBtn.disabled=false; sendBtn.textContent=T.getLink; say(T.freeUsed); return; }
       if(!create.ok) throw new Error('could not start the parcel ('+create.status+')');
       var t = await create.json();
 
@@ -435,14 +445,14 @@ const SENDER_JS = `
       Array.prototype.forEach.call(list.children, function(li){ li.removeAttribute('draggable'); li.classList.remove('draggable'); });
       tools.hidden=true;
     }catch(err){
-      sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
-      say('Sorry — '+(err && err.message ? err.message : 'something went wrong')+'. Nothing was sent; try again.');
+      sealing=false; sendBtn.disabled=false; sendBtn.textContent=T.getLink;
+      say(T.failed.replace('{reason}', err && err.message ? err.message : '?'));
     }
   });
 
   $('copy').addEventListener('click', function(){
     navigator.clipboard.writeText($('url').textContent);
-    this.textContent='Copied';
+    this.textContent=T.copied;
   });
 })();
 `;

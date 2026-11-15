@@ -12,7 +12,7 @@ import { clientIp, underRateLimit } from "./lib/guard";
 import { errorResponse, transferUsable } from "./lib/http";
 import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
-import { detectPlatform, renderRecipientPage } from "./pages/recipient";
+import { detectPlatform, renderGonePage, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
 import { renderLandingPage } from "./pages/landing";
 import { isLang, negotiateLang, type Lang } from "./pages/landingI18n";
@@ -53,8 +53,32 @@ app.route("/t", download);
 const isApex = (host: string | undefined) => (host ?? "").replace(/^www\./, "").split(":")[0] === "songnook.app";
 
 // ── Web sender page — or the landing page on the bare domain ─────────────────
+/**
+ * A Send page's language: ?lang= (the language menu, remembered in a cookie on this
+ * host), else the remembered one, else the reader's browser, else their country.
+ */
+function sendLang(c: { req: { query: (k: string) => string | undefined; header: (k: string) => string | undefined; raw: Request } }): { lang: Lang; remember: boolean } {
+  const asked = c.req.query("lang");
+  if (isLang(asked)) return { lang: asked, remember: true };
+  const picked = /(?:^|;\s*)lang=([a-z]{2})/.exec(c.req.header("cookie") ?? "")?.[1];
+  if (isLang(picked)) return { lang: picked, remember: false };
+  const country = (c.req.raw as { cf?: { country?: string } }).cf?.country;
+  return { lang: negotiateLang(c.req.header("accept-language"), country), remember: false };
+}
+
+function sendPage(html: string, lang: { lang: Lang; remember: boolean }, status = 200): Response {
+  const res = htmlPage(html, status);
+  res.headers.set("vary", "Accept-Language, Cookie");
+  res.headers.set("content-language", lang.lang);
+  if (lang.remember) res.headers.append("set-cookie", `lang=${lang.lang}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`);
+  return res;
+}
+
 app.get("/", (c) => {
-  if (!isApex(c.req.header("host"))) return htmlPage(renderSenderPage({ seal: loadConfig(c.env).sealWebSends }));
+  if (!isApex(c.req.header("host"))) {
+    const lang = sendLang(c);
+    return sendPage(renderSenderPage({ seal: loadConfig(c.env).sealWebSends, lang: lang.lang }), lang);
+  }
   // The language someone picked (the cookie /es, /he… set), else their browser's, else their country's.
   const picked = /(?:^|;\s*)lang=([a-z]{2})/.exec(c.req.header("cookie") ?? "")?.[1];
   const country = (c.req.raw as { cf?: { country?: string } }).cf?.country;
@@ -87,20 +111,14 @@ app.get("/t/:id", async (c) => {
   const cfg = loadConfig(c.env);
   const transferId = c.req.param("id");
   const transfer = await getTransfer(c.env, transferId);
+  const lang = sendLang(c);
   if (!transfer || !transferUsable(transfer.status, transfer.expires_at, Date.now())) {
-    return htmlPage(
-      page({
-        title: "Link unavailable",
-        body: `<h1>This link isn’t available.</h1><p class="sub">It may have expired or been removed. Ask the sender for a fresh link.</p>`,
-        noindex: true,
-      }),
-      transfer && transfer.status === "finalized" ? 410 : 404
-    );
+    return sendPage(renderGonePage(lang.lang), lang, transfer && transfer.status === "finalized" ? 410 : 404);
   }
   const items = await getItems(c.env, transferId);
   const payload = toTransferPayload(cfg, transfer, items);
   const plat = detectPlatform(c.req.header("user-agent") || "");
-  return htmlPage(renderRecipientPage(cfg, payload, plat));
+  return sendPage(renderRecipientPage(cfg, payload, plat, lang.lang), lang);
 });
 
 // ── Abuse report funnel ──────────────────────────────────────────────────────
