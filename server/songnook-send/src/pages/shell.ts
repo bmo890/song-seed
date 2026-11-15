@@ -111,7 +111,8 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
 .wrap.wide{max-width:1060px}
 
 /* ── masthead ── */
-.masthead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+.masthead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;position:relative;z-index:10; /* its menus open over the page below */
+  
   border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:clamp(34px,7vw,60px)}
 .brand{font-family:Lora,Georgia,serif;font-style:italic;font-weight:500;
   font-size:21px;color:var(--ink);letter-spacing:.01em;text-decoration:none}

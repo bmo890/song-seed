@@ -61,12 +61,26 @@ function storeBadges(t: LandingStrings, lang: Lang, appStoreUrl: string, playSto
 
 const GLOBE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>`;
 
-/** The masthead's right side: the language menu, then the way to the download. */
+const CHEVRON = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+
+/** The same flags the app's language picker shows, drawn rather than emoji so
+ *  they look alike everywhere (Windows prints emoji flags as letters). */
+const FLAGS: Record<Lang, string> = {
+  en: `<rect width="20" height="14" fill="#fff"/>${[0, 2.15, 4.3, 6.45, 8.6, 10.75, 12.9].map((y) => `<rect y="${y}" width="20" height="1.1" fill="#B22234"/>`).join("")}<rect width="9" height="7.5" fill="#3C3B6E"/>`,
+  es: `<rect width="20" height="14" fill="#AA151B"/><rect y="3.5" width="20" height="7" fill="#F1BF00"/>`,
+  de: `<rect width="20" height="4.67" fill="#000"/><rect y="4.67" width="20" height="4.67" fill="#DD0000"/><rect y="9.33" width="20" height="4.67" fill="#FFCE00"/>`,
+  pt: `<rect width="20" height="14" fill="#009C3B"/><path d="M2.4 7 10 1.9 17.6 7 10 12.1z" fill="#FFDF00"/><circle cx="10" cy="7" r="3.3" fill="#002776"/>`,
+  he: `<rect width="20" height="14" fill="#fff"/><rect y="1.6" width="20" height="1.7" fill="#0038B8"/><rect y="10.7" width="20" height="1.7" fill="#0038B8"/><path d="M10 4.4l2.25 3.9h-4.5zM10 9.6l-2.25-3.9h4.5z" fill="none" stroke="#0038B8" stroke-width=".7"/>`,
+};
+const flag = (l: Lang) => `<svg class="flag" width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">${FLAGS[l]}</svg>`;
+
+/** The masthead's right side: the language menu (a globe and the language's short
+ *  code, the common sign for "change language"), then the way to the download. */
 function mastRight(t: LandingStrings, lang: Lang): string {
   const items = LANGS.map(
-    (l) => `<li><a href="/${l}" hreflang="${l}" lang="${l}"${l === lang ? ' aria-current="true"' : ""}>${escapeHtml(STRINGS[l].name)}</a></li>`
+    (l) => `<li><a href="/${l}" hreflang="${l}" lang="${l}"${l === lang ? ' aria-current="true"' : ""}>${flag(l)}<span>${escapeHtml(STRINGS[l].name)}</span></a></li>`
   ).join("");
-  return `<div class="mast-right"><details class="langs"><summary aria-label="${escapeHtml(t.language)}">${GLOBE}<span>${escapeHtml(t.name)}</span></summary><ul>${items}</ul></details><a class="tag tag-link" href="#get">${escapeHtml(t.getApp)}</a></div>`;
+  return `<div class="mast-right"><details class="langs"><summary aria-label="${escapeHtml(t.language)}: ${escapeHtml(t.name)}">${GLOBE}<span class="code">${lang.toUpperCase()}</span>${CHEVRON}</summary><ul>${items}</ul></details><a class="tag tag-link" href="#get">${escapeHtml(t.getApp)}</a></div>`;
 }
 
 const LAND_CSS = `
@@ -85,14 +99,17 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 /* ── language menu ── */
 .mast-right{display:flex;align-items:center;gap:22px}
 .langs{position:relative}
-.langs summary{list-style:none;display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--ink-soft);
-  font-size:13px;font-weight:600}
+.langs summary{list-style:none;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--ink-soft);
+  font-size:12px;font-weight:700;letter-spacing:.08em;padding:5px 9px;border:1px solid var(--rule);border-radius:99px}
+.langs summary .code{direction:ltr}
+.langs[open] summary svg:last-child{transform:rotate(180deg)}
 .langs summary::-webkit-details-marker{display:none}
-.langs summary:hover{color:var(--ink)}
+.langs summary:hover{color:var(--ink);border-color:var(--ink-faint)}
 .langs summary:focus-visible{outline:2px solid var(--terra);outline-offset:4px;border-radius:3px}
 .langs ul{position:absolute;top:calc(100% + 10px);inset-inline-end:-10px;z-index:20;list-style:none;margin:0;padding:6px 0;
   min-width:150px;background:var(--card);border:1px solid var(--rule);border-radius:10px;box-shadow:0 18px 36px -20px rgba(60,40,30,.45)}
-.langs a{display:block;padding:8px 16px;color:var(--ink);text-decoration:none;font-size:14px}
+.langs a{display:flex;align-items:center;gap:11px;padding:8px 16px;color:var(--ink);text-decoration:none;font-size:14px;white-space:nowrap}
+.flag{flex:none;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
 .langs a:hover{background:var(--paper-deep)}
 .langs a[aria-current]{color:var(--terra);font-weight:700}
 
@@ -263,7 +280,6 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
   .stage{padding-inline-start:24px}
   .mini{width:258px;inset-inline-start:-16px;bottom:40px}
   .mast-right{gap:14px}
-  .langs summary span{display:none}
   .mini-title{font-size:15px}
   .hero .sub{font-size:17px}
   .tabs{gap:16px}
