@@ -14,7 +14,8 @@ import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
 import { detectPlatform, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
-import { renderLandingPage, renderLegalPage, renderSupportPage } from "./pages/legal";
+import { renderLandingPage } from "./pages/landing";
+import { renderLegalPage, renderSupportPage } from "./pages/legal";
 import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
 import { download } from "./routes/download";
@@ -51,7 +52,7 @@ app.route("/t", download);
 const isApex = (host: string | undefined) => (host ?? "").replace(/^www\./, "").split(":")[0] === "songnook.app";
 
 // ── Web sender page — or the landing page on the bare domain ─────────────────
-app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage(loadConfig(c.env).iosAppStoreUrl) : renderSenderPage({ seal: loadConfig(c.env).sealWebSends })));
+app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage(loadConfig(c.env).iosAppStoreUrl, loadConfig(c.env).playStoreUrl) : renderSenderPage({ seal: loadConfig(c.env).sealWebSends })));
 
 // ── Legal pages (the store listings link here; the app's Settings→About does too)
 app.get("/privacy", () => htmlPage(renderLegalPage("privacy")));

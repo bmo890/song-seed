@@ -35,6 +35,8 @@ export interface Env {
   DRAFT_EXPIRY_HOURS?: string;
   IOS_APP_STORE_URL: string;
   ANDROID_PACKAGE: string;
+  /** "true" once SongNook is live on Google Play: the landing then shows the Play badge. */
+  ANDROID_LIVE?: string;
   R2_ACCOUNT_ID: string;
   R2_BUCKET: string;
   /** Comma-separated browser origins allowed to call the write API. */
@@ -81,6 +83,8 @@ export interface Config {
   draftExpiryMs: number;
   iosAppStoreUrl: string;
   androidPackage: string;
+  /** The Play listing, or null while the app is not on Play yet. */
+  playStoreUrl: string | null;
   r2AccountId: string;
   r2Bucket: string;
   abuseEmail: string;
@@ -114,6 +118,10 @@ export function loadConfig(env: Env): Config {
     draftExpiryMs: (Number(env.DRAFT_EXPIRY_HOURS) || 24) * 60 * 60 * 1000,
     iosAppStoreUrl: env.IOS_APP_STORE_URL || "",
     androidPackage: env.ANDROID_PACKAGE || "com.bmostudio.songnook",
+    playStoreUrl:
+      env.ANDROID_LIVE === "true"
+        ? `https://play.google.com/store/apps/details?id=${encodeURIComponent(env.ANDROID_PACKAGE || "com.bmostudio.songnook")}`
+        : null,
     r2AccountId: env.R2_ACCOUNT_ID || "",
     r2Bucket: env.R2_BUCKET || "songnook-send",
     abuseEmail: env.ABUSE_CONTACT_EMAIL || "abuse@songnook.app",
