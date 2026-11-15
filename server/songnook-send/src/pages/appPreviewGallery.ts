@@ -1,264 +1,329 @@
 /**
- * Illustrative "in the app" gallery for the recipient page — three living cards
- * (full player, play-along lyrics/chords, A–B loop) rebuilt from the real
- * SongNook player's look. Pure inline CSS/SVG/JS: no image or video bytes, no
- * external assets, CSP-safe. The waveforms/lyrics are marketing illustrations,
- * not the sent audio.
+ * "In the app" gallery — three living cards rebuilt from today's player (2026-11-15):
+ * play it (sections strip, a pin, practice chips), sing along (chords over lyrics), and
+ * drill it (an A–B loop with Step up counting its passes and raising the speed).
+ * Shown on the recipient page and on songnook.app. Pure inline CSS/SVG/JS: no image
+ * or video bytes, CSP-safe. The waveforms and lyrics are illustrations, not sent audio.
+ *
+ * Colours are the app's own (src/design/tokens.ts, AudioReel's light palette):
+ * reel #F0EBE4 · wave ahead #C7B9AF · played #B87D6B (#84736f once a loop owns the
+ * terracotta) · playhead record-red #C0453B · section ink per role · pins in #524440.
  */
 
+const SECTION = { verse: "#856E20", chorus: "#A25853", bridge: "#576DA9", outro: "#0D7C99" };
+
+/** Deterministic bar heights (0..1) with a song-like swell. */
+function heights(count: number, seed: number, shape: (f: number) => number): number[] {
+  const out: number[] = [];
+  let s = seed;
+  for (let i = 0; i < count; i++) {
+    s = (s * 16807) % 2147483647;
+    const jitter = 0.55 + (s % 1000) / 2222; // 0.55..1.0
+    out.push(Math.max(0.08, Math.min(1, shape(i / count) * jitter)));
+  }
+  return out;
+}
+
+/** One waveform as a single SVG path of round-capped 3 px bars on a 5 px pitch. */
+function wave(width: number, height: number, hs: number[], cls: string): string {
+  const mid = height / 2;
+  const d = hs
+    .map((h, i) => {
+      const x = i * 5 + 2;
+      const half = Math.max(1, (h * height * 0.78) / 2);
+      return `M${x} ${(mid - half).toFixed(1)}V${(mid + half).toFixed(1)}`;
+    })
+    .join("");
+  return `<svg class="${cls}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true"><path d="${d}" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
+}
+
+const swell = (f: number) => 0.45 + 0.55 * Math.abs(Math.sin(f * Math.PI * 3.1 + 0.4));
+
+type Span = { name: string; ink: string; from: number; to: number };
+
+/** Today's section strip: the part's name in its ink over a 3 px rule across its span. */
+function sectionStrip(sections: Span[], offset: number, unit: "px" | "%"): string {
+  return sections
+    .map(
+      (s) =>
+        `<span class="ap-sec" style="left:${s.from + offset}${unit};width:${s.to - s.from}${unit};--c:${s.ink}"><span>${s.name}</span></span>`
+    )
+    .join("");
+}
+
+function transport(qClass: string): string {
+  return `<div class="ap-foot">
+    <span class="ap-x">✕</span>
+    <span class="ap-skip"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ap-skipb"/></svg></span>
+    <span class="ap-play"><i></i><i></i></span>
+    <span class="ap-skip"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#ap-skipf"/></svg></span>
+    <span class="${qClass}"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#ap-repeat"/></svg></span>
+  </div>`;
+}
+
+function head(title: string, meta: string, timeId: string, time: string): string {
+  return `<div class="ap-head"><div class="ap-grab"></div>
+    <div class="ap-title">${title}</div>
+    <div class="ap-meta"><span class="ap-meta-l">${meta}</span><span class="ap-time" id="${timeId}">${time}</span></div>
+  </div>`;
+}
+
+// ── card 1: the scrolling reel, one 666 px pattern drawn twice so it loops seamlessly
+const P = 666;
+const REEL_H = 168;
+const DOUBLE = (() => {
+  const one = heights(P / 5, 7, swell);
+  return [...one, ...one];
+})();
+const SECTIONS_1: Span[] = [
+  { name: "Verse", ink: SECTION.verse, from: 0, to: 188 },
+  { name: "Chorus", ink: SECTION.chorus, from: 190, to: 420 },
+  { name: "Bridge", ink: SECTION.bridge, from: 422, to: 560 },
+  { name: "Outro", ink: SECTION.outro, from: 562, to: 666 },
+];
+
+function overlays1(offset: number): string {
+  const ticks = Array.from({ length: P / 74 }, (_, i) => `<i class="ap-tick" style="left:${offset + i * 74 + 30}px"></i>`).join("");
+  const pin = `<span class="ap-pin" style="left:${offset + 318}px"><i></i><b>Harmony here</b></span>`;
+  return ticks + sectionStrip(SECTIONS_1, offset, "px") + pin;
+}
+
+const rolling = (h: number) =>
+  `<div class="ap-half played"><div class="ap-strip ap-roll">${wave(P * 2, h, DOUBLE, "ap-wave")}</div></div>
+    <div class="ap-half ahead"><div class="ap-strip ap-roll">${wave(P * 2, h, DOUBLE, "ap-wave")}</div></div>`;
+
+const CARD_1 = `<div class="ap-card">
+  ${head("Chorus lift", "Harbor Lights <i>•</i> 2h ago <i>•</i> 1 layer", "ap1t", "00:42 / 01:41")}
+  <div class="ap-reel" style="height:${REEL_H}px">
+    ${rolling(REEL_H)}
+    <div class="ap-strip ap-roll ap-over">${overlays1(0)}${overlays1(P)}</div>
+    <div class="ap-ph" style="left:50%"></div>
+    <span class="ap-zoom"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#ap-search"/></svg></span>
+  </div>
+  <div class="ap-chips">
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-loop"/></svg><b>A–B</b><small>Loop</small></span>
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-speed"/></svg><b>1.0×</b><small>Speed</small></span>
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-note"/></svg><b>±0</b><small>Pitch</small></span>
+  </div>
+  ${transport("ap-q")}
+</div>`;
+
+// ── card 2: chords over the words, scrolling with the song
+const COMPACT_H = 96;
+const LYRICS: { sec?: string; segs?: [string, string][] }[] = [
+  { sec: "Verse" },
+  { segs: [["G", "Harbor lights are "], ["Em", "burning low"]] },
+  { segs: [["C", "tell me where the "], ["D", "night boats go"]] },
+  { segs: [["G", "Kept your letter "], ["Em", "folded twice"]] },
+  { segs: [["C", "like a map to "], ["D", "paradise"]] },
+  { sec: "Chorus" },
+  { segs: [["Em", "Hold on to the "], ["C", "turning tide"]] },
+  { segs: [["G", "every light we "], ["D", "leave behind"]] },
+  { segs: [["Em", "burns a little "], ["C", "longer"]] },
+  { segs: [["G", "on the "], ["D", "other side"]] },
+];
+
+const LYRICS_HTML = LYRICS.map((l) =>
+  l.sec
+    ? `<div class="ap-lsec">${l.sec}</div>`
+    : `<div class="ap-line">${l.segs!.map(([c, w]) => `<span class="ap-seg"><b>${c}</b>${w}</span>`).join("")}</div>`
+).join("");
+
+const CARD_2 = `<div class="ap-card">
+  ${head("Harbor Lights", "Album demos <i>•</i> Version 2", "ap2t", "00:31 / 01:41")}
+  <div class="ap-reel" style="height:${COMPACT_H}px">
+    ${rolling(COMPACT_H)}
+    <div class="ap-ph" style="left:50%"></div>
+  </div>
+  <div class="ap-lyr"><div class="ap-lyrroll">${LYRICS_HTML}${LYRICS_HTML}</div></div>
+  ${transport("ap-q")}
+</div>`;
+
+// ── card 3: the loop, with Step up raising the speed a pass at a time
+const LOOP_H = 120;
+const LOOP_W = 313;
+const LOOP_A = 34;
+const LOOP_B = 66;
+const STEPS = 6;
+const LOOP_WAVE = heights(Math.floor(LOOP_W / 5), 23, swell);
+
+const CARD_3 = `<div class="ap-card">
+  ${head("Chorus lift", "Harbor Lights <i>•</i> Chorus on repeat", "ap3t", "00:49 / 01:41")}
+  <div class="ap-reel ap-loopreel" id="ap3" style="height:${LOOP_H}px;--p:${LOOP_A}%">
+    <div class="ap-band" style="left:${LOOP_A}%;width:${LOOP_B - LOOP_A}%"></div>
+    <div class="ap-fixed ahead-all">${wave(LOOP_W, LOOP_H, LOOP_WAVE, "ap-wave")}</div>
+    <div class="ap-fixed played-to">${wave(LOOP_W, LOOP_H, LOOP_WAVE, "ap-wave")}</div>
+    ${sectionStrip(
+      [
+        { name: "Verse", ink: SECTION.verse, from: 0, to: 33.6 },
+        { name: "Chorus", ink: SECTION.chorus, from: LOOP_A, to: LOOP_B },
+        { name: "Bridge", ink: SECTION.bridge, from: 66.4, to: 100 },
+      ],
+      0,
+      "%"
+    )}
+    <i class="ap-h" style="left:${LOOP_A}%"></i><i class="ap-h" style="left:${LOOP_B}%"></i>
+    <div class="ap-ph" id="ap3ph" style="left:${LOOP_A}%"></div>
+  </div>
+  <div class="ap-drawer">
+    <div class="ap-row"><span class="ap-label">Loop</span><span class="ap-switch on"></span></div>
+    <div class="ap-row ap-divider"><span class="ap-label">Step up</span>
+      <svg class="ap-glyph" width="16" height="16" viewBox="0 0 24 24"><use href="#ap-refresh"/></svg>
+      <svg class="ap-glyph" width="16" height="16" viewBox="0 0 24 24"><use href="#ap-options"/></svg>
+      <span class="ap-switch on"></span></div>
+    <div class="ap-steps"><span class="ap-dots" id="ap3dots">${Array.from({ length: STEPS }, (_, i) => `${i ? '<i class="ap-link"></i>' : ""}<i class="ap-dot${i === 0 ? " cur" : ""}"></i>`).join("")}</span>
+      <span class="ap-count" id="ap3n">1 / ${STEPS}</span><span class="ap-rate" id="ap3r">0.70×</span></div>
+  </div>
+  ${transport("ap-q on")}
+</div>`;
+
 export const GALLERY_CSS = `
-/* ── living player (3c) — faithful rebuild from PlayerScreen source values ──
-     reel #F0EBE4 h184 · bars 2px @3px pitch · played #B87D6B / ahead #C7B9AF ·
-     playhead 4px #8b4f3b frozen center, wave scrolls beneath · section bands
-     32% alpha + 2.5px rail + white 9.5px chips · full screen scaled 0.85 */
-  .lp2-fit{width:331px;height:400px;overflow:hidden}
-  .lp2-screen{width:390px;transform:scale(.85);transform-origin:top left;background:#FDFBF7;
-    font-family:'Plus Jakarta Sans','Plus Jakarta Sans Fallback',ui-sans-serif,sans-serif;color:#1b1c1a}
-  .lp2-head{padding:6px 16px 4px}
-  .lp2-grab{width:36px;height:4px;border-radius:2px;background:#D7C2BD;margin:0 auto 10px}
-  .lp2-title{font-weight:700;font-size:23px;line-height:28px;color:#1b1c1a;margin-bottom:6px}
-  /* one header shape for all three cards: title + a meta line that never
-     overflows — the label text ellipsizes before it can push the time
-     (or shrink it) off the edge of the (fixed-width, clipped) phone frame. */
-  .lp2-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:#84736f;overflow:hidden}
-  .lp2-meta-labels{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1 1 auto}
-  .lp2-meta .t{flex:none;white-space:nowrap;color:#524440;font-weight:500;font-variant-numeric:tabular-nums}
-  .lp2-reel{position:relative;height:184px;background:#F0EBE4;overflow:hidden;margin-top:4px}
-  .lp2-strip{position:absolute;top:0;bottom:0;left:0;width:1440px;animation:lp2roll 16s linear infinite}
-  .lp2-bars{display:flex;align-items:center;height:100%}
-  .lp2-bars i{display:block;flex:none;width:2px;margin-right:1px;background:currentColor}
-  .lp2-wave{display:block;height:100%}
-  .lp2-half{position:absolute;inset:0;z-index:1}
-  /* played (left of playhead) = faded terracotta; incoming (right) = full */
-  .lp2-half.played{clip-path:inset(0 50% 0 0);color:#D4B4A7}
-  .lp2-half.ahead{clip-path:inset(0 0 0 50%);color:#B87D6B}
-  .lp2-base{position:absolute;left:0;right:0;top:50%;height:1px;background:#D7C2BD;opacity:.4;z-index:1}
-  .lp2-band{position:absolute;top:0;bottom:0}
-  .lp2-band::before{content:"";position:absolute;left:0;right:0;top:0;height:2.5px;background:var(--c)}
-  .lp2-chip{position:absolute;bottom:3px;height:16px;display:inline-flex;align-items:center;padding:0 5px;
-    border-radius:3px;background:var(--c);color:#fff;font-size:9.5px;font-weight:600;white-space:nowrap}
-  .lp2-pinline{position:absolute;top:3px;bottom:3px;width:2.5px;background:#8b4f3b}
-  .lp2-tick{position:absolute;top:0;width:1px;height:7px;background:#D7C2BD;opacity:.7}
-  .lp2-ph{position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#D95B56;box-shadow:0 0 6px rgba(217,91,86,.55);z-index:3}
-  .lp2-corner{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;
-    background:rgba(244,241,237,.86);display:flex;align-items:center;justify-content:center;color:#84736f;z-index:4}
-  .lp2-zoom{position:absolute;bottom:6px;right:6px;width:30px;height:30px;border-radius:50%;
-    background:rgba(253,251,247,.96);border:.5px solid #D7C2BD;display:flex;align-items:center;justify-content:center;color:#84736f;z-index:4}
-  /* practice setting chips (settingChip spec: 0.5px #E8E4DF border, radius 4,
-     white bg; icon 18 over 700/15 value over 500/11 label) */
-  .lp2-settings{display:flex;gap:8px;padding:10px 14px 6px}
-  .lp2-schip{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-    padding:10px 0;border:.5px solid #E8E4DF;border-radius:4px;background:#fff;color:#524440}
-  .lp2-schip b{font-size:15px;font-weight:700;color:#1b1c1a;line-height:1.2}
-  .lp2-schip small{font-size:11px;font-weight:500;color:#84736f;line-height:1.2}
-  .lp2-pinflag{position:absolute;top:3px;height:18px;display:inline-flex;align-items:center;
-    padding:0 6px;border-radius:2px;background:#B87D6B;color:#fff;font-size:10px;font-weight:600;white-space:nowrap}
-  .lp2-foot{display:flex;align-items:center;justify-content:center;gap:10px;border-top:1px solid #E8E4DF;
-    padding:8px 16px 12px;margin-top:6px}
-  .lp2-x{width:34px;height:34px;border-radius:50%;background:#F4F1ED;display:flex;align-items:center;justify-content:center;color:#84736f;font-size:15px}
-  .lp2-skip{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#6b5a55}
-  .lp2-play{width:56px;height:56px;border-radius:50%;background:#824F3F;display:flex;align-items:center;justify-content:center;gap:4px}
-  .lp2-play i{display:block;width:4.5px;height:20px;border-radius:1px;background:#FDFBF7}
-  .lp2-q{width:36px;height:36px;border-radius:50%;background:#F4F1ED;display:flex;align-items:center;justify-content:center;color:#6b5a55}
-  @keyframes lp2roll{from{transform:translateX(0)}to{transform:translateX(-720px)}}
-  @media (prefers-reduced-motion:reduce){.lp2-strip{animation:none;transform:translateX(-260px)}}
+  .ap-card{width:333px;height:416px;background:#FDFBF7;display:flex;flex-direction:column;overflow:hidden;
+    font-family:'Plus Jakarta Sans',ui-sans-serif,sans-serif;color:#1b1c1a}
+  .ap-head{padding:8px 16px 10px}
+  .ap-grab{width:36px;height:4px;border-radius:2px;background:#C9BCB6;margin:0 auto 12px}
+  .ap-title{font-weight:700;font-size:21px;line-height:26px;margin-bottom:4px}
+  .ap-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:#84736f}
+  .ap-meta-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ap-meta i{font-style:normal;color:#a89994;padding:0 2px}
+  .ap-time{flex:none;color:#524440;font-weight:500;font-variant-numeric:tabular-nums}
+  .ap-reel{position:relative;flex:none;background:#F0EBE4;overflow:hidden;margin:0 10px;border-radius:6px}
+  .ap-strip{position:absolute;top:0;bottom:0;left:0;width:${P * 2}px}
+  .ap-roll{animation:aproll 24s linear infinite}
+  @keyframes aproll{to{transform:translateX(-${P}px)}}
+  .ap-wave{display:block}
+  .ap-half{position:absolute;inset:0}
+  .ap-half.played{clip-path:inset(0 50% 0 0);color:#B87D6B}
+  .ap-half.ahead{clip-path:inset(0 0 0 50%);color:#C7B9AF}
+  .ap-over{z-index:2}
+  .ap-tick{position:absolute;top:0;width:1px;height:7px;background:#D7C2BD}
+  .ap-sec{position:absolute;bottom:0;height:24px;border-bottom:3px solid var(--c);z-index:2}
+  .ap-sec span{position:absolute;left:6px;bottom:3px;font-size:12px;color:var(--c);white-space:nowrap}
+  .ap-pin{position:absolute;top:18px;bottom:30px;width:1px;background:rgba(82,68,64,.35)}
+  .ap-pin i{position:absolute;top:-3px;left:-3px;width:7px;height:7px;border-radius:50%;background:#524440}
+  .ap-pin b{position:absolute;left:8px;top:-9px;font-weight:400;font-size:12.5px;color:#524440;white-space:nowrap}
+  .ap-ph{position:absolute;top:0;bottom:0;width:2.5px;margin-left:-1.25px;background:#C0453B;z-index:6}
+  .ap-ph::before{content:"";position:absolute;top:0;left:-4px;width:0;height:0;
+    border-left:5.25px solid transparent;border-right:5.25px solid transparent;border-top:7px solid #C0453B}
+  .ap-zoom{position:absolute;right:8px;bottom:32px;width:30px;height:30px;border-radius:50%;background:#fff;
+    border:1px solid #D7C2BD;display:flex;align-items:center;justify-content:center;color:#524440;z-index:7}
+  .ap-chips{display:flex;gap:8px;padding:12px 10px 4px}
+  .ap-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;
+    border:.5px solid #E8E4DF;border-radius:4px;background:#fff;color:#524440}
+  .ap-chip b{font-size:15px;font-weight:700;color:#1b1c1a;line-height:1.2}
+  .ap-chip small{font-size:11px;font-weight:500;color:#84736f;line-height:1.2}
+  .ap-foot{margin-top:auto;display:flex;align-items:center;justify-content:center;gap:12px;
+    border-top:1px solid #E8E4DF;padding:10px 16px 14px;background:#FDFBF7;position:relative;z-index:2}
+  .ap-x,.ap-q{width:34px;height:34px;border-radius:50%;background:#F4F1ED;display:flex;align-items:center;justify-content:center;color:#84736f;font-size:14px}
+  .ap-q.on{background:#B87D6B;color:#fff}
+  .ap-skip{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#524440}
+  .ap-play{width:54px;height:54px;border-radius:50%;background:#824F3F;display:flex;align-items:center;justify-content:center;gap:4px}
+  .ap-play i{display:block;width:4.5px;height:19px;border-radius:1px;background:#FDFBF7}
 
-  /* ── play-along card (card 2) ── */
-  .lp2-reel.compact{height:112px}
-  .lp2-patb{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px 6px}
-  .lp2-palabel{display:inline-flex;align-items:center;gap:5px;background:#F4F1ED;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;color:#84736f}
-  .lp2-palabel svg{color:#B87D6B}
-  .lp2-spd{display:inline-flex;align-items:center;height:34px;padding:0 4px;border-radius:999px;background:#F4F1ED;color:#524440}
-  .lp2-spd .b{width:30px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px}
-  .lp2-spd .v{min-width:46px;text-align:center;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
-  .lp2-done{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 13px;border-radius:999px;background:#B87D6B;color:#fff;font-size:13px;font-weight:600}
-  /* lyrics viewport — monospace chord-chart path */
-  .lp2-lyr{position:relative;height:176px;overflow:hidden}
-  .lp2-lyrroll{position:absolute;left:16px;right:16px;top:16px;
-    font-family:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
-    animation:lp2lyr 19s linear infinite}
-  @keyframes lp2lyr{to{transform:translateY(var(--roll,-360px))}}
-  .lp2-ll{position:relative;margin-bottom:6px}
-  .lp2-lchord{position:relative;height:22px}
-  .lp2-lchord .k{position:absolute;top:2px;background:#B87D6B;color:#fff;font-weight:700;
-    font-size:13px;line-height:17px;border-radius:5px;padding:0 5px;white-space:nowrap}
-  .lp2-ltext{font-size:15px;line-height:22px;color:#1b1c1a;white-space:pre;letter-spacing:0}
-  .lp2-lsec{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#a89994;
-    line-height:22px;margin-bottom:6px;font-family:'Plus Jakarta Sans',sans-serif}
-  @media (prefers-reduced-motion:reduce){.lp2-lyrroll{animation:none;transform:translateY(-120px)}}
+  /* card 2 — chords ride above the words, the way a chart reads */
+  .ap-lyr{position:relative;flex:1;overflow:hidden;margin-top:4px;
+    -webkit-mask-image:linear-gradient(transparent,#000 12%,#000 86%,transparent);mask-image:linear-gradient(transparent,#000 12%,#000 86%,transparent)}
+  .ap-lyrroll{position:absolute;left:20px;right:12px;top:0;animation:aplyr 34s linear infinite}
+  @keyframes aplyr{to{transform:translateY(-50%)}}
+  .ap-lsec{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#a89994;margin:14px 0 0}
+  .ap-line{padding-top:17px;font-family:Lora,Georgia,serif;font-size:15.5px;line-height:21px;color:#1b1c1a;white-space:nowrap}
+  .ap-seg{position:relative}
+  .ap-seg b{position:absolute;left:0;top:-17px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:12.5px;line-height:16px;color:#824F3F}
 
-  /* ── card 3: A–B loop demo (static waveform; playhead sweeps the loop, JS-driven) ── */
-  .lp3-reel{position:relative;height:120px;background:#F0EBE4;overflow:hidden}
-  .lp3-wave{position:absolute;inset:0}
-  .lp3-wave svg{display:block;width:100%;height:100%}
-  .lp3-wave.faded{color:#D4B4A7}
-  .lp3-wave.loop{color:#B87D6B;clip-path:inset(0 32% 0 30%)}   /* loop region 30%..68% */
-  .lp3-band{position:absolute;top:0;bottom:0;left:30%;width:38%;background:rgba(184,125,107,.16);
-    border-left:2px solid rgba(139,79,59,.9);border-right:2px solid rgba(139,79,59,.9)}
-  .lp3-h{position:absolute;top:50%;width:9px;height:26px;margin:-13px 0 0 -4.5px;border-radius:6px;background:rgba(139,79,59,.95);z-index:2}
-  .lp3-base{position:absolute;left:0;right:0;top:50%;height:1px;background:#D7C2BD;opacity:.4}
-  .lp3-ph{position:absolute;top:0;bottom:0;left:30%;width:3px;margin-left:-1.5px;background:#D95B56;box-shadow:0 0 6px rgba(217,91,86,.55);z-index:3}
-  .lp3-chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 12px;border-radius:999px;background:#B87D6B;color:#fff;font-size:12px;font-weight:600}
-  .gallery{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -22px;padding:2px 22px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  /* card 3 — the loop owns the terracotta, so the played side goes quiet */
+  .ap-fixed{position:absolute;left:0;top:0;z-index:1}
+  .ahead-all{color:#C7B9AF}
+  .played-to{color:#84736f;clip-path:inset(0 calc(100% - var(--p)) 0 0);width:100%;height:100%}
+  .ap-band{position:absolute;top:0;bottom:0;background:rgba(184,125,107,.14);
+    border-left:1.5px solid #C08A79;border-right:1.5px solid #C08A79;z-index:0}
+  .ap-h{position:absolute;top:50%;width:8px;height:26px;margin:-13px 0 0 -4px;border-radius:4px;background:#B87D6B;z-index:5}
+  .ap-drawer{padding:6px 16px 0}
+  .ap-row{display:flex;align-items:center;gap:12px;height:42px}
+  .ap-divider{border-top:1px solid #E8E4DF}
+  .ap-label{flex:1;font-weight:600;font-size:15px;color:#1b1c1a}
+  .ap-glyph{color:#a89994;flex:none}
+  .ap-switch{width:40px;height:24px;border-radius:12px;background:#EDE9E4;position:relative;flex:none}
+  .ap-switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(60,40,30,.2)}
+  .ap-switch.on{background:#B87D6B}
+  .ap-switch.on::after{left:18px}
+  .ap-steps{display:flex;align-items:center;gap:10px;padding:0 0 8px}
+  .ap-dots{display:flex;align-items:center}
+  .ap-dot{display:block;width:7px;height:7px;border-radius:50%;border:1px solid #D7C2BD;box-sizing:border-box;transition:background .3s,border-color .3s}
+  .ap-dot.done{background:#B87D6B;border-color:#B87D6B}
+  .ap-dot.cur{border:2px solid #B87D6B}
+  .ap-link{display:block;width:9px;height:1px;background:#E8E4DF;transition:background .3s}
+  .ap-link.done{background:#B87D6B}
+  .ap-count{margin-left:auto;font-size:13px;color:#84736f;font-variant-numeric:tabular-nums}
+  .ap-rate{font-size:13px;font-weight:600;color:#824F3F;font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+
+  @media (prefers-reduced-motion:reduce){.ap-roll{animation:none;transform:translateX(-200px)}.ap-lyrroll{animation:none}}
+
+  .gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -22px;padding:2px 22px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .gallery::-webkit-scrollbar{display:none}
-  .slide{flex:0 0 auto;scroll-snap-align:center;width:333px;max-width:84vw}
-  .slide .inner{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#FDFBF7}
-  .slide .cap{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:9px;line-height:1.4}
+  .slide{flex:0 0 auto;scroll-snap-align:center;width:335px;max-width:86vw}
+  .slide .inner{border:1px solid var(--rule);border-radius:16px;overflow:hidden;background:#FDFBF7}
+  .slide .cap{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.4}
   .slide .cap b{color:var(--ink);font-weight:600}
-  /* all three cards share one container height; each screen is vertically
-     centered inside it via a per-card margin-top (see GALLERY_HTML) computed
-     from its natural content height, so uneven content (the loop demo runs
-     much shorter) reads as a deliberately framed card, not dead space.
-     (Flex/grid centering doesn't work here — .lp2-screen is scaled via
-     transform, and alignment would center its pre-transform box instead.) */
-  .lp2-fit{height:388px}
-  .lp2-screen{display:flex;flex-direction:column}
   .dots{display:flex;gap:6px;justify-content:center;margin:14px 0 4px}
   .dot{width:6px;height:6px;border-radius:99px;background:var(--rule);transition:width .2s,background .2s}
   .dot.on{width:18px;background:var(--terra)}`;
 
 export const GALLERY_SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <g id="tool-loop" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3L4 16"/><path d="M4 20v-4h4"/></g>
-  <g id="tool-speed" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.3" fill="currentColor" stroke="none"/></g>
-  <g id="tool-section" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 5v14M18 5v14"/><path d="M6 8h4M14 8h4"/></g>
-  <g id="tool-pin" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M12 3h6l-1.5 4H12z" fill="currentColor" stroke="none"/></g>
-  <g id="tool-notes" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1.5"/><path d="M8 9h8M8 13h8M8 17h5"/></g>
-  <g id="tool-metronome" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l3 16H6z"/><path d="M12 8v9"/><circle cx="12" cy="8" r="1.2" fill="currentColor" stroke="none"/></g>
-  <g id="tool-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g>
-  <g id="lp2-chev" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></g>
-  <g id="lp2-dots" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></g>
-  <g id="lp2-eye" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.7"/></g>
-  <g id="lp2-mnotes" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="16" r="2.4"/><path d="M9.4 18V6l10-2v12"/></g>
-  <g id="lp2-opt" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="15" cy="7" r="2.2" fill="#fff"/><circle cx="8" cy="12" r="2.2" fill="#fff"/><circle cx="13" cy="17" r="2.2" fill="#fff"/></g>
-  <g id="lp2-list" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.5 6h11M8.5 12h11M8.5 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></g>
-  <g id="lp2-search" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></g>
-  <g id="lp2-expand" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></g>
-  <g id="lp2-skipb" fill="currentColor"><path d="M20 5v14l-9-7z"/><rect x="5" y="5" width="2.4" height="14" rx="1"/></g>
-  <g id="lp2-skipf" fill="currentColor"><path d="M4 5v14l9-7z"/><rect x="16.6" y="5" width="2.4" height="14" rx="1"/></g>
-  <g id="lp2-check" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></g>
-  <g id="lp2-repeat" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></g>
+  <g id="ap-loop" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3L4 16"/><path d="M4 20v-4h4"/></g>
+  <g id="ap-speed" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.3" fill="currentColor" stroke="none"/></g>
+  <g id="ap-note" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="16" r="2.4"/><path d="M9.4 18V6l10-2v12"/></g>
+  <g id="ap-search" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></g>
+  <g id="ap-skipb" fill="currentColor"><path d="M20 5v14l-9-7z"/><rect x="5" y="5" width="2.4" height="14" rx="1"/></g>
+  <g id="ap-skipf" fill="currentColor"><path d="M4 5v14l9-7z"/><rect x="16.6" y="5" width="2.4" height="14" rx="1"/></g>
+  <g id="ap-repeat" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></g>
+  <g id="ap-refresh" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></g>
+  <g id="ap-options" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.4" fill="#FDFBF7"/><circle cx="15" cy="17" r="2.4" fill="#FDFBF7"/></g>
 </defs></svg>`;
 
 export const GALLERY_HTML = `<div class="gallery" id="gallery">
-    <div class="slide"><div class="inner"><div class="lp2-fit">
-      <div class="lp2-screen" style="margin-top:9px">
-        <div class="lp2-head">
-          <div class="lp2-grab"></div>
-
-          <div class="lp2-title">Chorus — take 3</div>
-          <div class="lp2-meta"><span class="lp2-meta-labels">Spring Show <span style="color:#a89994">•</span> Jul 18 <span style="color:#a89994">•</span> 2 layers</span><span class="t" id="lp2-time">0:31 / 1:45</span></div>
-        </div>
-        <div class="lp2-reel">
-          <div class="lp2-strip" style="z-index:0"><div class="lp2-band" style="--c:#C98A3C;left:0px;width:200px;background:rgba(201,138,60,.32)"></div><div class="lp2-band" style="--c:#C8463A;left:200px;width:280px;background:rgba(200,70,58,.32)"></div><div class="lp2-band" style="--c:#5775A6;left:480px;width:240px;background:rgba(87,117,166,.32)"></div><div class="lp2-band" style="--c:#C98A3C;left:720px;width:200px;background:rgba(201,138,60,.32)"></div><div class="lp2-band" style="--c:#C8463A;left:920px;width:280px;background:rgba(200,70,58,.32)"></div><div class="lp2-band" style="--c:#5775A6;left:1200px;width:240px;background:rgba(87,117,166,.32)"></div></div>
-          <div class="lp2-half played"><div class="lp2-strip lp2-bars"><svg class="lp2-wave" width="1440" height="184" viewBox="0 0 1440 184" preserveAspectRatio="none"><path d="M1 78L1 106M4 42L4 142M7 58L7 126M10 69L10 115M13 60L13 124M16 62L16 122M19 79L19 105M22 78L22 106M25 60L25 124M28 60L28 124M31 68L31 116M34 56L34 128M37 42L37 142M40 78L40 106M43 66L43 118M46 56L46 128M49 56L49 128M52 76L52 108M55 80L55 104M58 64L58 120M61 63L61 121M64 72L64 112M67 61L67 123M70 44L70 140M73 52L73 132M76 63L76 121M79 79L79 105M82 52L82 132M85 71L85 113M88 78L88 106M91 66L91 118M94 64L94 120M97 76L97 108M100 67L100 117M103 48L103 136M106 52L106 132M109 62L109 122M112 52L112 132M115 47L115 137M118 91L118 93M121 76L121 108M124 65L124 119M127 64L127 120M130 78L130 106M133 72L133 112M136 53L136 131M139 54L139 130M142 63L142 121M145 53L145 131M148 44L148 140M151 59L151 125M154 72L154 112M157 91L157 93M160 62L160 122M163 78L163 106M166 77L166 107M169 58L169 126M172 56L172 128M175 66L175 118M178 55L178 129M181 42L181 142M184 54L184 130M187 68L187 116M190 60L190 124M193 59L193 125M196 91L196 93M199 80L199 104M202 36L202 148M205 34L205 150M208 43L208 141M211 34L211 150M214 20L214 164M217 25L217 159M220 38L220 146M223 32L223 152M226 28L226 156M229 47L229 137M232 54L232 130M235 74L235 110M238 36L238 148M241 47L241 137M244 38L244 146M247 20L247 164M250 24L250 160M253 36L253 148M256 29L256 155M259 24L259 160M262 42L262 142M265 53L265 131M268 41L268 143M271 38L271 146M274 78L274 106M277 44L277 140M280 24L280 160M283 24L283 160M286 36L286 148M289 28L289 156M292 20L292 164M295 36L295 148M298 50L298 134M301 40L301 144M304 37L304 147M307 51L307 133M310 50L310 134M313 70L313 114M316 26L316 158M319 37L319 147M322 29L322 155M325 20L325 164M328 30L328 154M331 45L331 139M334 38L334 146M337 35L337 149M340 50L340 134M343 54L343 130M346 35L346 149M349 30L349 154M352 74L352 110M355 32L355 152M358 20L358 164M361 25L361 159M364 41L364 143M367 36L367 148M370 31L370 153M373 48L373 136M376 56L376 128M379 40L379 144M382 34L382 150M385 44L385 140M388 36L388 148M391 67L391 117M394 22L394 162M397 38L397 146M400 32L400 152M403 26L403 158M406 44L406 140M409 55L409 129M412 42L412 142M415 36L415 148M418 46L418 138M421 42L421 142M424 22L424 162M427 22L427 162M430 72L430 112M433 30L433 154M436 22L436 162M439 38L439 146M442 52L442 132M445 43L445 141M448 37L448 147M451 49L451 135M454 48L454 136M457 27L457 157M460 24L460 160M463 36L463 148M466 30L466 154M469 67L469 117M472 32L472 152M475 48L475 136M478 42L478 142M481 65L481 119M484 78L484 106M487 91L487 93M490 62L490 122M493 55L493 129M496 66L496 118M499 60L499 124M502 46L502 138M505 55L505 129M508 91L508 93M511 68L511 116M514 62L514 122M517 77L517 107M520 91L520 93M523 67L523 117M526 58L526 126M529 68L529 116M532 64L532 120M535 46L535 138M538 51L538 133M541 68L541 116M544 65L544 119M547 80L547 104M550 74L550 110M553 91L553 93M556 71L556 113M559 62L559 122M562 72L562 112M565 68L565 116M568 49L568 135M571 50L571 134M574 65L574 119M577 62L577 122M580 54L580 130M583 68L583 116M586 91L586 93M589 73L589 111M592 64L592 120M595 74L595 110M598 74L598 110M601 54L601 130M604 50L604 134M607 63L607 121M610 60L610 124M613 50L613 134M616 62L616 122M619 80L619 104M622 73L622 111M625 91L625 93M628 76L628 108M631 79L631 105M634 59L634 125M637 52L637 132M640 64L640 120M643 60L643 124M646 48L646 136M649 57L649 127M652 76L652 108M655 72L655 112M658 64L658 120M661 76L661 108M664 91L664 93M667 65L667 119M670 55L670 129M673 65L673 119M676 62L676 122M679 47L679 137M682 52L682 132M685 70L685 114M688 69L688 115M691 61L691 123M694 74L694 110M697 91L697 93M700 70L700 114M703 80L703 104M706 68L706 116M709 66L709 118M712 48L712 136M715 49L715 135M718 66L718 118M721 78L721 106M724 42L724 142M727 58L727 126M730 69L730 115M733 60L733 124M736 62L736 122M739 79L739 105M742 78L742 106M745 60L745 124M748 60L748 124M751 68L751 116M754 56L754 128M757 42L757 142M760 78L760 106M763 66L763 118M766 56L766 128M769 56L769 128M772 76L772 108M775 80L775 104M778 64L778 120M781 63L781 121M784 72L784 112M787 61L787 123M790 44L790 140M793 52L793 132M796 63L796 121M799 79L799 105M802 52L802 132M805 71L805 113M808 78L808 106M811 66L811 118M814 64L814 120M817 76L817 108M820 67L820 117M823 48L823 136M826 52L826 132M829 62L829 122M832 52L832 132M835 47L835 137M838 91L838 93M841 76L841 108M844 65L844 119M847 64L847 120M850 78L850 106M853 72L853 112M856 53L856 131M859 54L859 130M862 63L862 121M865 53L865 131M868 44L868 140M871 59L871 125M874 72L874 112M877 91L877 93M880 62L880 122M883 78L883 106M886 77L886 107M889 58L889 126M892 56L892 128M895 66L895 118M898 55L898 129M901 42L901 142M904 54L904 130M907 68L907 116M910 60L910 124M913 59L913 125M916 91L916 93M919 80L919 104M922 36L922 148M925 34L925 150M928 43L928 141M931 34L931 150M934 20L934 164M937 25L937 159M940 38L940 146M943 32L943 152M946 28L946 156M949 47L949 137M952 54L952 130M955 74L955 110M958 36L958 148M961 47L961 137M964 38L964 146M967 20L967 164M970 24L970 160M973 36L973 148M976 29L976 155M979 24L979 160M982 42L982 142M985 53L985 131M988 41L988 143M991 38L991 146M994 78L994 106M997 44L997 140M1000 24L1000 160M1003 24L1003 160M1006 36L1006 148M1009 28L1009 156M1012 20L1012 164M1015 36L1015 148M1018 50L1018 134M1021 40L1021 144M1024 37L1024 147M1027 51L1027 133M1030 50L1030 134M1033 70L1033 114M1036 26L1036 158M1039 37L1039 147M1042 29L1042 155M1045 20L1045 164M1048 30L1048 154M1051 45L1051 139M1054 38L1054 146M1057 35L1057 149M1060 50L1060 134M1063 54L1063 130M1066 35L1066 149M1069 30L1069 154M1072 74L1072 110M1075 32L1075 152M1078 20L1078 164M1081 25L1081 159M1084 41L1084 143M1087 36L1087 148M1090 31L1090 153M1093 48L1093 136M1096 56L1096 128M1099 40L1099 144M1102 34L1102 150M1105 44L1105 140M1108 36L1108 148M1111 67L1111 117M1114 22L1114 162M1117 38L1117 146M1120 32L1120 152M1123 26L1123 158M1126 44L1126 140M1129 55L1129 129M1132 42L1132 142M1135 36L1135 148M1138 46L1138 138M1141 42L1141 142M1144 22L1144 162M1147 22L1147 162M1150 72L1150 112M1153 30L1153 154M1156 22L1156 162M1159 38L1159 146M1162 52L1162 132M1165 43L1165 141M1168 37L1168 147M1171 49L1171 135M1174 48L1174 136M1177 27L1177 157M1180 24L1180 160M1183 36L1183 148M1186 30L1186 154M1189 67L1189 117M1192 32L1192 152M1195 48L1195 136M1198 42L1198 142M1201 65L1201 119M1204 78L1204 106M1207 91L1207 93M1210 62L1210 122M1213 55L1213 129M1216 66L1216 118M1219 60L1219 124M1222 46L1222 138M1225 55L1225 129M1228 91L1228 93M1231 68L1231 116M1234 62L1234 122M1237 77L1237 107M1240 91L1240 93M1243 67L1243 117M1246 58L1246 126M1249 68L1249 116M1252 64L1252 120M1255 46L1255 138M1258 51L1258 133M1261 68L1261 116M1264 65L1264 119M1267 80L1267 104M1270 74L1270 110M1273 91L1273 93M1276 71L1276 113M1279 62L1279 122M1282 72L1282 112M1285 68L1285 116M1288 49L1288 135M1291 50L1291 134M1294 65L1294 119M1297 62L1297 122M1300 54L1300 130M1303 68L1303 116M1306 91L1306 93M1309 73L1309 111M1312 64L1312 120M1315 74L1315 110M1318 74L1318 110M1321 54L1321 130M1324 50L1324 134M1327 63L1327 121M1330 60L1330 124M1333 50L1333 134M1336 62L1336 122M1339 80L1339 104M1342 73L1342 111M1345 91L1345 93M1348 76L1348 108M1351 79L1351 105M1354 59L1354 125M1357 52L1357 132M1360 64L1360 120M1363 60L1363 124M1366 48L1366 136M1369 57L1369 127M1372 76L1372 108M1375 72L1375 112M1378 64L1378 120M1381 76L1381 108M1384 91L1384 93M1387 65L1387 119M1390 55L1390 129M1393 65L1393 119M1396 62L1396 122M1399 47L1399 137M1402 52L1402 132M1405 70L1405 114M1408 69L1408 115M1411 61L1411 123M1414 74L1414 110M1417 91L1417 93M1420 70L1420 114M1423 80L1423 104M1426 68L1426 116M1429 66L1429 118M1432 48L1432 136M1435 49L1435 135M1438 66L1438 118" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div></div>
-          <div class="lp2-half ahead"><div class="lp2-strip lp2-bars"><svg class="lp2-wave" width="1440" height="184" viewBox="0 0 1440 184" preserveAspectRatio="none"><path d="M1 78L1 106M4 42L4 142M7 58L7 126M10 69L10 115M13 60L13 124M16 62L16 122M19 79L19 105M22 78L22 106M25 60L25 124M28 60L28 124M31 68L31 116M34 56L34 128M37 42L37 142M40 78L40 106M43 66L43 118M46 56L46 128M49 56L49 128M52 76L52 108M55 80L55 104M58 64L58 120M61 63L61 121M64 72L64 112M67 61L67 123M70 44L70 140M73 52L73 132M76 63L76 121M79 79L79 105M82 52L82 132M85 71L85 113M88 78L88 106M91 66L91 118M94 64L94 120M97 76L97 108M100 67L100 117M103 48L103 136M106 52L106 132M109 62L109 122M112 52L112 132M115 47L115 137M118 91L118 93M121 76L121 108M124 65L124 119M127 64L127 120M130 78L130 106M133 72L133 112M136 53L136 131M139 54L139 130M142 63L142 121M145 53L145 131M148 44L148 140M151 59L151 125M154 72L154 112M157 91L157 93M160 62L160 122M163 78L163 106M166 77L166 107M169 58L169 126M172 56L172 128M175 66L175 118M178 55L178 129M181 42L181 142M184 54L184 130M187 68L187 116M190 60L190 124M193 59L193 125M196 91L196 93M199 80L199 104M202 36L202 148M205 34L205 150M208 43L208 141M211 34L211 150M214 20L214 164M217 25L217 159M220 38L220 146M223 32L223 152M226 28L226 156M229 47L229 137M232 54L232 130M235 74L235 110M238 36L238 148M241 47L241 137M244 38L244 146M247 20L247 164M250 24L250 160M253 36L253 148M256 29L256 155M259 24L259 160M262 42L262 142M265 53L265 131M268 41L268 143M271 38L271 146M274 78L274 106M277 44L277 140M280 24L280 160M283 24L283 160M286 36L286 148M289 28L289 156M292 20L292 164M295 36L295 148M298 50L298 134M301 40L301 144M304 37L304 147M307 51L307 133M310 50L310 134M313 70L313 114M316 26L316 158M319 37L319 147M322 29L322 155M325 20L325 164M328 30L328 154M331 45L331 139M334 38L334 146M337 35L337 149M340 50L340 134M343 54L343 130M346 35L346 149M349 30L349 154M352 74L352 110M355 32L355 152M358 20L358 164M361 25L361 159M364 41L364 143M367 36L367 148M370 31L370 153M373 48L373 136M376 56L376 128M379 40L379 144M382 34L382 150M385 44L385 140M388 36L388 148M391 67L391 117M394 22L394 162M397 38L397 146M400 32L400 152M403 26L403 158M406 44L406 140M409 55L409 129M412 42L412 142M415 36L415 148M418 46L418 138M421 42L421 142M424 22L424 162M427 22L427 162M430 72L430 112M433 30L433 154M436 22L436 162M439 38L439 146M442 52L442 132M445 43L445 141M448 37L448 147M451 49L451 135M454 48L454 136M457 27L457 157M460 24L460 160M463 36L463 148M466 30L466 154M469 67L469 117M472 32L472 152M475 48L475 136M478 42L478 142M481 65L481 119M484 78L484 106M487 91L487 93M490 62L490 122M493 55L493 129M496 66L496 118M499 60L499 124M502 46L502 138M505 55L505 129M508 91L508 93M511 68L511 116M514 62L514 122M517 77L517 107M520 91L520 93M523 67L523 117M526 58L526 126M529 68L529 116M532 64L532 120M535 46L535 138M538 51L538 133M541 68L541 116M544 65L544 119M547 80L547 104M550 74L550 110M553 91L553 93M556 71L556 113M559 62L559 122M562 72L562 112M565 68L565 116M568 49L568 135M571 50L571 134M574 65L574 119M577 62L577 122M580 54L580 130M583 68L583 116M586 91L586 93M589 73L589 111M592 64L592 120M595 74L595 110M598 74L598 110M601 54L601 130M604 50L604 134M607 63L607 121M610 60L610 124M613 50L613 134M616 62L616 122M619 80L619 104M622 73L622 111M625 91L625 93M628 76L628 108M631 79L631 105M634 59L634 125M637 52L637 132M640 64L640 120M643 60L643 124M646 48L646 136M649 57L649 127M652 76L652 108M655 72L655 112M658 64L658 120M661 76L661 108M664 91L664 93M667 65L667 119M670 55L670 129M673 65L673 119M676 62L676 122M679 47L679 137M682 52L682 132M685 70L685 114M688 69L688 115M691 61L691 123M694 74L694 110M697 91L697 93M700 70L700 114M703 80L703 104M706 68L706 116M709 66L709 118M712 48L712 136M715 49L715 135M718 66L718 118M721 78L721 106M724 42L724 142M727 58L727 126M730 69L730 115M733 60L733 124M736 62L736 122M739 79L739 105M742 78L742 106M745 60L745 124M748 60L748 124M751 68L751 116M754 56L754 128M757 42L757 142M760 78L760 106M763 66L763 118M766 56L766 128M769 56L769 128M772 76L772 108M775 80L775 104M778 64L778 120M781 63L781 121M784 72L784 112M787 61L787 123M790 44L790 140M793 52L793 132M796 63L796 121M799 79L799 105M802 52L802 132M805 71L805 113M808 78L808 106M811 66L811 118M814 64L814 120M817 76L817 108M820 67L820 117M823 48L823 136M826 52L826 132M829 62L829 122M832 52L832 132M835 47L835 137M838 91L838 93M841 76L841 108M844 65L844 119M847 64L847 120M850 78L850 106M853 72L853 112M856 53L856 131M859 54L859 130M862 63L862 121M865 53L865 131M868 44L868 140M871 59L871 125M874 72L874 112M877 91L877 93M880 62L880 122M883 78L883 106M886 77L886 107M889 58L889 126M892 56L892 128M895 66L895 118M898 55L898 129M901 42L901 142M904 54L904 130M907 68L907 116M910 60L910 124M913 59L913 125M916 91L916 93M919 80L919 104M922 36L922 148M925 34L925 150M928 43L928 141M931 34L931 150M934 20L934 164M937 25L937 159M940 38L940 146M943 32L943 152M946 28L946 156M949 47L949 137M952 54L952 130M955 74L955 110M958 36L958 148M961 47L961 137M964 38L964 146M967 20L967 164M970 24L970 160M973 36L973 148M976 29L976 155M979 24L979 160M982 42L982 142M985 53L985 131M988 41L988 143M991 38L991 146M994 78L994 106M997 44L997 140M1000 24L1000 160M1003 24L1003 160M1006 36L1006 148M1009 28L1009 156M1012 20L1012 164M1015 36L1015 148M1018 50L1018 134M1021 40L1021 144M1024 37L1024 147M1027 51L1027 133M1030 50L1030 134M1033 70L1033 114M1036 26L1036 158M1039 37L1039 147M1042 29L1042 155M1045 20L1045 164M1048 30L1048 154M1051 45L1051 139M1054 38L1054 146M1057 35L1057 149M1060 50L1060 134M1063 54L1063 130M1066 35L1066 149M1069 30L1069 154M1072 74L1072 110M1075 32L1075 152M1078 20L1078 164M1081 25L1081 159M1084 41L1084 143M1087 36L1087 148M1090 31L1090 153M1093 48L1093 136M1096 56L1096 128M1099 40L1099 144M1102 34L1102 150M1105 44L1105 140M1108 36L1108 148M1111 67L1111 117M1114 22L1114 162M1117 38L1117 146M1120 32L1120 152M1123 26L1123 158M1126 44L1126 140M1129 55L1129 129M1132 42L1132 142M1135 36L1135 148M1138 46L1138 138M1141 42L1141 142M1144 22L1144 162M1147 22L1147 162M1150 72L1150 112M1153 30L1153 154M1156 22L1156 162M1159 38L1159 146M1162 52L1162 132M1165 43L1165 141M1168 37L1168 147M1171 49L1171 135M1174 48L1174 136M1177 27L1177 157M1180 24L1180 160M1183 36L1183 148M1186 30L1186 154M1189 67L1189 117M1192 32L1192 152M1195 48L1195 136M1198 42L1198 142M1201 65L1201 119M1204 78L1204 106M1207 91L1207 93M1210 62L1210 122M1213 55L1213 129M1216 66L1216 118M1219 60L1219 124M1222 46L1222 138M1225 55L1225 129M1228 91L1228 93M1231 68L1231 116M1234 62L1234 122M1237 77L1237 107M1240 91L1240 93M1243 67L1243 117M1246 58L1246 126M1249 68L1249 116M1252 64L1252 120M1255 46L1255 138M1258 51L1258 133M1261 68L1261 116M1264 65L1264 119M1267 80L1267 104M1270 74L1270 110M1273 91L1273 93M1276 71L1276 113M1279 62L1279 122M1282 72L1282 112M1285 68L1285 116M1288 49L1288 135M1291 50L1291 134M1294 65L1294 119M1297 62L1297 122M1300 54L1300 130M1303 68L1303 116M1306 91L1306 93M1309 73L1309 111M1312 64L1312 120M1315 74L1315 110M1318 74L1318 110M1321 54L1321 130M1324 50L1324 134M1327 63L1327 121M1330 60L1330 124M1333 50L1333 134M1336 62L1336 122M1339 80L1339 104M1342 73L1342 111M1345 91L1345 93M1348 76L1348 108M1351 79L1351 105M1354 59L1354 125M1357 52L1357 132M1360 64L1360 120M1363 60L1363 124M1366 48L1366 136M1369 57L1369 127M1372 76L1372 108M1375 72L1375 112M1378 64L1378 120M1381 76L1381 108M1384 91L1384 93M1387 65L1387 119M1390 55L1390 129M1393 65L1393 119M1396 62L1396 122M1399 47L1399 137M1402 52L1402 132M1405 70L1405 114M1408 69L1408 115M1411 61L1411 123M1414 74L1414 110M1417 91L1417 93M1420 70L1420 114M1423 80L1423 104M1426 68L1426 116M1429 66L1429 118M1432 48L1432 136M1435 49L1435 135M1438 66L1438 118" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div></div>
-          <div class="lp2-base"></div>
-          <div class="lp2-strip" style="z-index:2"><span class="lp2-chip" style="--c:#C98A3C;left:3px">Verse</span><span class="lp2-chip" style="--c:#C8463A;left:203px">Chorus</span><span class="lp2-chip" style="--c:#5775A6;left:483px">Bridge</span><span class="lp2-pinline" style="left:330px"></span><span class="lp2-pinflag" style="left:333px">C# riff</span><span class="lp2-chip" style="--c:#C98A3C;left:723px">Verse</span><span class="lp2-chip" style="--c:#C8463A;left:923px">Chorus</span><span class="lp2-chip" style="--c:#5775A6;left:1203px">Bridge</span><span class="lp2-pinline" style="left:1050px"></span><span class="lp2-pinflag" style="left:1053px">C# riff</span><span class="lp2-tick" style="left:0px"></span><span class="lp2-tick" style="left:90px"></span><span class="lp2-tick" style="left:180px"></span><span class="lp2-tick" style="left:270px"></span><span class="lp2-tick" style="left:360px"></span><span class="lp2-tick" style="left:450px"></span><span class="lp2-tick" style="left:540px"></span><span class="lp2-tick" style="left:630px"></span><span class="lp2-tick" style="left:720px"></span><span class="lp2-tick" style="left:810px"></span><span class="lp2-tick" style="left:900px"></span><span class="lp2-tick" style="left:990px"></span><span class="lp2-tick" style="left:1080px"></span><span class="lp2-tick" style="left:1170px"></span><span class="lp2-tick" style="left:1260px"></span><span class="lp2-tick" style="left:1350px"></span></div>
-          <div class="lp2-ph"></div>
-          <div class="lp2-corner"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#lp2-expand"/></svg></div>
-          <div class="lp2-zoom"><svg width="14" height="14" viewBox="0 0 24 24"><use href="#lp2-search"/></svg></div>
-        </div>
-        <div class="lp2-settings">
-          <span class="lp2-schip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#tool-loop"/></svg><b>A–B</b><small>Loop</small></span>
-          <span class="lp2-schip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#tool-speed"/></svg><b>1.0×</b><small>Speed</small></span>
-          <span class="lp2-schip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#lp2-mnotes"/></svg><b>±0</b><small>Pitch</small></span>
-        </div>
-        <div class="lp2-foot">
-          <span class="lp2-x">✕</span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipb"/></svg></span>
-          <span class="lp2-play"><i></i><i></i></span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipf"/></svg></span>
-          <span class="lp2-q"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#lp2-list"/></svg></span>
-        </div>
-      </div>
-    </div></div><div class="cap"><b>Play it</b> — loop it, slow it, mark the verse and chorus</div></div>
-    <div class="slide"><div class="inner"><div class="lp2-fit">
-      <div class="lp2-screen" style="margin-top:1px">
-        <div class="lp2-head">
-          <div class="lp2-grab"></div>
-          <div class="lp2-title">Chorus — take 3</div>
-          <div class="lp2-meta"><span class="lp2-meta-labels">Spring Show <span style="color:#a89994">•</span> Jul 18 <span style="color:#a89994">•</span> 2 layers</span><span class="t">0:31 / 1:45</span></div>
-        </div>
-        <div style="padding:4px 14px 6px">
-          <div class="lp2-reel compact" style="margin:0 -14px">
-            <div class="lp2-half played"><div class="lp2-strip lp2-bars"><svg class="lp2-wave" width="1440" height="112" viewBox="0 0 1440 112" preserveAspectRatio="none"><path d="M1 46L1 66M4 22L4 90M7 32L7 80M10 40L10 72M13 34L13 78M16 34L16 78M19 47L19 65M22 46L22 66M25 34L25 78M28 34L28 78M31 40L31 72M34 31L34 81M37 22L37 90M40 47L40 65M43 38L43 74M46 32L46 80M49 32L49 80M52 45L52 67M55 48L55 64M58 36L58 76M61 36L61 76M64 42L64 70M67 34L67 78M70 23L70 89M73 28L73 84M76 36L76 76M79 47L79 65M82 28L82 84M85 42L85 70M88 46L88 66M91 38L91 74M94 37L94 75M97 45L97 67M100 38L100 74M103 26L103 86M106 28L106 84M109 35L109 77M112 28L112 84M115 24L115 88M118 55L118 57M121 45L121 67M124 38L124 74M127 37L127 75M130 46L130 66M133 42L133 70M136 29L136 83M139 30L139 82M142 36L142 76M145 29L145 83M148 22L148 90M151 34L151 78M154 42L154 70M157 55L157 57M160 36L160 76M163 46L163 66M166 46L166 66M169 32L169 80M172 32L172 80M175 38L175 74M178 30L178 82M181 22L181 90M184 30L184 82M187 40L187 72M190 34L190 78M193 33L193 79M196 55L196 57M199 48L199 64M202 18L202 94M205 16L205 96M208 22L208 90M211 16L211 96M214 6L214 106M217 10L217 102M220 19L220 93M223 14L223 98M226 12L226 100M229 24L229 88M232 30L232 82M235 44L235 68M238 18L238 94M241 24L241 88M244 19L244 93M247 6L247 106M250 8L250 104M253 18L253 94M256 12L256 100M259 8L259 104M262 21L262 91M265 29L265 83M268 20L268 92M271 18L271 94M274 46L274 66M277 23L277 89M280 9L280 103M283 9L283 103M286 17L286 95M289 12L289 100M292 6L292 106M295 17L295 95M298 26L298 86M301 20L301 92M304 18L304 94M307 28L307 84M310 26L310 86M313 41L313 71M316 10L316 102M319 18L319 94M322 12L322 100M325 6L325 106M328 13L328 99M331 24L331 88M334 19L334 93M337 16L337 96M340 28L340 84M343 30L343 82M346 16L346 96M349 13L349 99M352 44L352 68M355 14L355 98M358 6L358 106M361 10L361 102M364 20L364 92M367 17L367 95M370 14L370 98M373 26L373 86M376 30L376 82M379 20L379 92M382 16L382 96M385 22L385 90M388 18L388 94M391 38L391 74M394 8L394 104M397 18L397 94M400 15L400 97M403 10L403 102M406 22L406 90M409 30L409 82M412 22L412 90M415 17L415 95M418 24L418 88M421 22L421 90M424 8L424 104M427 8L427 104M430 42L430 70M433 14L433 98M436 8L436 104M439 18L439 94M442 28L442 84M445 22L445 90M448 18L448 94M451 26L451 86M454 25L454 87M457 11L457 101M460 8L460 104M463 16L463 96M466 13L466 99M469 38L469 74M472 14L472 98M475 26L475 86M478 21L478 91M481 37L481 75M484 46L484 66M487 55L487 57M490 35L490 77M493 30L493 82M496 38L496 74M499 34L499 78M502 24L502 88M505 30L505 82M508 55L508 57M511 40L511 72M514 36L514 76M517 46L517 66M520 55L520 57M523 38L523 74M526 33L526 79M529 40L529 72M532 36L532 76M535 24L535 88M538 28L538 84M541 40L541 72M544 38L544 74M547 48L547 64M550 44L550 68M553 55L553 57M556 42L556 70M559 36L559 76M562 42L562 70M565 40L565 72M568 26L568 86M571 26L571 86M574 37L574 75M577 36L577 76M580 30L580 82M583 40L583 72M586 55L586 57M589 43L589 69M592 37L592 75M595 44L595 68M598 44L598 68M601 30L601 82M604 26L604 86M607 36L607 76M610 34L610 78M613 27L613 85M616 36L616 76M619 48L619 64M622 43L622 69M625 55L625 57M628 46L628 66M631 47L631 65M634 34L634 78M637 28L637 84M640 36L640 76M643 34L643 78M646 25L646 87M649 32L649 80M652 44L652 68M655 42L655 70M658 36L658 76M661 46L661 66M664 55L664 57M667 38L667 74M670 30L670 82M673 38L673 74M676 36L676 76M679 24L679 88M682 28L682 84M685 41L685 71M688 40L688 72M691 34L691 78M694 44L694 68M697 55L697 57M700 41L700 71M703 48L703 64M706 40L706 72M709 38L709 74M712 26L712 86M715 26L715 86M718 38L718 74M721 46L721 66M724 22L724 90M727 32L727 80M730 40L730 72M733 34L733 78M736 34L736 78M739 47L739 65M742 46L742 66M745 34L745 78M748 34L748 78M751 40L751 72M754 31L754 81M757 22L757 90M760 47L760 65M763 38L763 74M766 32L766 80M769 32L769 80M772 45L772 67M775 48L775 64M778 36L778 76M781 36L781 76M784 42L784 70M787 34L787 78M790 23L790 89M793 28L793 84M796 36L796 76M799 47L799 65M802 28L802 84M805 42L805 70M808 46L808 66M811 38L811 74M814 37L814 75M817 45L817 67M820 38L820 74M823 26L823 86M826 28L826 84M829 35L829 77M832 28L832 84M835 24L835 88M838 55L838 57M841 45L841 67M844 38L844 74M847 37L847 75M850 46L850 66M853 42L853 70M856 29L856 83M859 30L859 82M862 36L862 76M865 29L865 83M868 22L868 90M871 34L871 78M874 42L874 70M877 55L877 57M880 36L880 76M883 46L883 66M886 46L886 66M889 32L889 80M892 32L892 80M895 38L895 74M898 30L898 82M901 22L901 90M904 30L904 82M907 40L907 72M910 34L910 78M913 33L913 79M916 55L916 57M919 48L919 64M922 18L922 94M925 16L925 96M928 22L928 90M931 16L931 96M934 6L934 106M937 10L937 102M940 19L940 93M943 14L943 98M946 12L946 100M949 24L949 88M952 30L952 82M955 44L955 68M958 18L958 94M961 24L961 88M964 19L964 93M967 6L967 106M970 8L970 104M973 18L973 94M976 12L976 100M979 8L979 104M982 21L982 91M985 29L985 83M988 20L988 92M991 18L991 94M994 46L994 66M997 23L997 89M1000 9L1000 103M1003 9L1003 103M1006 17L1006 95M1009 12L1009 100M1012 6L1012 106M1015 17L1015 95M1018 26L1018 86M1021 20L1021 92M1024 18L1024 94M1027 28L1027 84M1030 26L1030 86M1033 41L1033 71M1036 10L1036 102M1039 18L1039 94M1042 12L1042 100M1045 6L1045 106M1048 13L1048 99M1051 24L1051 88M1054 19L1054 93M1057 16L1057 96M1060 28L1060 84M1063 30L1063 82M1066 16L1066 96M1069 13L1069 99M1072 44L1072 68M1075 14L1075 98M1078 6L1078 106M1081 10L1081 102M1084 20L1084 92M1087 17L1087 95M1090 14L1090 98M1093 26L1093 86M1096 30L1096 82M1099 20L1099 92M1102 16L1102 96M1105 22L1105 90M1108 18L1108 94M1111 38L1111 74M1114 8L1114 104M1117 18L1117 94M1120 15L1120 97M1123 10L1123 102M1126 22L1126 90M1129 30L1129 82M1132 22L1132 90M1135 17L1135 95M1138 24L1138 88M1141 22L1141 90M1144 8L1144 104M1147 8L1147 104M1150 42L1150 70M1153 14L1153 98M1156 8L1156 104M1159 18L1159 94M1162 28L1162 84M1165 22L1165 90M1168 18L1168 94M1171 26L1171 86M1174 25L1174 87M1177 11L1177 101M1180 8L1180 104M1183 16L1183 96M1186 13L1186 99M1189 38L1189 74M1192 14L1192 98M1195 26L1195 86M1198 21L1198 91M1201 37L1201 75M1204 46L1204 66M1207 55L1207 57M1210 35L1210 77M1213 30L1213 82M1216 38L1216 74M1219 34L1219 78M1222 24L1222 88M1225 30L1225 82M1228 55L1228 57M1231 40L1231 72M1234 36L1234 76M1237 46L1237 66M1240 55L1240 57M1243 38L1243 74M1246 33L1246 79M1249 40L1249 72M1252 36L1252 76M1255 24L1255 88M1258 28L1258 84M1261 40L1261 72M1264 38L1264 74M1267 48L1267 64M1270 44L1270 68M1273 55L1273 57M1276 42L1276 70M1279 36L1279 76M1282 42L1282 70M1285 40L1285 72M1288 26L1288 86M1291 26L1291 86M1294 37L1294 75M1297 36L1297 76M1300 30L1300 82M1303 40L1303 72M1306 55L1306 57M1309 43L1309 69M1312 37L1312 75M1315 44L1315 68M1318 44L1318 68M1321 30L1321 82M1324 26L1324 86M1327 36L1327 76M1330 34L1330 78M1333 27L1333 85M1336 36L1336 76M1339 48L1339 64M1342 43L1342 69M1345 55L1345 57M1348 46L1348 66M1351 47L1351 65M1354 34L1354 78M1357 28L1357 84M1360 36L1360 76M1363 34L1363 78M1366 25L1366 87M1369 32L1369 80M1372 44L1372 68M1375 42L1375 70M1378 36L1378 76M1381 46L1381 66M1384 55L1384 57M1387 38L1387 74M1390 30L1390 82M1393 38L1393 74M1396 36L1396 76M1399 24L1399 88M1402 28L1402 84M1405 41L1405 71M1408 40L1408 72M1411 34L1411 78M1414 44L1414 68M1417 55L1417 57M1420 41L1420 71M1423 48L1423 64M1426 40L1426 72M1429 38L1429 74M1432 26L1432 86M1435 26L1435 86M1438 38L1438 74" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div></div>
-            <div class="lp2-half ahead"><div class="lp2-strip lp2-bars"><svg class="lp2-wave" width="1440" height="112" viewBox="0 0 1440 112" preserveAspectRatio="none"><path d="M1 46L1 66M4 22L4 90M7 32L7 80M10 40L10 72M13 34L13 78M16 34L16 78M19 47L19 65M22 46L22 66M25 34L25 78M28 34L28 78M31 40L31 72M34 31L34 81M37 22L37 90M40 47L40 65M43 38L43 74M46 32L46 80M49 32L49 80M52 45L52 67M55 48L55 64M58 36L58 76M61 36L61 76M64 42L64 70M67 34L67 78M70 23L70 89M73 28L73 84M76 36L76 76M79 47L79 65M82 28L82 84M85 42L85 70M88 46L88 66M91 38L91 74M94 37L94 75M97 45L97 67M100 38L100 74M103 26L103 86M106 28L106 84M109 35L109 77M112 28L112 84M115 24L115 88M118 55L118 57M121 45L121 67M124 38L124 74M127 37L127 75M130 46L130 66M133 42L133 70M136 29L136 83M139 30L139 82M142 36L142 76M145 29L145 83M148 22L148 90M151 34L151 78M154 42L154 70M157 55L157 57M160 36L160 76M163 46L163 66M166 46L166 66M169 32L169 80M172 32L172 80M175 38L175 74M178 30L178 82M181 22L181 90M184 30L184 82M187 40L187 72M190 34L190 78M193 33L193 79M196 55L196 57M199 48L199 64M202 18L202 94M205 16L205 96M208 22L208 90M211 16L211 96M214 6L214 106M217 10L217 102M220 19L220 93M223 14L223 98M226 12L226 100M229 24L229 88M232 30L232 82M235 44L235 68M238 18L238 94M241 24L241 88M244 19L244 93M247 6L247 106M250 8L250 104M253 18L253 94M256 12L256 100M259 8L259 104M262 21L262 91M265 29L265 83M268 20L268 92M271 18L271 94M274 46L274 66M277 23L277 89M280 9L280 103M283 9L283 103M286 17L286 95M289 12L289 100M292 6L292 106M295 17L295 95M298 26L298 86M301 20L301 92M304 18L304 94M307 28L307 84M310 26L310 86M313 41L313 71M316 10L316 102M319 18L319 94M322 12L322 100M325 6L325 106M328 13L328 99M331 24L331 88M334 19L334 93M337 16L337 96M340 28L340 84M343 30L343 82M346 16L346 96M349 13L349 99M352 44L352 68M355 14L355 98M358 6L358 106M361 10L361 102M364 20L364 92M367 17L367 95M370 14L370 98M373 26L373 86M376 30L376 82M379 20L379 92M382 16L382 96M385 22L385 90M388 18L388 94M391 38L391 74M394 8L394 104M397 18L397 94M400 15L400 97M403 10L403 102M406 22L406 90M409 30L409 82M412 22L412 90M415 17L415 95M418 24L418 88M421 22L421 90M424 8L424 104M427 8L427 104M430 42L430 70M433 14L433 98M436 8L436 104M439 18L439 94M442 28L442 84M445 22L445 90M448 18L448 94M451 26L451 86M454 25L454 87M457 11L457 101M460 8L460 104M463 16L463 96M466 13L466 99M469 38L469 74M472 14L472 98M475 26L475 86M478 21L478 91M481 37L481 75M484 46L484 66M487 55L487 57M490 35L490 77M493 30L493 82M496 38L496 74M499 34L499 78M502 24L502 88M505 30L505 82M508 55L508 57M511 40L511 72M514 36L514 76M517 46L517 66M520 55L520 57M523 38L523 74M526 33L526 79M529 40L529 72M532 36L532 76M535 24L535 88M538 28L538 84M541 40L541 72M544 38L544 74M547 48L547 64M550 44L550 68M553 55L553 57M556 42L556 70M559 36L559 76M562 42L562 70M565 40L565 72M568 26L568 86M571 26L571 86M574 37L574 75M577 36L577 76M580 30L580 82M583 40L583 72M586 55L586 57M589 43L589 69M592 37L592 75M595 44L595 68M598 44L598 68M601 30L601 82M604 26L604 86M607 36L607 76M610 34L610 78M613 27L613 85M616 36L616 76M619 48L619 64M622 43L622 69M625 55L625 57M628 46L628 66M631 47L631 65M634 34L634 78M637 28L637 84M640 36L640 76M643 34L643 78M646 25L646 87M649 32L649 80M652 44L652 68M655 42L655 70M658 36L658 76M661 46L661 66M664 55L664 57M667 38L667 74M670 30L670 82M673 38L673 74M676 36L676 76M679 24L679 88M682 28L682 84M685 41L685 71M688 40L688 72M691 34L691 78M694 44L694 68M697 55L697 57M700 41L700 71M703 48L703 64M706 40L706 72M709 38L709 74M712 26L712 86M715 26L715 86M718 38L718 74M721 46L721 66M724 22L724 90M727 32L727 80M730 40L730 72M733 34L733 78M736 34L736 78M739 47L739 65M742 46L742 66M745 34L745 78M748 34L748 78M751 40L751 72M754 31L754 81M757 22L757 90M760 47L760 65M763 38L763 74M766 32L766 80M769 32L769 80M772 45L772 67M775 48L775 64M778 36L778 76M781 36L781 76M784 42L784 70M787 34L787 78M790 23L790 89M793 28L793 84M796 36L796 76M799 47L799 65M802 28L802 84M805 42L805 70M808 46L808 66M811 38L811 74M814 37L814 75M817 45L817 67M820 38L820 74M823 26L823 86M826 28L826 84M829 35L829 77M832 28L832 84M835 24L835 88M838 55L838 57M841 45L841 67M844 38L844 74M847 37L847 75M850 46L850 66M853 42L853 70M856 29L856 83M859 30L859 82M862 36L862 76M865 29L865 83M868 22L868 90M871 34L871 78M874 42L874 70M877 55L877 57M880 36L880 76M883 46L883 66M886 46L886 66M889 32L889 80M892 32L892 80M895 38L895 74M898 30L898 82M901 22L901 90M904 30L904 82M907 40L907 72M910 34L910 78M913 33L913 79M916 55L916 57M919 48L919 64M922 18L922 94M925 16L925 96M928 22L928 90M931 16L931 96M934 6L934 106M937 10L937 102M940 19L940 93M943 14L943 98M946 12L946 100M949 24L949 88M952 30L952 82M955 44L955 68M958 18L958 94M961 24L961 88M964 19L964 93M967 6L967 106M970 8L970 104M973 18L973 94M976 12L976 100M979 8L979 104M982 21L982 91M985 29L985 83M988 20L988 92M991 18L991 94M994 46L994 66M997 23L997 89M1000 9L1000 103M1003 9L1003 103M1006 17L1006 95M1009 12L1009 100M1012 6L1012 106M1015 17L1015 95M1018 26L1018 86M1021 20L1021 92M1024 18L1024 94M1027 28L1027 84M1030 26L1030 86M1033 41L1033 71M1036 10L1036 102M1039 18L1039 94M1042 12L1042 100M1045 6L1045 106M1048 13L1048 99M1051 24L1051 88M1054 19L1054 93M1057 16L1057 96M1060 28L1060 84M1063 30L1063 82M1066 16L1066 96M1069 13L1069 99M1072 44L1072 68M1075 14L1075 98M1078 6L1078 106M1081 10L1081 102M1084 20L1084 92M1087 17L1087 95M1090 14L1090 98M1093 26L1093 86M1096 30L1096 82M1099 20L1099 92M1102 16L1102 96M1105 22L1105 90M1108 18L1108 94M1111 38L1111 74M1114 8L1114 104M1117 18L1117 94M1120 15L1120 97M1123 10L1123 102M1126 22L1126 90M1129 30L1129 82M1132 22L1132 90M1135 17L1135 95M1138 24L1138 88M1141 22L1141 90M1144 8L1144 104M1147 8L1147 104M1150 42L1150 70M1153 14L1153 98M1156 8L1156 104M1159 18L1159 94M1162 28L1162 84M1165 22L1165 90M1168 18L1168 94M1171 26L1171 86M1174 25L1174 87M1177 11L1177 101M1180 8L1180 104M1183 16L1183 96M1186 13L1186 99M1189 38L1189 74M1192 14L1192 98M1195 26L1195 86M1198 21L1198 91M1201 37L1201 75M1204 46L1204 66M1207 55L1207 57M1210 35L1210 77M1213 30L1213 82M1216 38L1216 74M1219 34L1219 78M1222 24L1222 88M1225 30L1225 82M1228 55L1228 57M1231 40L1231 72M1234 36L1234 76M1237 46L1237 66M1240 55L1240 57M1243 38L1243 74M1246 33L1246 79M1249 40L1249 72M1252 36L1252 76M1255 24L1255 88M1258 28L1258 84M1261 40L1261 72M1264 38L1264 74M1267 48L1267 64M1270 44L1270 68M1273 55L1273 57M1276 42L1276 70M1279 36L1279 76M1282 42L1282 70M1285 40L1285 72M1288 26L1288 86M1291 26L1291 86M1294 37L1294 75M1297 36L1297 76M1300 30L1300 82M1303 40L1303 72M1306 55L1306 57M1309 43L1309 69M1312 37L1312 75M1315 44L1315 68M1318 44L1318 68M1321 30L1321 82M1324 26L1324 86M1327 36L1327 76M1330 34L1330 78M1333 27L1333 85M1336 36L1336 76M1339 48L1339 64M1342 43L1342 69M1345 55L1345 57M1348 46L1348 66M1351 47L1351 65M1354 34L1354 78M1357 28L1357 84M1360 36L1360 76M1363 34L1363 78M1366 25L1366 87M1369 32L1369 80M1372 44L1372 68M1375 42L1375 70M1378 36L1378 76M1381 46L1381 66M1384 55L1384 57M1387 38L1387 74M1390 30L1390 82M1393 38L1393 74M1396 36L1396 76M1399 24L1399 88M1402 28L1402 84M1405 41L1405 71M1408 40L1408 72M1411 34L1411 78M1414 44L1414 68M1417 55L1417 57M1420 41L1420 71M1423 48L1423 64M1426 40L1426 72M1429 38L1429 74M1432 26L1432 86M1435 26L1435 86M1438 38L1438 74" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div></div>
-            <div class="lp2-base"></div>
-            <div class="lp2-ph"></div>
-          </div>
-          </div>
-          <div class="lp2-lyr">
-          <div class="lp2-lyrroll" style="--roll:-512px"><div class="lp2-lsec">Verse</div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">G</span><span class="k" style="left:11ch">D</span></div><div class="lp2-ltext">When the morning finds its way</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">Em</span><span class="k" style="left:13ch">C</span></div><div class="lp2-ltext">I'll leave the door ajar</div></div><div class="lp2-ll"><div class="lp2-ltext"> </div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">G</span><span class="k" style="left:12ch">D</span></div><div class="lp2-ltext">And every word I meant to keep</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">Em</span><span class="k" style="left:11ch">C</span></div><div class="lp2-ltext">is hanging on a star</div></div><div class="lp2-ll"><div class="lp2-ltext"> </div></div><div class="lp2-lsec">Chorus</div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">C</span><span class="k" style="left:8ch">G</span></div><div class="lp2-ltext">So carry me back</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">D</span><span class="k" style="left:9ch">Em</span></div><div class="lp2-ltext">to the sound we made</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">C</span><span class="k" style="left:8ch">G</span></div><div class="lp2-ltext">before it slips</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">D</span></div><div class="lp2-ltext">into the grey</div></div><div class="lp2-lsec">Verse</div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">G</span><span class="k" style="left:11ch">D</span></div><div class="lp2-ltext">When the morning finds its way</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">Em</span><span class="k" style="left:13ch">C</span></div><div class="lp2-ltext">I'll leave the door ajar</div></div><div class="lp2-ll"><div class="lp2-ltext"> </div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">G</span><span class="k" style="left:12ch">D</span></div><div class="lp2-ltext">And every word I meant to keep</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">Em</span><span class="k" style="left:11ch">C</span></div><div class="lp2-ltext">is hanging on a star</div></div><div class="lp2-ll"><div class="lp2-ltext"> </div></div><div class="lp2-lsec">Chorus</div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">C</span><span class="k" style="left:8ch">G</span></div><div class="lp2-ltext">So carry me back</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">D</span><span class="k" style="left:9ch">Em</span></div><div class="lp2-ltext">to the sound we made</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">C</span><span class="k" style="left:8ch">G</span></div><div class="lp2-ltext">before it slips</div></div><div class="lp2-ll"><div class="lp2-lchord"><span class="k" style="left:0ch">D</span></div><div class="lp2-ltext">into the grey</div></div></div>
-        </div>
-        <div class="lp2-foot">
-          <span class="lp2-x">✕</span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipb"/></svg></span>
-          <span class="lp2-play"><i></i><i></i></span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipf"/></svg></span>
-          <span class="lp2-q"><svg width="18" height="18" viewBox="0 0 24 24" style="color:#6b5a55"><use href="#lp2-repeat"/></svg></span>
-        </div>
-      </div>
-    </div></div><div class="cap"><b>Sing along</b> — lyrics and chords scroll with the song</div></div>
-    <div class="slide"><div class="inner"><div class="lp2-fit">
-      <div class="lp2-screen" style="margin-top:58px">
-        <div class="lp2-head">
-          <div class="lp2-grab"></div>
-          <div class="lp2-title">Chorus — take 3</div>
-          <div class="lp2-meta"><span class="lp2-meta-labels">Spring Show <span style="color:#a89994">•</span> Jul 18 <span style="color:#a89994">•</span> 2 layers</span><span class="t" id="lp3t">0:49.0 / 1:45</span></div>
-        </div>
-        <div style="padding:4px 14px 8px">
-          <div class="lp3-reel" style="margin:0 -14px">
-            <div class="lp3-wave faded"><svg width="390" height="120" viewBox="0 0 390 120" preserveAspectRatio="none"><path d="M1 48L1 72M4 22L4 98M7 23L7 97M10 28L10 92M13 28L13 92M16 20L16 100M19 14L19 106M22 17L22 103M25 29L25 91M28 40L28 80M31 44L31 76M34 52L34 68M37 38L37 82M40 43L40 77M43 52L43 68M46 59L46 61M49 50L49 70M52 37L52 83M55 28L55 92M58 28L58 92M61 32L61 88M64 32L64 88M67 45L67 75M70 14L70 106M73 12L73 108M76 22L76 98M79 34L79 86M82 38L82 82M85 35L85 85M88 32L88 88M91 38L91 82M94 50L94 70M97 59L97 61M100 59L100 61M103 44L103 76M106 35L106 85M109 34L109 86M112 38L112 82M115 38L115 82M118 28L118 92M121 16L121 104M124 12L124 108M127 18L127 102M130 28L130 92M133 49L133 71M136 29L136 91M139 26L139 94M142 31L142 89M145 44L145 76M148 54L148 66M151 59L151 61M154 46L154 74M157 40L157 80M160 40L160 80M163 44L163 76M166 59L166 61M169 36L169 84M172 22L172 98M175 15L175 105M178 18L178 102M181 25L181 95M184 28L184 92M187 24L187 96M190 20L190 100M193 24L193 96M196 36L196 84M199 59L199 61M202 52L202 68M205 46L205 74M208 41L208 79M211 42L211 78M214 48L214 72M217 51L217 69M220 44L220 76M223 30L223 90M226 20L226 100M229 20L229 100M232 46L232 74M235 28L235 92M238 23L238 97M241 16L241 104M244 16L244 104M247 27L247 93M250 40L250 80M253 46L253 74M256 43L256 77M259 39L259 81M262 42L262 78M265 59L265 61M268 59L268 61M271 51L271 69M274 38L274 82M277 28L277 92M280 26L280 94M283 30L283 90M286 32L286 88M289 24L289 96M292 15L292 105M295 12L295 108M298 44L298 76M301 32L301 88M304 39L304 81M307 38L307 82M310 34L310 86M313 37L313 83M316 47L316 73M319 59L319 61M322 59L322 61M325 46L325 74M328 35L328 85M331 49L331 71M334 36L334 84M337 37L337 83M340 30L340 90M343 18L343 102M346 12L346 108M349 16L349 104M352 26L352 94M355 33L355 87M358 32L358 88M361 28L361 92M364 48L364 72M367 42L367 78M370 53L370 67M373 59L373 61M376 49L376 71M379 40L379 80M382 38L382 82M385 42L385 78M388 44L388 76" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div>
-            <div class="lp3-wave loop"><svg width="390" height="120" viewBox="0 0 390 120" preserveAspectRatio="none"><path d="M1 48L1 72M4 22L4 98M7 23L7 97M10 28L10 92M13 28L13 92M16 20L16 100M19 14L19 106M22 17L22 103M25 29L25 91M28 40L28 80M31 44L31 76M34 52L34 68M37 38L37 82M40 43L40 77M43 52L43 68M46 59L46 61M49 50L49 70M52 37L52 83M55 28L55 92M58 28L58 92M61 32L61 88M64 32L64 88M67 45L67 75M70 14L70 106M73 12L73 108M76 22L76 98M79 34L79 86M82 38L82 82M85 35L85 85M88 32L88 88M91 38L91 82M94 50L94 70M97 59L97 61M100 59L100 61M103 44L103 76M106 35L106 85M109 34L109 86M112 38L112 82M115 38L115 82M118 28L118 92M121 16L121 104M124 12L124 108M127 18L127 102M130 28L130 92M133 49L133 71M136 29L136 91M139 26L139 94M142 31L142 89M145 44L145 76M148 54L148 66M151 59L151 61M154 46L154 74M157 40L157 80M160 40L160 80M163 44L163 76M166 59L166 61M169 36L169 84M172 22L172 98M175 15L175 105M178 18L178 102M181 25L181 95M184 28L184 92M187 24L187 96M190 20L190 100M193 24L193 96M196 36L196 84M199 59L199 61M202 52L202 68M205 46L205 74M208 41L208 79M211 42L211 78M214 48L214 72M217 51L217 69M220 44L220 76M223 30L223 90M226 20L226 100M229 20L229 100M232 46L232 74M235 28L235 92M238 23L238 97M241 16L241 104M244 16L244 104M247 27L247 93M250 40L250 80M253 46L253 74M256 43L256 77M259 39L259 81M262 42L262 78M265 59L265 61M268 59L268 61M271 51L271 69M274 38L274 82M277 28L277 92M280 26L280 94M283 30L283 90M286 32L286 88M289 24L289 96M292 15L292 105M295 12L295 108M298 44L298 76M301 32L301 88M304 39L304 81M307 38L307 82M310 34L310 86M313 37L313 83M316 47L316 73M319 59L319 61M322 59L322 61M325 46L325 74M328 35L328 85M331 49L331 71M334 36L334 84M337 37L337 83M340 30L340 90M343 18L343 102M346 12L346 108M349 16L349 104M352 26L352 94M355 33L355 87M358 32L358 88M361 28L361 92M364 48L364 72M367 42L367 78M370 53L370 67M373 59L373 61M376 49L376 71M379 40L379 80M382 38L382 82M385 42L385 78M388 44L388 76" stroke="currentColor" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg></div>
-            <div class="lp3-band"></div>
-            <div class="lp3-h" style="left:30%"></div>
-            <div class="lp3-h" style="left:68%"></div>
-            <div class="lp3-base"></div>
-            <div class="lp3-ph" id="lp3ph"></div>
-          </div>
-          <div style="display:flex;justify-content:center;padding-top:12px">
-            <span class="lp3-chip"><svg width="14" height="14" viewBox="0 0 24 24" style="color:#fff"><use href="#tool-loop"/></svg> Looping · Chorus</span>
-          </div>
-        </div>
-        <div class="lp2-foot" style="margin-top:auto">
-          <span class="lp2-x">✕</span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipb"/></svg></span>
-          <span class="lp2-play"><i></i><i></i></span>
-          <span class="lp2-skip"><svg width="22" height="22" viewBox="0 0 24 24"><use href="#lp2-skipf"/></svg></span>
-          <span class="lp2-q" style="background:#B87D6B;color:#fff"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#lp2-repeat"/></svg></span>
-        </div>
-      </div>
-    </div></div><div class="cap"><b>Drill it</b> — loop the hard part on repeat</div></div>
+    <div class="slide"><div class="inner">${CARD_1}</div><div class="cap"><b>Play it</b> — loop it, slow it, mark the verse and chorus</div></div>
+    <div class="slide"><div class="inner">${CARD_2}</div><div class="cap"><b>Sing along</b> — lyrics and chords scroll with the song</div></div>
+    <div class="slide"><div class="inner">${CARD_3}</div><div class="cap"><b>Drill it</b> — loop the hard part, a little faster each time</div></div>
   </div>
   <div class="dots" id="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>`;
 
 export const GALLERY_SCRIPT = `(function(){
-    var el=document.getElementById('lp2-time'); if(!el) return;
-    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var t=31;
-    setInterval(function(){ t+=1; if(t>=105) t=31;
-      var m=Math.floor(t/60), s=String(t%60).padStart(2,'0');
-      el.textContent=m+':'+s+' / 1:45';
-    },1000);
-  })();
+  var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var two = function(n){ return (n<10?'0':'')+n; };
+  var mmss = function(s){ s=Math.floor(s); return two(Math.floor(s/60))+':'+two(s%60); };
+  /* cards 1 and 2: a clock that walks with the scrolling reel */
+  [['ap1t',42],['ap2t',31]].forEach(function(c){
+    var el=document.getElementById(c[0]); if(!el||still) return;
+    var t=c[1]; setInterval(function(){ t=t+1>=101?c[1]:t+1; el.textContent=mmss(t)+' / 01:41'; },1000);
+  });
+  /* card 3: one clock drives the playhead, the time, and Step up's passes */
+  var reel=document.getElementById('ap3'), ph=document.getElementById('ap3ph'), tm=document.getElementById('ap3t'),
+      n=document.getElementById('ap3n'), r=document.getElementById('ap3r'), dots=document.getElementById('ap3dots');
+  if(!reel||!ph||!dots) return;
+  var A=${LOOP_A}, B=${LOOP_B}, tA=49, tB=57, STEPS=${STEPS}, RATES=[0.70,0.75,0.80,0.85,0.90,1.00];
+  var ds=dots.querySelectorAll('.ap-dot'), ls=dots.querySelectorAll('.ap-link');
+  var pass=0, start=Date.now();
+  function paint(){
+    for(var i=0;i<ds.length;i++) ds[i].className='ap-dot'+(i<pass?' done':i===pass?' cur':'');
+    for(var k=0;k<ls.length;k++) ls[k].className='ap-link'+(k<pass?' done':'');
+    n.textContent=(pass+1)+' / '+STEPS;
+    r.textContent=RATES[pass].toFixed(2)+'\\u00d7';
+  }
+  function at(f){ var p=A+f*(B-A); ph.style.left=p+'%'; reel.style.setProperty('--p',p+'%'); tm.textContent=mmss(tA+f*(tB-tA))+' / 01:41'; }
+  paint(); at(still?0.45:0);
+  if(still) return;
+  /* each pass is a little quicker than the last; after the last, the drill starts over */
+  setInterval(function(){
+    var dur=2800/RATES[pass], f=(Date.now()-start)/dur;
+    if(f>=1){ start=Date.now(); pass=(pass+1)%STEPS; paint(); f=0; }
+    at(f);
+  },40);
+})();
 (function(){
-    var ph=document.getElementById('lp3ph'), tm=document.getElementById('lp3t');
-    if(!ph||!tm) return;
-    var A=30, B=68, tA=49.0, tB=53.0, period=4200;
-    function fmt(s){var m=Math.floor(s/60), sec=s-m*60; return m+':'+(sec<10?'0':'')+sec.toFixed(1);}
-    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){ ph.style.left='48%'; tm.textContent=fmt(51.0)+' / 1:45'; return; }
-    var t0=Date.now();
-    setInterval(function(){
-      var frac=((Date.now()-t0)%period)/period;   // one clock drives both — always in step
-      ph.style.left=(A+frac*(B-A))+'%';
-      tm.textContent=fmt(tA+frac*(tB-tA))+' / 1:45';
-    },50);
-  })();
-(function(){
-  var g=document.getElementById('gallery'), dots=document.getElementById('dots').children;
-  if(!g) return;
+  var g=document.getElementById('gallery'), dots=document.getElementById('dots');
+  if(!g||!dots) return; dots=dots.children;
   g.addEventListener('scroll', function(){
     var i=Math.round(g.scrollLeft/(g.scrollWidth/3));
-    for(var k=0;k<dots.length;k++) dots[k].className = (k===Math.min(i,2))?'dot on':'dot';
+    for(var k=0;k<dots.length;k++) dots[k].className=(k===Math.min(i,2))?'dot on':'dot';
   });
 })();`;
