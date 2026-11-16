@@ -30,13 +30,14 @@ type WorkerWork = { id?: unknown; title?: unknown; author?: unknown; sourceUrl?:
 const HE_NIKKUD_RE = /[֑-ׇֽֿׁׂׅׄ]/g;
 
 // Tidy a Ben-Yehuda title for display: strip nikkud (to match the stripped body)
-// and a trailing decorative asterisk. Some works also carry meaningless titles (a
+// and a trailing decorative asterisk, and the markdown emphasis underscores some
+// titles arrive wrapped in ("_בילי בוד…_"). Some works also carry meaningless titles (a
 // bare number like "5233", a date range) — an artifact of the catalogue; treat a
 // title with fewer than two letters as absent, so the UI shows "Untitled" and
 // leans on the (always meaningful) author. Also keeps junk out of provenance.
 function cleanBenYehudaTitle(raw: unknown): string {
   let title = typeof raw === "string" ? raw.trim() : "";
-  title = title.replace(HE_NIKKUD_RE, "").replace(/\s*\*+\s*$/, "").trim();
+  title = title.replace(HE_NIKKUD_RE, "").replace(/_+/g, " ").replace(/\s*\*+\s*$/, "").replace(/\s{2,}/g, " ").trim();
   const letters = (title.match(/\p{L}/gu) || []).length;
   return letters >= 2 ? title : "";
 }
