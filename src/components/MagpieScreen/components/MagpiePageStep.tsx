@@ -8,6 +8,7 @@ import {
   View,
   type NativeSyntheticEvent,
   type TextLayoutEventData,
+  type TextStyle,
 } from "react-native";
 import { Spinner } from "../../common/Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -34,7 +35,7 @@ import { Button } from "../../common/Button";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkLink } from "../../common/InkLink";
 import { SparkFooter } from "../../common/SparkFrame";
-import { languageLabel, UserText } from "../../../i18n";
+import { contentDirectionStyle, languageLabel, resolveContentDirection, UserText } from "../../../i18n";
 import { PopoverRadioRow } from "../../common/PopoverMenu";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
@@ -73,24 +74,26 @@ const Tok = memo(function Tok({
   text,
   wordIndex,
   highlighted,
+  edge,
   onToggle,
   onLongPress,
 }: {
   text: string;
   wordIndex: number;
   highlighted: boolean;
+  edge: TextStyle;
   onToggle: (wordIndex: number) => void;
   onLongPress: (wordIndex: number) => void;
 }) {
   if (wordIndex < 0) {
-    return <Text style={highlighted ? styles.hl : undefined}>{text}</Text>;
+    return <Text style={[edge, highlighted ? styles.hl : null]}>{text}</Text>;
   }
   return (
     <Text
       suppressHighlighting
       onPress={() => onToggle(wordIndex)}
       onLongPress={() => onLongPress(wordIndex)}
-      style={highlighted ? styles.hl : undefined}
+      style={[edge, highlighted ? styles.hl : null]}
     >
       {text}
     </Text>
@@ -126,6 +129,9 @@ const Paragraph = memo(
       },
       [paragraph.text]
     );
+    // Each word is its own pressable run, and on iOS a run's alignment wins over
+    // the paragraph's: without this an English page sat on the right in Hebrew.
+    const edge = useMemo(() => contentDirectionStyle(resolveContentDirection(paragraph.text)), [paragraph.text]);
     const highlighted = computeHighlight(paragraph.tokens, marks);
     if (breaks) {
       const ends = breaks.split(",").map(Number);
@@ -149,6 +155,7 @@ const Paragraph = memo(
             text={token.text}
             wordIndex={token.wordIndex}
             highlighted={highlighted.has(token.index)}
+            edge={edge}
             onToggle={onToggle}
             onLongPress={onLongPress}
           />
