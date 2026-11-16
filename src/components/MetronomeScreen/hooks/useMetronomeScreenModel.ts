@@ -35,7 +35,9 @@ export function useMetronomeScreenModel() {
   const practiceOn = useStore((s) => s.metronomePracticeOn);
   const setPracticeOn = useStore((s) => s.setMetronomePracticeOn);
   const screenFlash = useStore((s) => s.metronomeScreenFlash);
-  const setScreenFlash = useStore((s) => s.setMetronomeScreenFlash);
+  const setStoredScreenFlash = useStore((s) => s.setMetronomeScreenFlash);
+  const visualDots = useStore((s) => s.metronomeVisualDots);
+  const setStoredVisualDots = useStore((s) => s.setMetronomeVisualDots);
   const fittingPractice = storedPractice && storedPractice.meterId === storeMeterId ? storedPractice : null;
   const metronome = useMetronome({
     practice: practiceOn && fittingPractice
@@ -56,6 +58,29 @@ export function useMetronomeScreenModel() {
       setStoredPractice(null);
     },
     [metronome, setStoredPractice]
+  );
+  // Dots and Flash are independent; switching the last one off turns the Visual cue off
+  // (and puts the dots back for next time), so Visual on always shows something.
+  const { toggleOutput } = metronome;
+  const setVisualDots = useCallback(
+    (on: boolean) => {
+      if (!on && !screenFlash) {
+        toggleOutput("visual");
+        return;
+      }
+      setStoredVisualDots(on);
+    },
+    [screenFlash, setStoredVisualDots, toggleOutput]
+  );
+  const setScreenFlash = useCallback(
+    (on: boolean) => {
+      if (!on && !visualDots) {
+        setStoredVisualDots(true);
+        toggleOutput("visual");
+      }
+      setStoredScreenFlash(on);
+    },
+    [visualDots, setStoredScreenFlash, setStoredVisualDots, toggleOutput]
   );
   const practiceBarCount = practice.bars.length;
   const isPlaying = practiceOn && metronome.isRunning && !metronome.isCountIn;
@@ -173,6 +198,8 @@ export function useMetronomeScreenModel() {
     setPracticeOn,
     screenFlash,
     setScreenFlash,
+    visualDots,
+    setVisualDots,
     setFeelPreset,
     practiceBar,
     practiceBeat,

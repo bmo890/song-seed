@@ -42,7 +42,7 @@ describe("the library's data version", () => {
             "lastUsedWorkspaceId", "magpieSparks", "metronomeBeepLevel", "metronomeBpm", "metronomeClickVoice",
             "metronomeCountInBars", "metronomeCustomPatternByMeterId", "metronomeFeelByMeterId",
             "metronomeGroupingByMeterId", "metronomeHapticLevel", "metronomeMeterId", "metronomeOutputs",
-            "metronomePractice", "metronomePracticeOn", "metronomeScreenFlash", "metronomeSubdivision", "nameLanguage", "notes", "playbackClickHaptic", "playbackClickLevel",
+            "metronomePractice", "metronomePracticeOn", "metronomeScreenFlash", "metronomeSubdivision", "metronomeVisualDots", "nameLanguage", "notes", "playbackClickHaptic", "playbackClickLevel",
             "playlists", "preferredRecordingInputId", "primaryCollectionIdByWorkspace", "primaryFilter",
             "primarySort", "primaryWorkspaceId", "promptForClipName", "recentlyDeleted", "reviewPromptShownAt", "seenHints",
             "setlists", "songbooks", "wordLadders", "wordLanguage", "workspaceLastOpenedAt",

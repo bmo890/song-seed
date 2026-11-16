@@ -38,6 +38,7 @@ export type PersistedAppStore = Pick<
     | "metronomePractice"
     | "metronomePracticeOn"
     | "metronomeScreenFlash"
+    | "metronomeVisualDots"
     | "playbackClickHaptic"
     | "globalCustomClipTags"
     | "backupReminderFrequency"

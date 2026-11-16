@@ -5,6 +5,7 @@ import { styles } from "../../styles";
 import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { ProMarkText } from "./ProMark";
 
 type SegmentedOption<T extends string> = {
@@ -21,6 +22,9 @@ type SegmentedOption<T extends string> = {
   /** A glyph set above the word (the metronome's note values). Every option in a
    *  control should carry one or none, so the segments stay the same height. */
   glyph?: string;
+  /** A small ink icon before the word (the metronome's click voices), full ink while
+   *  chosen. Every option in a control should carry one or none. */
+  icon?: keyof typeof Ionicons.glyphMap;
   /** The tab opens the Pro page for this person: the Pro mark follows its word
    *  (the caller asks `useProLocked`, so mark and gate agree). */
   pro?: boolean;
@@ -160,6 +164,13 @@ export function SegmentedControl<T extends string>({
                 >
                   {option.glyph}
                 </Text>
+              ) : null}
+              {option.icon ? (
+                <Ionicons
+                  name={option.icon}
+                  size={15}
+                  color={active ? colors.textPrimary : colors.textSecondary}
+                />
               ) : null}
               {/* One line always: a long word in a tight row ("Portuguese" among five
                   languages) shrinks a little rather than breaking mid-word. */}

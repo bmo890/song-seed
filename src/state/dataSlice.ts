@@ -214,6 +214,8 @@ export type DataSlice = {
     metronomePracticeOn: boolean;
     /** The metronome page's visual cue also flashes its display area (opt-in, 2026-11-16). */
     metronomeScreenFlash: boolean;
+    /** The visual cue's beat dots (on by default); dots and flash are independent. */
+    metronomeVisualDots: boolean;
     /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
      *  dial, deliberately not the standalone metronome's beep level: a muted
      *  metronome must never silently mute the playback click. */
@@ -257,6 +259,7 @@ export type DataSlice = {
     setMetronomePractice: (value: MetronomePractice | null) => void;
     setMetronomePracticeOn: (value: boolean) => void;
     setMetronomeScreenFlash: (value: boolean) => void;
+    setMetronomeVisualDots: (value: boolean) => void;
     setPlaybackClickHaptic: (value: boolean) => void;
     notes: Note[];
     addNote: () => string;
@@ -1654,6 +1657,7 @@ export const createDataSlice: StateCreator<
     metronomePractice: null,
     metronomePracticeOn: false,
     metronomeScreenFlash: false,
+    metronomeVisualDots: true,
     playbackClickHaptic: false,
     globalCustomClipTags: [],
     notes: [],
@@ -1884,6 +1888,7 @@ export const createDataSlice: StateCreator<
     setMetronomePractice: (value) => set({ metronomePractice: value === null ? null : sanitizePractice(value) }),
     setMetronomePracticeOn: (value) => set({ metronomePracticeOn: value === true }),
     setMetronomeScreenFlash: (value) => set({ metronomeScreenFlash: value === true }),
+    setMetronomeVisualDots: (value) => set({ metronomeVisualDots: value !== false }),
     setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),
     addNote: () => {
         const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

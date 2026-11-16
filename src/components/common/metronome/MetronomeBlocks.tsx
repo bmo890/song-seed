@@ -368,6 +368,12 @@ export function BarStrip({
 
 const CUE_KEYS: MetronomeOutputKey[] = ["beep", "visual", "haptic"];
 
+/** Click: a sharp tick; Wood: the block it is struck from. */
+const CLICK_VOICE_ICONS: Record<MetronomeClickVoice, keyof typeof Ionicons.glyphMap> = {
+  click: "pulse-outline",
+  wood: "cube-outline",
+};
+
 const CUE_GLYPHS: Record<MetronomeOutputKey, keyof typeof Ionicons.glyphMap> = {
   beep: "volume-medium-outline",
   visual: "eye-outline",
@@ -393,6 +399,8 @@ export function CueRows({
   onChangeClickVoice,
   screenFlash,
   onChangeScreenFlash,
+  visualDots = true,
+  onChangeVisualDots,
 }: {
   outputs: MetronomeOutputs;
   beepLevel: number;
@@ -411,6 +419,8 @@ export function CueRows({
    *  where there is no display to flash (the recorder's sheet). */
   screenFlash?: boolean;
   onChangeScreenFlash?: (on: boolean) => void;
+  visualDots?: boolean;
+  onChangeVisualDots?: (on: boolean) => void;
 }) {
   const { t } = useTranslation();
   const strengthId = nearestHapticStrengthId(hapticLevel);
@@ -459,6 +469,7 @@ export function CueRows({
                 options={METRONOME_CLICK_VOICES.map((voice) => ({
                   key: voice,
                   label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                  icon: CLICK_VOICE_ICONS[voice],
                 }))}
                 value={clickVoice}
                 onChange={onChangeClickVoice}
@@ -469,19 +480,25 @@ export function CueRows({
       </AnimatedCollapse>
 
       <AnimatedCollapse visible={outputs.visual && onChangeScreenFlash != null}>
-        {/* Its own line, led by the Visual glyph, so it never reads as the beep's voice. */}
-        <View style={[ms.cueBody, ms.cueLine]}>
-          <Ionicons name={CUE_GLYPHS.visual} size={16} color={colors.textMuted} />
-          <View style={ms.cueFill}>
-            <SegmentedControl
-              options={[
-                { key: "dots", label: t("metronome.visualDots") },
-                { key: "flash", label: t("metronome.visualFlash") },
-              ]}
-              value={screenFlash ? "flash" : "dots"}
-              onChange={(key) => onChangeScreenFlash?.(key === "flash")}
-            />
-          </View>
+        {/* Dots and Flash are independent switches: one, the other, or both (founder,
+            2026-11-16). Turning the last one off turns Visual off (the page decides). */}
+        <View style={[ms.cueBody, ms.cueIndent, ms.cueSwitches]}>
+          <InkKey
+            glyph={<Ionicons name="ellipsis-horizontal" size={18} color={inkKeyColor(visualDots ? "active" : "off")} />}
+            label={t("metronome.visualDots")}
+            tone={visualDots ? "active" : "off"}
+            role="switch"
+            haptic="light"
+            onPress={() => onChangeVisualDots?.(!visualDots)}
+          />
+          <InkKey
+            glyph={<Ionicons name="flash-outline" size={17} color={inkKeyColor(screenFlash ? "active" : "off")} />}
+            label={t("metronome.visualFlash")}
+            tone={screenFlash ? "active" : "off"}
+            role="switch"
+            haptic="light"
+            onPress={() => onChangeScreenFlash?.(!screenFlash)}
+          />
         </View>
       </AnimatedCollapse>
 
@@ -809,8 +826,9 @@ export const ms = StyleSheet.create({
     flex: 1,
     height: 30,
   },
-  cueFill: {
-    flex: 1,
+  cueSwitches: {
+    flexDirection: "row",
+    gap: spacing.xl,
   },
   // Rising bars, a signal meter: the strength reads without its word.
   strengthBars: {

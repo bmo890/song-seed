@@ -92,7 +92,7 @@ export function MetronomeScreenContent() {
             currentBeat={model.currentBeatInBar}
             pulseToken={model.pulseToken}
             pulseBeat={model.heroPulseBeat}
-            active={isRunning && model.outputs.visual}
+            active={isRunning && model.outputs.visual && model.visualDots}
             variant="hero"
           />
           {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"
@@ -249,6 +249,8 @@ export function MetronomeScreenContent() {
           onChangeClickVoice={model.supportsClickStyle ? model.setClickVoiceValue : undefined}
           screenFlash={model.screenFlash}
           onChangeScreenFlash={model.setScreenFlash}
+          visualDots={model.visualDots}
+          onChangeVisualDots={model.setVisualDots}
         />
       </BottomSheet>
     </SafeAreaView>

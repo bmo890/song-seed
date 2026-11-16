@@ -249,6 +249,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         metronomePractice: sanitizePractice(state?.metronomePractice),
         metronomePracticeOn: state?.metronomePracticeOn === true,
         metronomeScreenFlash: state?.metronomeScreenFlash === true,
+        metronomeVisualDots: state?.metronomeVisualDots !== false,
         playbackClickHaptic: state?.playbackClickHaptic === true,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         notes: Array.isArray(state?.notes) ? state.notes : [],
