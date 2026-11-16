@@ -29,6 +29,7 @@ import { InkKey, inkKeyColor } from "../InkKey";
 import { Press } from "../Press";
 import { AnimatedCollapse } from "../AnimatedCollapse";
 import { useTranslation } from "react-i18next";
+import { ClavesIcon } from "../ClavesIcon";
 
 /**
  * Shared metronome control blocks — the single source for the tempo stepper/tap/
@@ -368,10 +369,13 @@ export function BarStrip({
 
 const CUE_KEYS: MetronomeOutputKey[] = ["beep", "visual", "haptic"];
 
-/** Click: a sharp tick; Wood: the block it is struck from. */
-const CLICK_VOICE_ICONS: Record<MetronomeClickVoice, keyof typeof Ionicons.glyphMap> = {
+/** Click: a sharp tick; Wood: claves, the two sticks it is struck from. */
+const CLICK_VOICE_ICONS: Record<
+  MetronomeClickVoice,
+  keyof typeof Ionicons.glyphMap | ((color: string) => React.ReactNode)
+> = {
   click: "pulse-outline",
-  wood: "cube-outline",
+  wood: (color) => <ClavesIcon size={18} color={color} />,
 };
 
 const CUE_GLYPHS: Record<MetronomeOutputKey, keyof typeof Ionicons.glyphMap> = {
@@ -386,6 +390,16 @@ const CUE_GLYPHS: Record<MetronomeOutputKey, keyof typeof Ionicons.glyphMap> = {
  * the settings of the cues that are on, each led by its glyph rather than a
  * label: Beep its volume and sound, Haptic its strength as three rising bars.
  */
+/** A cue's settings: in place always (the sheet never changes height), dimmed and
+ *  untouchable while the cue is off. */
+function CueBody({ on, children }: { on: boolean; children: ReactNode }) {
+  return (
+    <View style={on ? null : ms.dimmed} pointerEvents={on ? "auto" : "none"} accessibilityElementsHidden={!on}>
+      {children}
+    </View>
+  );
+}
+
 export function CueRows({
   outputs,
   beepLevel,
@@ -444,7 +458,10 @@ export function CueRows({
         })}
       </View>
 
-      <AnimatedCollapse visible={outputs.beep}>
+      {/* Each cue's settings stay put and rest dimmed while the cue is off: a folding
+          body changed the sheet's height, so the sheet dropped while the row was still
+          fading (founder, 2026-11-16: "they flicker before descending"). */}
+      <CueBody on={outputs.beep}>
         <View style={ms.cueBody}>
           <View style={ms.cueLine}>
             <Ionicons name="volume-low-outline" size={16} color={colors.textMuted} />
@@ -477,9 +494,9 @@ export function CueRows({
             </View>
           ) : null}
         </View>
-      </AnimatedCollapse>
+      </CueBody>
 
-      <AnimatedCollapse visible={outputs.visual && onChangeScreenFlash != null}>
+      {onChangeScreenFlash != null ? <CueBody on={outputs.visual}>
         {/* Dots and Flash are independent switches: one, the other, or both (founder,
             2026-11-16). Turning the last one off turns Visual off (the page decides). */}
         <View style={[ms.cueBody, ms.cueIndent, ms.cueSwitches]}>
@@ -500,9 +517,9 @@ export function CueRows({
             onPress={() => onChangeScreenFlash?.(!screenFlash)}
           />
         </View>
-      </AnimatedCollapse>
+      </CueBody> : null}
 
-      <AnimatedCollapse visible={outputs.haptic}>
+      <CueBody on={outputs.haptic}>
         <View style={[ms.cueBody, ms.cueLine]}>
           <Ionicons name={CUE_GLYPHS.haptic} size={16} color={colors.textMuted} />
           <View style={ms.strengthBars}>
@@ -529,7 +546,7 @@ export function CueRows({
             ))}
           </View>
         </View>
-      </AnimatedCollapse>
+      </CueBody>
     </View>
   );
 }

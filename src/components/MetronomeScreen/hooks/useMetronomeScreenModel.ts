@@ -59,28 +59,32 @@ export function useMetronomeScreenModel() {
     },
     [metronome, setStoredPractice]
   );
-  // Dots and Flash are independent; switching the last one off turns the Visual cue off
-  // (and puts the dots back for next time), so Visual on always shows something.
-  const { toggleOutput } = metronome;
+  // Dots and Flash are independent; switching the last one off turns the Visual cue off.
+  // Both stay off as left while the row folds away (restoring the dots then made them
+  // blink back on mid-fold, 2026-11-16); turning Visual on again brings the dots back.
+  const { toggleOutput: toggleCueOutput } = metronome;
   const setVisualDots = useCallback(
     (on: boolean) => {
-      if (!on && !screenFlash) {
-        toggleOutput("visual");
-        return;
-      }
       setStoredVisualDots(on);
+      if (!on && !screenFlash) toggleCueOutput("visual");
     },
-    [screenFlash, setStoredVisualDots, toggleOutput]
+    [screenFlash, setStoredVisualDots, toggleCueOutput]
   );
   const setScreenFlash = useCallback(
     (on: boolean) => {
-      if (!on && !visualDots) {
-        setStoredVisualDots(true);
-        toggleOutput("visual");
-      }
       setStoredScreenFlash(on);
+      if (!on && !visualDots) toggleCueOutput("visual");
     },
-    [visualDots, setStoredScreenFlash, setStoredVisualDots, toggleOutput]
+    [visualDots, setStoredScreenFlash, toggleCueOutput]
+  );
+  const toggleOutput = useCallback(
+    (key: Parameters<typeof toggleCueOutput>[0]) => {
+      if (key === "visual" && !metronome.outputs.visual && !visualDots && !screenFlash) {
+        setStoredVisualDots(true);
+      }
+      toggleCueOutput(key);
+    },
+    [metronome.outputs.visual, screenFlash, setStoredVisualDots, toggleCueOutput, visualDots]
   );
   const practiceBarCount = practice.bars.length;
   const isPlaying = practiceOn && metronome.isRunning && !metronome.isCountIn;
@@ -200,6 +204,7 @@ export function useMetronomeScreenModel() {
     setScreenFlash,
     visualDots,
     setVisualDots,
+    toggleOutput,
     setFeelPreset,
     practiceBar,
     practiceBeat,

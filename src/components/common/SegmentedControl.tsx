@@ -23,8 +23,9 @@ type SegmentedOption<T extends string> = {
    *  control should carry one or none, so the segments stay the same height. */
   glyph?: string;
   /** A small ink icon before the word (the metronome's click voices), full ink while
-   *  chosen. Every option in a control should carry one or none. */
-  icon?: keyof typeof Ionicons.glyphMap;
+   *  chosen: an Ionicons name, or a drawing given the ink colour (claves have no icon).
+   *  Every option in a control should carry one or none. */
+  icon?: keyof typeof Ionicons.glyphMap | ((color: string) => React.ReactNode);
   /** The tab opens the Pro page for this person: the Pro mark follows its word
    *  (the caller asks `useProLocked`, so mark and gate agree). */
   pro?: boolean;
@@ -165,7 +166,9 @@ export function SegmentedControl<T extends string>({
                   {option.glyph}
                 </Text>
               ) : null}
-              {option.icon ? (
+              {typeof option.icon === "function" ? (
+                option.icon(active ? colors.textPrimary : colors.textSecondary)
+              ) : option.icon ? (
                 <Ionicons
                   name={option.icon}
                   size={15}
