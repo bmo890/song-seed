@@ -16,19 +16,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     gap: spacing.lg,
   },
-  // Closed pattern: the display fills the open space and sits centred in it.
+  // The display fills the room the pattern leaves and sits centred in it.
   display: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
     paddingVertical: spacing.lg,
-  },
-  // Open pattern: the display steps up and in, the bars take the middle.
-  displayCompact: {
-    flexGrow: 0,
-    gap: spacing.sm,
-    paddingVertical: 0,
   },
   // The tempo, said once: Lora, large, tabular.
   bpmValue: {
@@ -40,10 +34,6 @@ export const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     minWidth: 150,
     textAlign: "center",
-  },
-  bpmValueCompact: {
-    fontSize: 56,
-    lineHeight: 62,
   },
   bpmCaption: {
     fontFamily: "PlusJakartaSans_500Medium",

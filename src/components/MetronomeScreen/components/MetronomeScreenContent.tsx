@@ -31,8 +31,8 @@ type SheetKey = "meter" | "sound" | "help" | null;
 
 /**
  * Standalone metronome, "look up, touch down" (founder, 2026-11-16): the display
- * (beat dots, the tempo said once in Lora, its marking) at the top, centred in the
- * open space while the pattern is closed; the practice pattern in the middle (up
+ * (beat dots, the tempo said once in Lora, its marking) at the top, centred in
+ * whatever space the pattern leaves; the practice pattern in the middle (up
  * to four bars whose every beat and sub-beat is a switch, a mode switched on);
  * the deck pinned at the foot: − slider + over Tap · the round play key · Meter.
  * Sound is the header's glyph. Meter and Sound open sheets holding the same
@@ -54,9 +54,6 @@ export function MetronomeScreenContent() {
       ? t("metronome.noCues")
       : null;
 
-  // The pattern open takes the middle; closed, the display sits centred in the open space.
-  const patternOpen = model.supportsStepPattern && model.practiceOn;
-
   return (
     <SafeAreaView style={s.screen}>
       <ScreenHeader
@@ -76,7 +73,9 @@ export function MetronomeScreenContent() {
       {/* Look up, touch down (founder, 2026-11-16): the display above, the pattern in the
           middle, every control the hand works pinned in the deck at the foot. */}
       <ScrollView contentContainerStyle={s.pageContent} showsVerticalScrollIndicator={false} bounces={false}>
-        <View style={[s.display, patternOpen ? s.displayCompact : null]}>
+        {/* The display takes whatever room the pattern leaves and sits centred in it, at full
+            size open or closed (founder, 2026-11-16: no gap under the bars, no shrinking). */}
+        <View style={s.display}>
           {/* The beat dots are the pulse: one place for where the beat is. */}
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}
@@ -88,10 +87,7 @@ export function MetronomeScreenContent() {
             active={isRunning && model.outputs.visual}
             variant="hero"
           />
-          <Text
-            style={[s.bpmValue, patternOpen ? s.bpmValueCompact : null]}
-            accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}
-          >
+          <Text style={s.bpmValue} accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
             {model.bpm}
           </Text>
           <Text style={s.bpmCaption}>
