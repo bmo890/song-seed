@@ -93,7 +93,6 @@ export function MetronomeScreenContent() {
             pulseToken={model.pulseToken}
             pulseBeat={model.heroPulseBeat}
             active={isRunning && model.outputs.visual}
-            beatMs={model.beatIntervalMs}
             variant="hero"
           />
           {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"

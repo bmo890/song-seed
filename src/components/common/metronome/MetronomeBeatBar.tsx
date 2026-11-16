@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { durations } from "../../../design/motion";
-import { Animated, Easing, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Animated, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { colors, radii } from "../../../design/tokens";
 import { getGroupGapIndices } from "../../../domain/metronome";
 
@@ -75,10 +75,6 @@ type Props = {
   pulseBeat?: number;
   /** Whether the metronome is actually beating (running + visual cue on). */
   active: boolean;
-  /** Hero only: one beat in ms. With it, a glide under the dots travels to the next
-   *  beat through the second half of each beat and lands as it sounds, so the eye can
-   *  see the beat coming, the way it follows a pendulum (2026-11-16). */
-  beatMs?: number;
   variant?: "hero" | "compact";
 };
 
@@ -90,7 +86,6 @@ export function MetronomeBeatBar({
   pulseToken,
   pulseBeat,
   active,
-  beatMs,
   variant = "hero",
 }: Props) {
   const liveBeat = pulseBeat ?? currentBeat;
@@ -120,15 +115,6 @@ export function MetronomeBeatBar({
     if (next > 0 && next !== rowWidth) setRowWidth(next);
   };
   const sizes = heroSizes(rowWidth, beats.length, gapIndices.size);
-  /** Centre of a beat's slot from the row's left edge (the row is pinned LTR). */
-  const slotCentre = (beat: number) => {
-    let gaps = 0;
-    gapIndices.forEach((index) => {
-      if (index < beat) gaps += 1;
-    });
-    return (beat - 1) * sizes.slot + sizes.slot / 2 + gaps * sizes.groupGap;
-  };
-  const glideX = useRef(new Animated.Value(sizes.slot / 2)).current;
   const dotStyles = useMemo(
     () =>
       dotAnims.map((anim) => ({
@@ -148,25 +134,6 @@ export function MetronomeBeatBar({
     Animated.timing(anim, { toValue: 0, duration: durations.slow, useNativeDriver: true }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- isSilentBeat reads accentPattern
   }, [active, liveBeat, dotAnims, pulseToken]);
-
-  // The glide: from this beat to the next sounding one (it waits under a beat whose
-  // successor is silent). Beat time, not a motion token: the glide IS the tempo.
-  useEffect(() => {
-    if (!hero || !active || pulseToken === 0 || !beatMs) return;
-    const next = (liveBeat % beats.length) + 1;
-    const from = slotCentre(liveBeat);
-    const to = isSilentBeat(next) ? from : slotCentre(next);
-    glideX.stopAnimation();
-    glideX.setValue(from);
-    Animated.timing(glideX, {
-      toValue: to,
-      delay: beatMs * 0.5,
-      duration: beatMs * 0.45,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the token is the beat
-  }, [active, pulseToken]);
 
   useEffect(() => {
     if (active) return;
@@ -245,19 +212,7 @@ export function MetronomeBeatBar({
   if (!hero) return row;
   return (
     <View style={s.heroWrap} onLayout={onHeroLayout}>
-      <View>
-        {row}
-        {active && beatMs ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              s.glide,
-              { width: Math.round(sizes.slot * 0.4), left: -Math.round(sizes.slot * 0.2) },
-              { transform: [{ translateX: glideX }] },
-            ]}
-          />
-        ) : null}
-      </View>
+      {row}
     </View>
   );
 }
@@ -278,19 +233,11 @@ const s = StyleSheet.create({
   heroWrap: {
     alignSelf: "stretch",
     alignItems: "center",
-    paddingBottom: 10,
   },
   downbeatRing: {
     position: "absolute",
     borderWidth: 1.5,
     borderColor: colors.borderMuted,
-  },
-  glide: {
-    position: "absolute",
-    bottom: -8,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.primaryDeep,
   },
   rowCompact: {
     gap: 4,
