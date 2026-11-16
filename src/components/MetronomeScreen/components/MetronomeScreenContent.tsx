@@ -60,9 +60,10 @@ export function MetronomeScreenContent() {
         title={t("screens.metronome")}
         leftIcon="hamburger"
         rightElement={
-          // Set once, rarely touched: Sound is the header's one bare glyph (2026-11-16).
+          // Set once, rarely touched: the cue settings (click sound, beep, visual, haptic) are
+          // the header's one bare glyph, sliders because it holds more than sound (2026-11-16).
           <IconButton
-            icon="volume-medium-outline"
+            icon="options-outline"
             tone="strong"
             onPress={() => setSheet("sound")}
             accessibilityLabel={`${t("metronome.sound")}: ${soundLine}`}
