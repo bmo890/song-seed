@@ -25,6 +25,7 @@ import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
+import { DisplayFlash } from "./DisplayFlash";
 import { useTranslation } from "react-i18next";
 
 type SheetKey = "meter" | "sound" | "help" | null;
@@ -77,6 +78,12 @@ export function MetronomeScreenContent() {
         {/* The display takes whatever room the pattern leaves and sits centred in it, at full
             size open or closed (founder, 2026-11-16: no gap under the bars, no shrinking). */}
         <View style={s.display}>
+          <DisplayFlash
+            active={isRunning && model.outputs.visual && model.screenFlash}
+            pulseToken={model.pulseToken}
+            beat={model.heroPulseBeat}
+            accentPattern={model.heroAccentPattern}
+          />
           {/* The beat dots are the pulse: one place for where the beat is. */}
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}
@@ -86,6 +93,7 @@ export function MetronomeScreenContent() {
             pulseToken={model.pulseToken}
             pulseBeat={model.heroPulseBeat}
             active={isRunning && model.outputs.visual}
+            beatMs={model.beatIntervalMs}
             variant="hero"
           />
           {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"
@@ -240,6 +248,8 @@ export function MetronomeScreenContent() {
           onChangeHapticLevel={model.setHapticLevelValue}
           clickVoice={model.supportsClickStyle ? model.clickVoice : undefined}
           onChangeClickVoice={model.supportsClickStyle ? model.setClickVoiceValue : undefined}
+          screenFlash={model.screenFlash}
+          onChangeScreenFlash={model.setScreenFlash}
         />
       </BottomSheet>
     </SafeAreaView>

@@ -34,6 +34,8 @@ export function useMetronomeScreenModel() {
   // pattern for next time.
   const practiceOn = useStore((s) => s.metronomePracticeOn);
   const setPracticeOn = useStore((s) => s.setMetronomePracticeOn);
+  const screenFlash = useStore((s) => s.metronomeScreenFlash);
+  const setScreenFlash = useStore((s) => s.setMetronomeScreenFlash);
   const fittingPractice = storedPractice && storedPractice.meterId === storeMeterId ? storedPractice : null;
   const metronome = useMetronome({
     practice: practiceOn && fittingPractice
@@ -169,6 +171,8 @@ export function useMetronomeScreenModel() {
     setPractice,
     practiceOn,
     setPracticeOn,
+    screenFlash,
+    setScreenFlash,
     setFeelPreset,
     practiceBar,
     practiceBeat,

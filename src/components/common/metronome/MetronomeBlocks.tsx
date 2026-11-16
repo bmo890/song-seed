@@ -391,6 +391,8 @@ export function CueRows({
   onChangeBeepLevel,
   onChangeHapticLevel,
   onChangeClickVoice,
+  screenFlash,
+  onChangeScreenFlash,
 }: {
   outputs: MetronomeOutputs;
   beepLevel: number;
@@ -405,6 +407,10 @@ export function CueRows({
   onChangeBeepLevel: (level: number) => void;
   onChangeHapticLevel: (level: number) => void;
   onChangeClickVoice?: (voice: MetronomeClickVoice) => void;
+  /** The metronome page only: the visual cue also flashes its display area. Omitted
+   *  where there is no display to flash (the recorder's sheet). */
+  screenFlash?: boolean;
+  onChangeScreenFlash?: (on: boolean) => void;
 }) {
   const { t } = useTranslation();
   const strengthId = nearestHapticStrengthId(hapticLevel);
@@ -459,6 +465,23 @@ export function CueRows({
               />
             </View>
           ) : null}
+        </View>
+      </AnimatedCollapse>
+
+      <AnimatedCollapse visible={outputs.visual && onChangeScreenFlash != null}>
+        {/* Its own line, led by the Visual glyph, so it never reads as the beep's voice. */}
+        <View style={[ms.cueBody, ms.cueLine]}>
+          <Ionicons name={CUE_GLYPHS.visual} size={16} color={colors.textMuted} />
+          <View style={ms.cueFill}>
+            <SegmentedControl
+              options={[
+                { key: "dots", label: t("metronome.visualDots") },
+                { key: "flash", label: t("metronome.visualFlash") },
+              ]}
+              value={screenFlash ? "flash" : "dots"}
+              onChange={(key) => onChangeScreenFlash?.(key === "flash")}
+            />
+          </View>
         </View>
       </AnimatedCollapse>
 
@@ -785,6 +808,9 @@ export const ms = StyleSheet.create({
   cueSlider: {
     flex: 1,
     height: 30,
+  },
+  cueFill: {
+    flex: 1,
   },
   // Rising bars, a signal meter: the strength reads without its word.
   strengthBars: {

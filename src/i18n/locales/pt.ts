@@ -1803,7 +1803,7 @@ export const pt = {
     sound: "Som",
     voiceClick: "Clique",
     voiceWood: "Madeira",
-    voiceA11y: "Som do clique: {{label}}",
+    voiceA11y: "Som do clique: {{label}}", visualDots: "Pontos", visualFlash: "Flash",
     marking: {
       largo: "Largo",
       adagio: "Adagio",

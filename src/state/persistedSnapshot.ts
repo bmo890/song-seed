@@ -44,6 +44,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         metronomeClickVoice: state.metronomeClickVoice,
         metronomePractice: state.metronomePractice,
         metronomePracticeOn: state.metronomePracticeOn,
+        metronomeScreenFlash: state.metronomeScreenFlash,
         playbackClickHaptic: state.playbackClickHaptic,
         globalCustomClipTags: state.globalCustomClipTags,
         backupReminderFrequency: state.backupReminderFrequency,

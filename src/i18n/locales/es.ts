@@ -1804,7 +1804,7 @@ export const es = {
     sound: "Sonido",
     voiceClick: "Clic",
     voiceWood: "Madera",
-    voiceA11y: "Sonido del clic: {{label}}",
+    voiceA11y: "Sonido del clic: {{label}}", visualDots: "Puntos", visualFlash: "Destello",
     marking: {
       largo: "Largo",
       adagio: "Adagio",

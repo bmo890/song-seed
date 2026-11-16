@@ -1724,7 +1724,7 @@ export const de = {
     sound: "Sound",
     voiceClick: "Klick",
     voiceWood: "Holz",
-    voiceA11y: "Klicksound: {{label}}",
+    voiceA11y: "Klicksound: {{label}}", visualDots: "Punkte", visualFlash: "Blitz",
     marking: {
       largo: "Largo",
       adagio: "Adagio",
