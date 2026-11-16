@@ -30,9 +30,13 @@ export function useMetronomeScreenModel() {
   const storedPractice = useStore((s) => s.metronomePractice);
   const setStoredPractice = useStore((s) => s.setMetronomePractice);
   const storeMeterId = useStore((s) => s.metronomeMeterId);
+  // A mode you switch on (2026-11-16): off, the page plays the plain feel and keeps the
+  // pattern for next time.
+  const practiceOn = useStore((s) => s.metronomePracticeOn);
+  const setPracticeOn = useStore((s) => s.setMetronomePracticeOn);
   const fittingPractice = storedPractice && storedPractice.meterId === storeMeterId ? storedPractice : null;
   const metronome = useMetronome({
-    practice: fittingPractice
+    practice: practiceOn && fittingPractice
       ? { subdivision: fittingPractice.subdivision, steps: practiceSteps(fittingPractice) }
       : null,
   });
@@ -52,7 +56,7 @@ export function useMetronomeScreenModel() {
     [metronome, setStoredPractice]
   );
   const practiceBarCount = practice.bars.length;
-  const isPlaying = metronome.isRunning && !metronome.isCountIn;
+  const isPlaying = practiceOn && metronome.isRunning && !metronome.isCountIn;
   const practiceBar = isPlaying ? (Math.max(1, metronome.currentBar) - 1) % practiceBarCount : null;
   const practiceBeat = isPlaying ? Math.max(1, metronome.currentBeatInBar) - 1 : null;
   // The hero's dots mirror the bar being heard (the first one while stopped).
@@ -140,9 +144,11 @@ export function useMetronomeScreenModel() {
     pulseOpacity,
     practice,
     setPractice,
+    practiceOn,
+    setPracticeOn,
     setFeelPreset,
     practiceBar,
     practiceBeat,
-    heroAccentPattern: metronome.supportsStepPattern ? heroAccentPattern : metronome.accentPattern,
+    heroAccentPattern: metronome.supportsStepPattern && practiceOn ? heroAccentPattern : metronome.accentPattern,
   };
 }

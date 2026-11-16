@@ -60,20 +60,6 @@ export function PracticePattern({
 
   return (
     <View style={s.wrap}>
-      <View style={s.head}>
-        <Text style={s.eyebrow}>{t("metronome.practice.title")}</Text>
-        <Stepper
-          glyphs="plusMinus"
-          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
-          canDecrement={barCount > 1}
-          canIncrement={barCount < MAX_PRACTICE_BARS}
-          decrementLabel={t("metronome.practice.removeBar")}
-          incrementLabel={t("metronome.practice.addBar")}
-        >
-          <Text style={s.barCount}>{t("metronome.practice.bars", { count: barCount })}</Text>
-        </Stepper>
-      </View>
-
       {subdivisions.length > 1 ? (
         <SegmentedControl
           options={subdivisions.map((sub) => ({ key: String(sub), label: t(SUBDIVISION_LABEL_KEYS[sub]) }))}
@@ -104,6 +90,19 @@ export function PracticePattern({
         <LegendMark dot={[s.dot, s.legendDot, s.dotClick]} label={t("metronome.practice.legendClick")} />
         <LegendMark dot={[s.dot, s.legendDot, s.dotRest]} label={t("metronome.practice.legendSilent")} />
       </View>
+
+      {/* Bars: one is added under the last, so the count sits under the rows. */}
+      <Stepper
+        glyphs="plusMinus"
+        onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
+        canDecrement={barCount > 1}
+        canIncrement={barCount < MAX_PRACTICE_BARS}
+        decrementLabel={t("metronome.practice.removeBar")}
+        incrementLabel={t("metronome.practice.addBar")}
+        style={s.barStepper}
+      >
+        <Text style={s.barCount}>{t("metronome.practice.bars", { count: barCount })}</Text>
+      </Stepper>
 
       <View style={s.foot}>
         <InkKey
@@ -236,17 +235,8 @@ const s = StyleSheet.create({
   wrap: {
     gap: spacing.sm,
   },
-  head: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  eyebrow: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_700Bold",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    color: colors.textSecondary,
+  barStepper: {
+    alignSelf: "center",
   },
   barCount: {
     minWidth: 52,

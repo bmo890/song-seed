@@ -209,6 +209,9 @@ export type DataSlice = {
      *  four bars of beats and sub-beats. null = the page opens on the current feel. Never
      *  heard outside that page. */
     metronomePractice: MetronomePractice | null;
+    /** Practice pattern switched on (2026-11-16: a mode you turn on, hidden until then).
+     *  Off, the page plays the plain feel; the pattern stays for next time. */
+    metronomePracticeOn: boolean;
     /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
      *  dial, deliberately not the standalone metronome's beep level: a muted
      *  metronome must never silently mute the playback click. */
@@ -250,6 +253,7 @@ export type DataSlice = {
     setMetronomeCustomPattern: (meterId: MetronomeMeterId, pattern: number[]) => void;
     setMetronomeClickVoice: (value: MetronomeClickVoice) => void;
     setMetronomePractice: (value: MetronomePractice | null) => void;
+    setMetronomePracticeOn: (value: boolean) => void;
     setPlaybackClickHaptic: (value: boolean) => void;
     notes: Note[];
     addNote: () => string;
@@ -1645,6 +1649,7 @@ export const createDataSlice: StateCreator<
     metronomeCustomPatternByMeterId: {},
     metronomeClickVoice: DEFAULT_METRONOME_CLICK_VOICE,
     metronomePractice: null,
+    metronomePracticeOn: false,
     playbackClickHaptic: false,
     globalCustomClipTags: [],
     notes: [],
@@ -1873,6 +1878,7 @@ export const createDataSlice: StateCreator<
     setMetronomeClickVoice: (value) =>
         set({ metronomeClickVoice: isMetronomeClickVoice(value) ? value : DEFAULT_METRONOME_CLICK_VOICE }),
     setMetronomePractice: (value) => set({ metronomePractice: value === null ? null : sanitizePractice(value) }),
+    setMetronomePracticeOn: (value) => set({ metronomePracticeOn: value === true }),
     setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),
     addNote: () => {
         const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

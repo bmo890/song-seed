@@ -8,7 +8,8 @@
  *   12  2026-07-10 … 2026-11-01 (frozen while ~13 additive changes shipped)
  *   13  2026-11-02 folded date groups as calendar days (hiddenDays fromDay/toDay),
  *       Recently deleted (recentlyDeleted, its own persisted row)
- *   14  2026-11-16 the metronome page's practice pattern (metronomePractice)
+ *   14  2026-11-16 the metronome page's practice pattern (metronomePractice) and its
+ *       switch (metronomePracticeOn; folded into 14 before 14 left the test phones)
  */
 export const STORE_VERSION = 14;
 

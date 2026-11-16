@@ -9,6 +9,8 @@ import { Slider } from "../../common/Slider";
 import { Stepper } from "../../common/Stepper";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { ListRow, ListRows } from "../../common/ListRow";
+import { Switch } from "../../common/Switch";
+import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { colors } from "../../../design/tokens";
 import {
   MAX_METRONOME_BPM,
@@ -131,13 +133,35 @@ export function MetronomeScreenContent() {
 
         {model.supportsStepPattern ? (
           <View style={s.pattern}>
-            <PracticePattern
-              practice={model.practice}
-              baseBeats={model.accentPattern}
-              currentBar={model.practiceBar}
-              currentBeat={model.practiceBeat}
-              onChange={model.setPractice}
-            />
+            {/* A practice mode, off until switched on: the editor stays folded away. */}
+            <ListRows>
+              <ListRow
+                icon="repeat-outline"
+                title={t("metronome.practice.toggle")}
+                serifTitle={false}
+                userTitle={false}
+                chevron={false}
+                // haptics.ts: light — a small state flip (the Switch owns its own taps).
+                haptic="light"
+                accessory={
+                  <Switch
+                    value={model.practiceOn}
+                    onValueChange={model.setPracticeOn}
+                    accessibilityLabel={t("metronome.practice.toggle")}
+                  />
+                }
+                onPress={() => model.setPracticeOn(!model.practiceOn)}
+              />
+            </ListRows>
+            <AnimatedCollapse visible={model.practiceOn} style={s.patternBody}>
+              <PracticePattern
+                practice={model.practice}
+                baseBeats={model.accentPattern}
+                currentBar={model.practiceBar}
+                currentBeat={model.practiceBeat}
+                onChange={model.setPractice}
+              />
+            </AnimatedCollapse>
           </View>
         ) : null}
 

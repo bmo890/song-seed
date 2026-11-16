@@ -77,9 +77,10 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   pattern: {
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
+    gap: spacing.md,
+  },
+  patternBody: {
+    paddingTop: spacing.xs,
   },
   // Pushes the Sound row to the foot of the screen.
   spacer: {

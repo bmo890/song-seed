@@ -1799,7 +1799,7 @@ export const pt = {
       beatCount_many: "{{count}} tempos",
       edit: "Toque num tempo para mudá-lo",
       a11y: "Tempo {{number}}: {{state}}",
-    }, practice: { title: "Padrão", bars_one: "{{count}} compasso", bars_other: "{{count}} compassos", addBar: "Adicionar compasso", removeBar: "Remover compasso", soundAll: "Tocar tudo", silenceAll: "Silenciar tudo", barPlays: "Compasso {{number}}: toca", barRests: "Compasso {{number}}: em pausa", beat: "Compasso {{bar}}, tempo {{number}}: {{state}}", sub: "Tempo {{beat}}, subdivisão {{number}}: {{state}}", subOn: "soa", subAccent: "acento", subOff: "em silêncio", legendAccent: "Acento", legendClick: "Clique", legendSilent: "Silêncio" },
+    }, practice: { title: "Padrão", bars_one: "{{count}} compasso", bars_other: "{{count}} compassos", addBar: "Adicionar compasso", removeBar: "Remover compasso", soundAll: "Tocar tudo", silenceAll: "Silenciar tudo", barPlays: "Compasso {{number}}: toca", barRests: "Compasso {{number}}: em pausa", beat: "Compasso {{bar}}, tempo {{number}}: {{state}}", sub: "Tempo {{beat}}, subdivisão {{number}}: {{state}}", subOn: "soa", subAccent: "acento", subOff: "em silêncio", legendAccent: "Acento", legendClick: "Clique", legendSilent: "Silêncio", toggle: "Padrão de estudo" },
     sound: "Som",
     voiceClick: "Clique",
     voiceWood: "Madeira",
