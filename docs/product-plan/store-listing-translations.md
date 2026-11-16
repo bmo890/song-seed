@@ -24,7 +24,7 @@ keywords ≤ 100, description ≤ 4000.
 ## Spanish (es-419, es-ES; Apple: Mexico, Spain)
 
 - **Apple subtitle:** `Un rincón para tus canciones`
-- **Play short description:** `Un rincón tranquilo para componer y practicar. Escribe, termina, prepara el set.`
+- **Play short description:** `Un rincón tranquilo para componer y practicar. Que no se pierda ninguna joya.`
 - **Apple promotional text:** `Cientos de notas de voz, por fin en orden. Ordena ideas en colecciones, encuentra cualquiera en segundos y hazla canción. Luego envíala a tu banda, lista para tocar.`
 - **Apple keywords:** `componer,compositor,letras,acordes,nota de voz,grabadora,ideas,setlist,afinador,metrónomo,demo`
 
@@ -60,7 +60,7 @@ PARA LA BANDA
 PRACTICA
 • Baja la velocidad de las partes difíciles, cambia el tono y repite un pasaje en loop hasta dominarlo
 • Marca el verso y el coro, y señala los momentos importantes
-• Afinador y metrónomo incluidos
+• Afinador, y metrónomo con patrones de práctica: acentúa o silencia cualquier pulso
 
 COPIA DE SEGURIDAD Y EXPORTACIÓN
 • Copia de seguridad y exportación a Archivos, iCloud Drive o Google Drive
@@ -90,7 +90,7 @@ Política de privacidad: https://songnook.app/privacy
 ## German (de-DE)
 
 - **Apple subtitle:** `Ein stiller Winkel für Songs`
-- **Play short description:** `Ein stiller Winkel zum Songschreiben und Üben. Schreib, vollende, lern das Set.`
+- **Play short description:** `Ein stiller Winkel zum Songschreiben und Üben. Kein Juwel geht verloren.`
 - **Apple promotional text:** `Hunderte Sprachmemos, endlich in Ordnung. Sortiere Ideen in Sammlungen, finde jede in Sekunden und mach einen Song daraus. Dann schick ihn spielbereit an deine Band.`
 - **Apple keywords:** `songwriting,songwriter,songtext,akkorde,sprachmemo,rekorder,songideen,setlist,stimmgerät,metronom`
 
@@ -126,7 +126,7 @@ FÜR DIE BAND
 ÜBEN
 • Mach schwere Stellen langsamer, ändere die Tonart und loope eine Passage, bis sie sitzt
 • Markiere Strophe und Refrain und die Stellen, auf die es ankommt
-• Stimmgerät und Metronom inklusive
+• Stimmgerät und Metronom mit Übungsmustern: jeden Schlag betonen oder stummschalten
 
 BACKUP UND EXPORT
 • Backup und Export nach Dateien, iCloud Drive oder Google Drive
@@ -156,7 +156,7 @@ Datenschutzerklärung: https://songnook.app/privacy
 ## Portuguese (pt-BR)
 
 - **Apple subtitle:** `Um canto para suas músicas`
-- **Play short description:** `Um canto tranquilo para compor e praticar. Escreva, termine, aprenda o set.`
+- **Play short description:** `Um canto tranquilo para compor e praticar. Nenhuma joia se perde.`
 - **Apple promotional text:** `Centenas de memos de voz, enfim em ordem. Organize ideias em coleções, ache qualquer uma em segundos e faça dela uma música. Depois, envie à banda, pronta para tocar.`
 - **Apple keywords:** `compor,compositor,letra,acordes,memo de voz,gravador,ideias,setlist,afinador,metrônomo,demo,cifra`
 
@@ -192,7 +192,7 @@ PARA A BANDA
 PRATIQUE
 • Desacelere as partes difíceis, mude o tom e faça loop de um trecho até ele estar nas suas mãos
 • Marque o verso e o refrão, e os momentos que importam
-• Afinador e metrônomo incluídos
+• Afinador, e metrônomo com padrões de estudo: acentue ou silencie qualquer tempo
 
 BACKUP E EXPORTAÇÃO
 • Backup e exportação para Arquivos, iCloud Drive ou Google Drive
@@ -224,7 +224,7 @@ Política de Privacidade: https://songnook.app/privacy
 Plural address (אתם), as the app speaks.
 
 - **Apple subtitle:** `פינה שקטה לסיים בה שירים`
-- **Play short description:** `פינה שקטה לכתיבת שירים ולתרגול. לכתוב, לסיים, ללמוד את הסט.`
+- **Play short description:** `פינה שקטה לכתיבת שירים ולתרגול. אף פנינה לא הולכת לאיבוד.`
 - **Apple promotional text:** `מאות הקלטות קוליות, סוף סוף מסודרות. למיין רעיונות לאוספים, למצוא כל אחד בשניות ולהפוך אותו לשיר. ואז לשלוח אותו ללהקה, מוכן לנגינה.`
 - **Apple keywords:** `כתיבת שירים,מילים,אקורדים,הקלטה,תזכיר קולי,רעיונות,סטליסט,טיונר,מטרונום,דמו,שיר`
 
@@ -260,7 +260,7 @@ Plural address (אתם), as the app speaks.
 לתרגל
 • להאט את הקטעים הקשים, לשנות סולם ולעשות לופ על קטע עד שהוא יושב בידיים
 • לסמן בית ופזמון, ואת הרגעים שחשובים
-• טיונר ומטרונום מובנים
+• טיונר, ומטרונום עם תבניות תרגול: להדגיש או להשתיק כל פעמה
 
 גיבוי וייצוא
 • גיבוי וייצוא לקבצים, ל־iCloud Drive או ל־Google Drive

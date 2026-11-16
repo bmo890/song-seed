@@ -197,7 +197,7 @@ on organization and the band. What's new for 1.0.2 below; all five languages in
 - **Name:** SongNook
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
 - **Apple subtitle (30):** `A quiet corner to finish songs`
-- **Play short description (80):** `A quiet corner for songwriting and practice. Write, finish, learn the set.` (2026-11-15; was `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`)
+- **Play short description (80):** `A quiet corner for songwriting and practice. Never lose a gem.` (61; founder 2026-11-16. Was `A quiet corner for songwriting and practice. Write, finish, learn the set.` (2026-11-15); before that `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`)
 - **Apple promotional text (170):** `Hundreds of voice memos, finally in order. Sort ideas into collections, find any one in seconds, and turn it into a song. Then send it to your band, ready to play.` (163; 2026-11-15, founder picked: organization first, then the band. Replaced the 2026-11-14 line, which repeated the description's opening right above it. Promotional text changes any time, no new version.)
 - **Apple keywords (100):** `songwriting,songwriter,lyrics,chords,voice memo,recorder,song ideas,setlist,tuner,metronome,demo`
 - **Categories:** Apple: Music, then Productivity.
@@ -239,7 +239,7 @@ FOR THE BAND
 PRACTICE
 • Slow down the tricky parts, change the key, and loop a passage until it's in your hands
 • Mark the verse and chorus, and pin the moments that matter
-• Tuner and metronome built in
+• A tuner, and a metronome with practice patterns: accent or silence any beat
 
 BACKUP AND EXPORT
 • Back up and export to Files, iCloud Drive or Google Drive
@@ -297,7 +297,7 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
 | 4 | Player: sections, pin, layer, chorus loop, 0.75×, +2 st | Learn it, then layer it / Loop the hard part, slow it down, add another part. (2026-11-14) |
 | 5 | Borrowed Words page with phrases marked | Stuck on a line? / Lyric Spark: writing exercises to get past the block. (2026-11-14) |
 | 6 | Album demos collection | Get organized / Workspaces and collections for every project. |
-| 7 | Revisit | Never lose a gem / Revisit brings back the ones you forgot. |
+| 7 | Revisit | Old ideas, new life / Revisit brings back the ones you forgot. (2026-11-16: was "Never lose a gem", now the Play short description's) |
 | 8 | A received sketch in the player: marks, layer, lyrics, chart, the sender's note | Send the song, not just the audio / Lyrics, chords, notes and marks go with it. |
 
 **Translations:** the Hebrew, Spanish, German and Portuguese listings are still to do.
