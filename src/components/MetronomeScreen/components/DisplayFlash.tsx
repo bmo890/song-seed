@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet } from "react-native";
-import { colors, spacing } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 
 /** Peak wash on the one, and on the other sounding beats. */
@@ -18,12 +18,15 @@ export function DisplayFlash({
   pulseToken,
   beat,
   accentPattern,
+  height,
 }: {
   active: boolean;
   pulseToken: number;
   /** 1-based beat the pulse stands for. */
   beat: number | undefined;
   accentPattern: readonly number[];
+  /** From the top of the scroll content to the display's foot. */
+  height: number;
 }) {
   const wash = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -36,19 +39,22 @@ export function DisplayFlash({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the token is the beat
   }, [active, pulseToken]);
   useEffect(() => {
-    if (!active) wash.setValue(0);
+    if (!active) {
+      wash.stopAnimation();
+      wash.setValue(0);
+    }
   }, [active, wash]);
-  return <Animated.View pointerEvents="none" style={[s.wash, { opacity: wash }]} />;
+  if (height <= 0) return null;
+  return <Animated.View pointerEvents="none" style={[s.wash, { height, opacity: wash }]} />;
 }
 
 const s = StyleSheet.create({
-  // Edge to edge across the display: out through the page gutter and up to the title bar.
+  // A first child of the scroll content: its padding box is the screen's full width.
   wash: {
     position: "absolute",
-    top: -spacing.md,
-    bottom: 0,
-    left: -spacing.lg,
-    right: -spacing.lg,
+    top: 0,
+    left: 0,
+    right: 0,
     backgroundColor: colors.primary,
   },
 });

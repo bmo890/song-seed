@@ -43,6 +43,7 @@ export function MetronomeScreenContent() {
   const { t } = useTranslation();
   const model = useMetronomeScreenModel();
   const [sheet, setSheet] = useState<SheetKey>(null);
+  const [displayBottom, setDisplayBottom] = useState(0);
   const isRunning = model.isRunning;
   const tapping = model.tapCount > 0;
   const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
@@ -77,24 +78,37 @@ export function MetronomeScreenContent() {
       <ScrollView contentContainerStyle={s.pageContent} showsVerticalScrollIndicator={false} bounces={false}>
         {/* The display takes whatever room the pattern leaves and sits centred in it, at full
             size open or closed (founder, 2026-11-16: no gap under the bars, no shrinking). */}
-        <View style={s.display}>
-          <DisplayFlash
-            active={isRunning && model.outputs.visual && model.screenFlash}
-            pulseToken={model.pulseToken}
-            beat={model.heroPulseBeat}
-            accentPattern={model.heroAccentPattern}
-          />
-          {/* The beat dots are the pulse: one place for where the beat is. */}
-          <MetronomeBeatBar
-            beatsPerBar={model.meterPreset.pulsesPerBar}
-            accentPattern={model.heroAccentPattern}
-            grouping={model.grouping}
-            currentBeat={model.currentBeatInBar}
-            pulseToken={model.pulseToken}
-            pulseBeat={model.heroPulseBeat}
-            active={isRunning && model.outputs.visual && model.visualDots}
-            variant="hero"
-          />
+        {/* Edge to edge, title bar down to the display's foot: measured, since an absolute
+            child of the padded display could not reach past the page gutter. */}
+        <DisplayFlash
+          active={isRunning && model.outputs.visual && model.screenFlash}
+          pulseToken={model.pulseToken}
+          beat={model.heroPulseBeat}
+          accentPattern={model.heroAccentPattern}
+          height={displayBottom}
+        />
+        <View
+          style={s.display}
+          onLayout={(event) => {
+            const { y, height } = event.nativeEvent.layout;
+            setDisplayBottom(Math.round(y + height));
+          }}
+        >
+          {/* The beat dots are the pulse: one place for where the beat is. They are the
+              visual cue's Dots, so they are only there while Visual and Dots are on
+              (founder, 2026-11-16: flash alone shows no dots). */}
+          {model.outputs.visual && model.visualDots ? (
+            <MetronomeBeatBar
+              beatsPerBar={model.meterPreset.pulsesPerBar}
+              accentPattern={model.heroAccentPattern}
+              grouping={model.grouping}
+              currentBeat={model.currentBeatInBar}
+              pulseToken={model.pulseToken}
+              pulseBeat={model.heroPulseBeat}
+              active={isRunning}
+              variant="hero"
+            />
+          ) : null}
           {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"
               sat apart, beside the marking, and read as unrelated); the marking is the
               musician's word for the tempo, a quiet line of its own. */}
