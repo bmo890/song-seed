@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Press } from "../Press";
@@ -98,6 +98,13 @@ export function PracticePattern({
         ))}
       </View>
 
+      {/* The key: what the three dots mean, drawn in the dots themselves. */}
+      <View style={s.legend} accessible={false}>
+        <LegendMark dot={[s.dot, s.legendDot, s.dotAccent]} label={t("metronome.practice.legendAccent")} />
+        <LegendMark dot={[s.dot, s.legendDot, s.dotClick]} label={t("metronome.practice.legendClick")} />
+        <LegendMark dot={[s.dot, s.legendDot, s.dotRest]} label={t("metronome.practice.legendSilent")} />
+      </View>
+
       <View style={s.foot}>
         <InkKey
           glyph={<Ionicons name="volume-medium-outline" size={17} color={inkKeyColor("idle")} />}
@@ -110,6 +117,15 @@ export function PracticePattern({
           onPress={() => onChange(withAllSilent(practice))}
         />
       </View>
+    </View>
+  );
+}
+
+function LegendMark({ dot, label }: { dot: StyleProp<ViewStyle>; label: string }) {
+  return (
+    <View style={s.legendItem}>
+      <View style={dot} />
+      <Text style={s.legendText}>{label}</Text>
     </View>
   );
 }
@@ -308,20 +324,22 @@ const s = StyleSheet.create({
     borderRadius: radii.round,
     backgroundColor: colors.page,
   },
+  // Three dots, three loudnesses (founder, 2026-11-16: "slightly better"): an accent is
+  // the big terracotta dot, a click a smaller ink dot, a silent beat an empty ring the
+  // click's size, so the slot still reads as a beat you can bring back.
   dotAccent: {
-    width: 16,
-    height: 16,
+    width: 18,
+    height: 18,
     backgroundColor: colors.primaryDeep,
   },
   dotClick: {
-    width: 12,
-    height: 12,
-    borderWidth: 2,
-    borderColor: colors.primaryDeep,
+    width: 11,
+    height: 11,
+    backgroundColor: colors.textStrong,
   },
   dotRest: {
-    width: 7,
-    height: 7,
+    width: 11,
+    height: 11,
     borderWidth: 1.5,
     borderColor: colors.borderMuted,
   },
@@ -331,14 +349,17 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Sub-beats follow the dots: ink when they sound, terracotta and taller when accented,
+  // a faint stub when silent.
   tick: {
     width: 3,
-    height: 12,
+    height: 11,
     borderRadius: 2,
-    backgroundColor: colors.textMuted,
+    backgroundColor: colors.textSecondary,
   },
   tickAccent: {
-    height: 16,
+    width: 3.5,
+    height: 18,
     backgroundColor: colors.primaryDeep,
   },
   tickOff: {
@@ -360,6 +381,24 @@ const s = StyleSheet.create({
     width: 12,
     height: 6,
     backgroundColor: colors.textSecondary,
+  },
+  legend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing.lg,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  legendDot: {
+    transform: [{ scale: 0.75 }],
+  },
+  legendText: {
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textSecondary,
   },
   foot: {
     flexDirection: "row",

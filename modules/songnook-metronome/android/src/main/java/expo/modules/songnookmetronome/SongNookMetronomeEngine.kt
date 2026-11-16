@@ -1107,6 +1107,12 @@ class SongNookMetronomeEngine(
   }
 }
 
+/**
+ * Practice-pattern steps at or above this weight are accents (beat accent 1, sub accent
+ * 0.62); clicks (0.44) and sub-clicks (0.18) stay in the weak voice.
+ */
+private const val ACCENT_VOICE_MIN_WEIGHT = 0.6
+
 private fun buildLoopPcm16(
   config: MetronomeConfig,
   exactFramesPerPulse: Double,
@@ -1120,12 +1126,13 @@ private fun buildLoopPcm16(
   if (config.stepPattern.isNotEmpty()) {
     // The practice pattern: every step at its own weight, bar after bar. Bresenham onsets
     // over the whole loop, so no bar drifts from the next.
-    val ppb = max(config.pulsesPerBar, 1)
+    // An accent, beat or sub-beat, sounds in the bright voice: a step marked louder must
+    // be heard as different, not only as a little louder (founder, 2026-11-16).
+    val brightSpec = clickVoiceSpec(config.clickVoice, isDownbeat = true)
     config.stepPattern.forEachIndexed { stepIndex, weight ->
       if (weight <= 0.0) return@forEachIndexed
       val onset = (stepIndex.toDouble() / subdivision * exactFramesPerPulse).roundToInt()
-      val isBeat = stepIndex % subdivision == 0
-      val spec = if (isBeat) clickVoiceSpec(config.clickVoice, isDownbeat = (stepIndex / subdivision) % ppb == 0) else weakSpec
+      val spec = if (weight >= ACCENT_VOICE_MIN_WEIGHT) brightSpec else weakSpec
       mixClick(pcm, onset, spec, spec.amplitude(weight), totalFrames, sampleRate)
     }
   } else for (pulseIndex in 0 until config.pulsesPerBar) {

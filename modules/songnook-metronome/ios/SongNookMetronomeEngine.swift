@@ -1057,6 +1057,10 @@ final class SongNookMetronomeEngine {
     return 60_000.0 / Double(max(bpm, 1))
   }
 
+  /// Practice-pattern steps at or above this weight are accents (beat accent 1, sub
+  /// accent 0.62); clicks (0.44) and sub-clicks (0.18) stay in the weak voice.
+  private static let accentVoiceMinWeight = 0.6
+
   private func buildLoopBuffer() -> AVAudioPCMBuffer? {
     guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
           let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(totalFrames)),
@@ -1071,13 +1075,12 @@ final class SongNookMetronomeEngine {
     if !config.stepPattern.isEmpty {
       // The practice pattern: every step at its own weight, bar after bar. Bresenham
       // onsets over the whole loop, so no bar drifts from the next.
-      let ppb = max(config.pulsesPerBar, 1)
+      // An accent, beat or sub-beat, sounds in the bright voice: a step you marked louder
+      // must be heard as different, not only as a little louder (founder, 2026-11-16).
+      let brightSpec = ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: true)
       for (stepIndex, weight) in config.stepPattern.enumerated() where weight > 0 {
         let onset = Int(round(Double(stepIndex) / Double(subdivision) * exactFramesPerPulse))
-        let isBeat = stepIndex % subdivision == 0
-        let spec = isBeat
-          ? ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: (stepIndex / subdivision) % ppb == 0)
-          : weakSpec
+        let spec = weight >= Self.accentVoiceMinWeight ? brightSpec : weakSpec
         renderClick(into: channel, at: onset, spec: spec, amplitude: spec.amplitude(forAccent: weight), totalFrames: totalFrames)
       }
       return buffer
