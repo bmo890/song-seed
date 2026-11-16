@@ -300,7 +300,19 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
 | 7 | Revisit | Old ideas, new life / Revisit brings back the ones you forgot. (2026-11-16: was "Never lose a gem", now the Play short description's) |
 | 8 | A received sketch in the player: marks, layer, lyrics, chart, the sender's note | Send the song, not just the audio / Lyrics, chords, notes and marks go with it. |
 
-**Translations:** the Hebrew, Spanish, German and Portuguese listings are still to do.
+**Translations:** all five languages are in both consoles (`store-listing-translations.md`).
+
+**1.0.2 submitted 2026-11-16 (founder: "yes submit 1.0.2 now, go ahead with all of it"):**
+- **Apple:** version 1.0.2, build 32. Description, promotional text and What's new are in all six
+  localizations. English carries the re-cut set (7 = "Old ideas, new life") and Hebrew its own
+  set, both at 1206×2622. The other languages use the English set. Release is manual, so the
+  founder presses Release after approval.
+- **Play:** production release 19 (1.0.2) at 100%, with notes in six languages, sent together
+  with the listing text for all six listings and the Hebrew phone screenshots (iw-IL). The
+  AI-asset declaration is "Don't label" (real captures, captions drawn by the script).
+  Managed publishing is off, so Play goes live as soon as Google approves.
+- **Screenshots:** Hebrew captured on a Hebrew clone of the Store 6.9 sim (`raw/he/`) and
+  composed with `STORE_LANG=he`. Spanish, German and Portuguese still show the English set.
 
 ---
 
