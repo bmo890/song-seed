@@ -230,6 +230,8 @@ export type ArchiveWorkspaceManifest = {
      *  (device migration must not silently convert received work to personal). */
     origin?: "personal" | "received" | "shared";
     received?: ReceivedMeta;
+    /** The workspace this one is a copy of (Workspace.sourceWorkspaceId). */
+    sourceWorkspaceId?: string;
     /** Workspace-wide hidden ideas / days (idea ids remapped on import). */
     ideasListState?: IdeasListState;
 };

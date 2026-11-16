@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { useStore } from "../../state/useStore";
 import { personalWorkspaces } from "../../domain/workspaceVisibility";
+import { senderHome } from "../../domain/receivedParcel";
 import type { CollectionMoveDestination } from "../../domain/collectionManagement";
 import { haptic } from "../../design/haptics";
 import { toast } from "./toastStore";
@@ -60,8 +61,12 @@ export function ReceivedPackageMoveModal({
       label: packages.length > 1 ? t("received.ownWorkspaces") : t("received.ownWorkspace"),
       subtitle: t("received.ownWorkspaceHint"),
     };
+    // The workspace these came from leads the list (every package agreeing on it).
+    const homes = packages.map((pkg) => senderHome(pkg, workspaces)?.id ?? null);
+    const homeId = homes.length > 0 && homes.every((id) => id && id === homes[0]) ? homes[0] : null;
     const targets = personalWorkspaces(workspaces)
       .filter((ws) => !ws.isArchived)
+      .sort((a, b) => Number(b.id === homeId) - Number(a.id === homeId))
       .flatMap((ws) => {
         const rows: CollectionMoveDestination[] = [
           {

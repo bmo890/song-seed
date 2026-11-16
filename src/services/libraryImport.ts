@@ -94,6 +94,9 @@ export type LibraryImportPreview = {
 
 export type MaterializedSongNookArchiveMerge = {
     importedWorkspaces: Workspace[];
+    /** Each imported workspace's name as the file had it, before a clash made it
+     *  "Keren Show 2": a parcel finds its way home by this name. */
+    archiveWorkspaceTitles: Record<string, string>;
     importedNotes: Note[];
     importedSongbooks: Songbook[];
     importedSetlists: Setlist[];
@@ -522,6 +525,7 @@ async function materializeSongNookArchiveMergeUnguarded(
     // Source-id -> new-id maps so global songbook/setlist references survive the
     // re-id that import performs. (Lyric version ids are preserved as-is.)
     const workspaceIdMap = new Map<string, string>();
+    const archiveWorkspaceTitles: Record<string, string> = {};
     const ideaIdMap = new Map<string, string>();
     const clipIdMapGlobal = new Map<string, string>();
     const collectionIdMapGlobal = new Map<string, string>();
@@ -558,6 +562,7 @@ async function materializeSongNookArchiveMergeUnguarded(
             existingWorkspaceTitles
         );
         existingWorkspaceTitles.push(workspaceTitle);
+        archiveWorkspaceTitles[workspaceId] = workspaceManifest.title;
 
         const collectionIdMap = new Map<string, string>();
         const clipIdMap = new Map<string, string>();
@@ -797,6 +802,9 @@ async function materializeSongNookArchiveMergeUnguarded(
             // as packages). The ShareImport path overrides this downstream.
             origin: workspaceManifest.origin,
             received: workspaceManifest.received,
+            // A copy remembers the workspace it copies, across any number of hops: a
+            // restored backup stays the same workspace, a kept parcel knows its home.
+            sourceWorkspaceId: workspaceManifest.sourceWorkspaceId ?? workspaceManifest.id,
         });
 
         if (!localPrimaryWorkspaceId && importedPrimaryWorkspaceSourceId === workspaceManifest.id) {
@@ -887,6 +895,7 @@ async function materializeSongNookArchiveMergeUnguarded(
 
     return {
         importedWorkspaces,
+        archiveWorkspaceTitles,
         importedNotes,
         importedSongbooks,
         importedSetlists,

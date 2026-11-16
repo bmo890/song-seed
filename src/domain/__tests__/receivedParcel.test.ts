@@ -1,4 +1,4 @@
-import { defaultKeepPlan, keepLabelKey, parcelRows, withSenderNote } from "../receivedParcel";
+import { defaultKeepPlan, keepLabelKey, parcelRows, senderHome, withSenderNote } from "../receivedParcel";
 import type { Workspace } from "../../types";
 
 const copy = {
@@ -92,6 +92,45 @@ describe("defaultKeepPlan", () => {
     it("falls back to its own workspace with nowhere of yours to land", () => {
         expect(defaultKeepPlan(ws({ received: received("sketch") }), null)).toEqual({ mode: "own-workspace" });
         expect(defaultKeepPlan(ws({ received: received("sketch") }), { id: "r", origin: "received" } as Workspace)).toEqual({ mode: "own-workspace" });
+    });
+});
+
+describe("senderHome", () => {
+    const mine = (id: string, title: string, over: Partial<Workspace> = {}) =>
+        ({ id, title, collections: [], ideas: [], ...over }) as unknown as Workspace;
+    const parcel = (over: Partial<Workspace> = {}) =>
+        ws({ received: { ...received("collection")!, fromWorkspaceTitle: "Keren Show" }, ...over });
+
+    it("finds the copy you kept of the sender's workspace, renamed or not", () => {
+        const kept = mine("k", "Keren gigs", { sourceWorkspaceId: "ks" });
+        const pkg = parcel({ sourceWorkspaceId: "ks" });
+        expect(senderHome(pkg, [mine("a", "Ideas"), kept, pkg])?.id).toBe("k");
+        expect(defaultKeepPlan(pkg, mine("a", "Ideas"), [mine("a", "Ideas"), kept, pkg])).toEqual({ mode: "into", workspaceId: "k" });
+    });
+    it("finds your original when a bandmate sends back from their copy", () => {
+        expect(senderHome(parcel({ sourceWorkspaceId: "ks" }), [mine("ks", "Keren Show")])?.id).toBe("ks");
+    });
+    it("falls back to the sender's workspace name, ignoring case and spaces", () => {
+        expect(senderHome(parcel(), [mine("a", "Ideas"), mine("b", "  keren   show ")])?.id).toBe("b");
+    });
+    it("takes no side when two workspaces could be home, and never lands in an archived or received one", () => {
+        const pkg = parcel();
+        expect(senderHome(pkg, [mine("a", "Keren Show"), mine("b", "keren show")])).toBeNull();
+        expect(senderHome(pkg, [mine("a", "Keren Show", { isArchived: true })])).toBeNull();
+        expect(senderHome(pkg, [mine("a", "Keren Show", { origin: "received" })])).toBeNull();
+        expect(defaultKeepPlan(pkg, mine("m", "Mine"), [mine("a", "Keren Show"), mine("b", "Keren Show")])).toEqual({
+            mode: "into",
+            workspaceId: "m",
+        });
+    });
+    it("narrows two kept copies by name", () => {
+        const pkg = parcel({ sourceWorkspaceId: "ks" });
+        const copies = [mine("a", "Keren Show", { sourceWorkspaceId: "ks" }), mine("b", "Keren old", { sourceWorkspaceId: "ks" })];
+        expect(senderHome(pkg, copies)?.id).toBe("a");
+    });
+    it("still keeps a whole workspace as its own", () => {
+        const pkg = ws({ received: { ...received("workspace")!, fromWorkspaceTitle: "Keren Show" } });
+        expect(defaultKeepPlan(pkg, null, [mine("a", "Keren Show")])).toEqual({ mode: "own-workspace" });
     });
 });
 

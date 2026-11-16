@@ -85,7 +85,8 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pkg.id]);
   const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId) ?? null;
-  const plan = useMemo(() => defaultKeepPlan(pkg, activeWorkspace), [pkg, activeWorkspace]);
+  const plan = useMemo(() => defaultKeepPlan(pkg, activeWorkspace, workspaces), [pkg, activeWorkspace, workspaces]);
+  const landing = plan.mode === "into" ? workspaces.find((ws) => ws.id === plan.workspaceId) ?? null : null;
   const rows = useMemo(
     () =>
       parcelRows(pkg, {
@@ -112,7 +113,7 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
   const destination =
     plan.mode === "own-workspace"
       ? t("received.keepsAsWorkspace")
-      : t("received.keepsInto", { title: activeWorkspace?.title ?? "" });
+      : t("received.keepsInto", { title: landing?.title ?? "" });
 
   // The sheet owns its exit: BottomSheet animates out, then the store clears.
   const fold = (after?: () => void) => {
@@ -166,7 +167,7 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
         kind: "moved",
         workspaceId,
         collectionIds: result.collectionIds,
-        workspaceTitle: activeWorkspace?.title ?? "",
+        workspaceTitle: landing?.title ?? "",
       })
     );
   };

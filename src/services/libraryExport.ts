@@ -501,6 +501,7 @@ function buildSongNookArchive(args: Extract<ExportLibraryArgs, { format: "songno
                       avatarKey: workspace.avatarKey,
                       origin: workspace.origin,
                       received: workspace.received,
+                      sourceWorkspaceId: workspace.sourceWorkspaceId,
                       ideasListState: workspace.ideasListState,
                   }
                 : null),

@@ -3642,11 +3642,17 @@ export const appActions = {
             });
             const importedWorkspaces =
                 opts?.origin === "received"
-                    ? merge.importedWorkspaces.map((workspace) => ({
-                          ...workspace,
-                          origin: "received" as const,
-                          received: provenance(workspace.title),
-                      }))
+                    ? merge.importedWorkspaces.map((workspace) => {
+                          const fromWorkspaceTitle = merge.archiveWorkspaceTitles[workspace.id];
+                          return {
+                              ...workspace,
+                              origin: "received" as const,
+                              received: {
+                                  ...provenance(workspace.title),
+                                  ...(fromWorkspaceTitle ? { fromWorkspaceTitle } : null),
+                              },
+                          };
+                      })
                     : merge.importedWorkspaces;
             // Compilations carry the same provenance so Compilations can tag them
             // "from <sender>" and fold them away; a personal import stays untagged.

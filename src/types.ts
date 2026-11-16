@@ -737,6 +737,9 @@ export type ReceivedMeta = {
   /** The note the sender typed on the Send sheet. Shown at the door; on Keep it
    *  moves to where notes live on the kept thing (domain/receivedParcel). */
   message?: string;
+  /** The name of the sender's workspace this came from, as they had it. Keep
+   *  offers your workspace of that name (domain/receivedParcel senderHome). */
+  fromWorkspaceTitle?: string;
 };
 
 export type Workspace = {
@@ -756,6 +759,10 @@ export type Workspace = {
   origin?: "personal" | "received" | "shared";
   /** Present when origin is "received". */
   received?: ReceivedMeta;
+  /** The workspace this one is a copy of, across phones (a kept parcel, a
+   *  restored backup). Absent = it is the original. Lets a later parcel from the
+   *  same workspace find its way home, even after a rename. */
+  sourceWorkspaceId?: string;
 };
 
 export type WorkspaceStartupPreference = "primary" | "last-used";

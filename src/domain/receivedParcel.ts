@@ -1,6 +1,7 @@
 import type { ShareKind, SongIdea, Workspace } from "../types";
 import { buildClipLineages } from "./clipGraph";
 import { sketchContents } from "./sketchContents";
+import { writableWorkspaces } from "./workspaceVisibility";
 
 /**
  * The parcel's front door (2026-10-14, founder: a new user "doesn't know to
@@ -92,14 +93,52 @@ export type KeepPlan =
     | { mode: "own-workspace" }
     | { mode: "into"; workspaceId: string };
 
+/** The workspace a copy belongs to: the one it was copied from, else itself. */
+export function workspaceFamilyId(workspace: Workspace): string {
+    return workspace.sourceWorkspaceId ?? workspace.id;
+}
+
+const nameKey = (title: string) => title.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+
+/**
+ * Your workspace this parcel came from (founder 2026-11-17: a band's next
+ * rehearsal should land in the band's workspace, though nothing syncs). First by
+ * origin: the copy you kept of the sender's workspace, renamed or not, or your
+ * own original when a bandmate sends back. Then by the sender's workspace name.
+ * Two equal answers is no answer: Keep stays where it was.
+ */
+export function senderHome(pkg: Workspace, workspaces: Workspace[]): Workspace | null {
+    const mine = writableWorkspaces(workspaces);
+    const title = pkg.received?.fromWorkspaceTitle;
+    const named = (candidates: Workspace[]) =>
+        title ? candidates.filter((ws) => nameKey(ws.title) === nameKey(title)) : [];
+
+    if (pkg.sourceWorkspaceId) {
+        const family = workspaceFamilyId(pkg);
+        const kin = mine.filter((ws) => workspaceFamilyId(ws) === family);
+        if (kin.length === 1) return kin[0]!;
+        const namedKin = named(kin);
+        if (namedKin.length === 1) return namedKin[0]!;
+    }
+    const byName = named(mine);
+    return byName.length === 1 ? byName[0]! : null;
+}
+
 /**
  * What the one key does. A workspace becomes your own workspace. Anything
- * else goes into the workspace you are in, at the top level; with no
- * workspace of your own to land in, it becomes a workspace too.
+ * else goes home to your workspace it came from; failing that into the
+ * workspace you are in, at the top level; with no workspace of your own to land
+ * in, it becomes a workspace too.
  */
-export function defaultKeepPlan(pkg: Workspace, activeWorkspace: Workspace | null | undefined): KeepPlan {
+export function defaultKeepPlan(
+    pkg: Workspace,
+    activeWorkspace: Workspace | null | undefined,
+    workspaces: Workspace[] = []
+): KeepPlan {
     const kind = pkg.received?.shareKind ?? "library";
     if (kind === "workspace" || kind === "library") return { mode: "own-workspace" };
+    const home = senderHome(pkg, workspaces);
+    if (home) return { mode: "into", workspaceId: home.id };
     if (!activeWorkspace || activeWorkspace.origin === "received" || activeWorkspace.isArchived) {
         return { mode: "own-workspace" };
     }

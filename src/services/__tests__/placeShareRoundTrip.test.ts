@@ -156,6 +156,7 @@ import { materializeSongNookArchiveMerge, readSongNookArchive } from "../library
 import { buildCollectionExportArgs, buildWorkspaceExportArgs } from "../placeShare";
 import { normalizeWorkspaces } from "../../state/dataSlice";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
+import { senderHome } from "../../domain/receivedParcel";
 import type { Collection, Playlist, Setlist, Songbook } from "../../types";
 
 const AUDIO = {
@@ -346,5 +347,50 @@ describe("sharing a workspace", () => {
         // Ids were remapped: the receiver's copy never collides with the sender's.
         expect(workspace.id).not.toBe("ws");
         expect(workspace.ideas.some((i) => i.id === "s1")).toBe(false);
+    });
+});
+
+describe("a later collection finds its way home (founder 2026-11-17)", () => {
+    const asParcel = (workspace: Workspace, title: string | undefined): Workspace => ({
+        ...workspace,
+        origin: "received",
+        received: {
+            senderName: "Ben",
+            senderUserId: null,
+            transferId: "t",
+            receivedAt: 1,
+            shareKind: "collection",
+            shareTitle: "Songs",
+            ...(title ? { fromWorkspaceTitle: title } : null),
+        },
+    });
+
+    it("lands in the bandmate's kept copy of the workspace, renamed or not", async () => {
+        const { workspace: band, library } = buildBand();
+        // The bandmate kept the whole workspace earlier and renamed it.
+        const whole = await roundTrip(buildWorkspaceExportArgs(band, library)!);
+        expect(whole.workspace.sourceWorkspaceId).toBe("ws");
+        const kept: Workspace = { ...whole.workspace, title: "Keren gigs" };
+
+        // Today's collection arrives: its archive names the sender's workspace.
+        const today = await roundTrip(buildCollectionExportArgs(band.collections[2]!, band, library)!);
+        expect(today.merge.archiveWorkspaceTitles[today.workspace.id]).toBe("Band");
+        const parcel = asParcel(today.workspace, "Band");
+        expect(senderHome(parcel, [kept, parcel])?.id).toBe(kept.id);
+    });
+
+    it("lands in the sender's original when the bandmate sends from their copy", async () => {
+        const { workspace: band, library } = buildBand();
+        const copy: Workspace = {
+            ...band,
+            id: "their-copy",
+            title: "Keren gigs",
+            sourceWorkspaceId: "ws",
+            collections: band.collections.map((c) => ({ ...c, workspaceId: "their-copy" })),
+        };
+        const back = await roundTrip(buildCollectionExportArgs(copy.collections[2]!, copy, library)!);
+        expect(back.workspace.sourceWorkspaceId).toBe("ws");
+        const parcel = asParcel(back.workspace, "Keren gigs");
+        expect(senderHome(parcel, [band, parcel])?.id).toBe("ws");
     });
 });

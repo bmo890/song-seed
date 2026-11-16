@@ -306,6 +306,7 @@ class Checker {
         if (!isRecord(value)) return this.repaired(undefined);
         const openedAt = this.optionalDate(value.openedAt);
         const message = typeof value.message === "string" ? value.message.trim().slice(0, 1000) : "";
+        const fromWorkspaceTitle = this.optionalText(value.fromWorkspaceTitle, TITLE_MAX);
         return {
             senderName: this.nullableText(value.senderName),
             senderUserId: this.nullableText(value.senderUserId),
@@ -317,6 +318,7 @@ class Checker {
             shareTitle: this.title(value.shareTitle),
             ...(openedAt !== undefined ? { openedAt } : null),
             ...(message ? { message } : null),
+            ...(fromWorkspaceTitle ? { fromWorkspaceTitle } : null),
         };
     }
 
@@ -598,6 +600,7 @@ class Checker {
             avatarKey: this.optionalNumber(value.avatarKey, 0, 10_000),
             origin,
             received: origin === "received" ? this.received(value.received) : undefined,
+            sourceWorkspaceId: this.ref(value.sourceWorkspaceId),
             ideasListState: this.ideasListState(value.ideasListState),
         };
     }
