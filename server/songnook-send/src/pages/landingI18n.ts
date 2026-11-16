@@ -85,7 +85,6 @@ export type LandingStrings = {
   free: [string, string, string, string];
   plans: { year: Plan; month: Plan; life: Plan };
   proAdds: [Pair, Pair, Pair, Pair, Pair];
-  plansFine: string;
   closingH2: string;
   closingEm: string;
   closingLead: string;
@@ -195,7 +194,6 @@ export const STRINGS: Record<Lang, LandingStrings> = {
       { title: "Unlimited sharing", line: "As many SongNook Send links as you like, and a space for every band." },
       { title: "Studio export", line: "Take your ideas into Logic, Ableton and more." },
     ],
-    plansFine: "Prices in US dollars; your store shows yours.",
     closingH2: "Catch the",
     closingEm: "next one.",
     closingLead: "Free to download. Your first month of Pro is on us.",
@@ -283,7 +281,6 @@ export const STRINGS: Record<Lang, LandingStrings> = {
       { title: "Compartir sin límite", line: "Todos los enlaces de SongNook Send que quieras, y un espacio para cada banda." },
       { title: "Exportación para estudio", line: "Lleva tus ideas a Logic, Ableton y más." },
     ],
-    plansFine: "Precios en dólares estadounidenses; tu tienda muestra los tuyos.",
     closingH2: "Atrapa la",
     closingEm: "próxima.",
     closingLead: "Descarga gratis. Tu primer mes de Pro corre por nuestra cuenta.",
@@ -371,7 +368,6 @@ export const STRINGS: Record<Lang, LandingStrings> = {
       { title: "Unbegrenzt teilen", line: "So viele SongNook-Send-Links, wie du willst, und ein Bereich für jede Band." },
       { title: "Studio-Export", line: "Bring deine Ideen in Logic, Ableton und mehr." },
     ],
-    plansFine: "Preise in US-Dollar; dein Store zeigt deine.",
     closingH2: "Fang die",
     closingEm: "nächste ein.",
     closingLead: "Kostenlos laden. Dein erster Pro-Monat geht auf uns.",
@@ -459,7 +455,6 @@ export const STRINGS: Record<Lang, LandingStrings> = {
       { title: "Compartilhamento sem limite", line: "Quantos links do SongNook Send quiser, e um espaço para cada banda." },
       { title: "Exportação para estúdio", line: "Leve suas ideias para o Logic, o Ableton e mais." },
     ],
-    plansFine: "Preços em dólares americanos; sua loja mostra os seus.",
     closingH2: "Capture a",
     closingEm: "próxima.",
     closingLead: "Download grátis. Seu primeiro mês de Pro é por nossa conta.",
@@ -547,7 +542,6 @@ export const STRINGS: Record<Lang, LandingStrings> = {
       { title: "שיתוף בלי הגבלה", line: "כמה קישורי SongNook Send שתרצו, ומקום לכל להקה." },
       { title: "ייצוא לאולפן", line: "להעביר רעיונות ל־Logic, ל־Ableton ועוד." },
     ],
-    plansFine: "המחירים בדולר אמריקאי; החנות שלכם תציג את המחיר המקומי.",
     closingH2: "לתפוס את",
     closingEm: "הרעיון הבא.",
     closingLead: "הורדה בחינם. החודש הראשון של Pro עלינו.",

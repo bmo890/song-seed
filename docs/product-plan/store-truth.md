@@ -187,6 +187,13 @@ by what it does against a bare audio file. Play: all six listings sent for revie
 with the 2026-11-14 text). Same day: REHEARSE became PRACTICE and opens
 with learning other people's songs (founder: "part of it is learning other peoples music").
 
+**2026-11-16 (founder, with 1.0.2):** the quiet-corner line is said once per store: the Play
+short description and the Apple subtitle keep it; the description now opens on what it
+holds (every idea, take, lyric and chart, voice memo to finished song), so nothing on
+either page repeats it or "write, finish, learn the set". Apple's promotional text stays
+on organization and the band. What's new for 1.0.2 below; all five languages in
+`store-listing-translations.md`. Screenshots now localized per language (§ Screenshots).
+
 - **Name:** SongNook
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
 - **Apple subtitle (30):** `A quiet corner to finish songs`
@@ -201,7 +208,7 @@ with learning other people's songs (founder: "part of it is learning other peopl
 other platforms. Apple also appends the subscription paragraph below.
 
 ```
-A quiet corner for songwriting and practice. For songwriters and working musicians: catch every idea, finish your songs, and learn the set before the gig. No account, no ads.
+For songwriters and working musicians: every idea, take, lyric and chord chart in one place, from the first voice memo to the finished song. No account, no ads.
 
 Your songs stay on your phone. We never see them, and they are never used to train AI.
 
@@ -246,6 +253,12 @@ Your first month includes every tool, free, no card needed. After that, recordin
 • Unlimited sharing: SongNook Send links (one a month free) and workspaces (two free)
 • Up to 8 parts on one take (one free)
 • Studio export, lined up to the beat
+```
+
+**What's new, 1.0.2 (both stores, ≤ 500 for Play):**
+
+```
+New in the metronome: practice patterns. Build up to four bars, accent or silence any beat or sub-beat, and turn on a screen flash to see the beat from across the room.
 ```
 
 **Apple only, appended (required for auto-renewing Pro):**

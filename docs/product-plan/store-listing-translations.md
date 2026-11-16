@@ -29,7 +29,7 @@ keywords ≤ 100, description ≤ 4000.
 - **Apple keywords:** `componer,compositor,letras,acordes,nota de voz,grabadora,ideas,setlist,afinador,metrónomo,demo`
 
 ```
-Un rincón tranquilo para componer y practicar. Para compositores y músicos en activo: atrapa cada idea, termina tus canciones y apréndete el set antes del concierto. Sin cuenta, sin anuncios.
+Para compositores y músicos en activo: cada idea, toma, letra y cifrado en un solo lugar, desde la primera nota de voz hasta la canción terminada. Sin cuenta, sin anuncios.
 
 Tus canciones se quedan en tu teléfono. Nunca las vemos y nunca se usan para entrenar IA.
 
@@ -95,7 +95,7 @@ Política de privacidad: https://songnook.app/privacy
 - **Apple keywords:** `songwriting,songwriter,songtext,akkorde,sprachmemo,rekorder,songideen,setlist,stimmgerät,metronom`
 
 ```
-Ein stiller Winkel zum Songschreiben und Üben. Für Songwriter und aktive Musiker: Halte jede Idee fest, mach deine Songs fertig und lern das Set vor dem Gig. Kein Konto, keine Werbung.
+Für Songwriter und aktive Musiker: jede Idee, jeder Take, jeder Songtext und jedes Akkordblatt an einem Ort, vom ersten Sprachmemo bis zum fertigen Song. Kein Konto, keine Werbung.
 
 Deine Songs bleiben auf deinem Handy. Wir sehen sie nie, und sie werden nie zum Trainieren von KI verwendet.
 
@@ -161,7 +161,7 @@ Datenschutzerklärung: https://songnook.app/privacy
 - **Apple keywords:** `compor,compositor,letra,acordes,memo de voz,gravador,ideias,setlist,afinador,metrônomo,demo,cifra`
 
 ```
-Um canto tranquilo para compor e praticar. Para compositores e músicos em atividade: capture cada ideia, termine suas músicas e aprenda o repertório antes do show. Sem conta, sem anúncios.
+Para compositores e músicos em atividade: cada ideia, take, letra e cifra em um só lugar, da primeira nota de voz à música pronta. Sem conta, sem anúncios.
 
 Suas músicas ficam no seu celular. Nós nunca as vemos, e elas nunca são usadas para treinar IA.
 
@@ -229,7 +229,7 @@ Plural address (אתם), as the app speaks.
 - **Apple keywords:** `כתיבת שירים,מילים,אקורדים,הקלטה,תזכיר קולי,רעיונות,סטליסט,טיונר,מטרונום,דמו,שיר`
 
 ```
-פינה שקטה לכתיבת שירים ולתרגול. לכותבי שירים ולמוזיקאים פעילים: לתפוס כל רעיון, לסיים את השירים וללמוד את הסט לפני ההופעה. בלי חשבון, בלי פרסומות.
+לכותבי שירים ולמוזיקאים פעילים: כל רעיון, טייק, מילים ואקורדים במקום אחד, מהתזכורת הקולית הראשונה ועד השיר הגמור. בלי חשבון, בלי פרסומות.
 
 השירים שלכם נשארים בטלפון. אנחנו אף פעם לא רואים אותם, והם אף פעם לא משמשים לאימון בינה מלאכותית.
 
@@ -284,3 +284,15 @@ SongNook Pro זמין כמנוי שנתי או חודשי, או כרכישה ח�
 תנאי שימוש: https://songnook.app/terms
 מדיניות פרטיות: https://songnook.app/privacy
 ```
+
+---
+
+## What's new, 1.0.2 (2026-11-16)
+
+- **es (es-419, es-ES; Apple Mexico, Spain):** `Novedad en el metrónomo: patrones de práctica. Arma hasta cuatro compases, acentúa o silencia cualquier pulso o subdivisión, y activa un destello en pantalla para ver el pulso desde el otro lado de la sala.`
+- **de (de-DE):** `Neu im Metronom: Übungsmuster. Bau bis zu vier Takte, betone jeden Schlag und jede Unterteilung oder schalte sie stumm, und lass den Bildschirm im Takt aufleuchten, damit du den Schlag quer durch den Raum siehst.`
+- **pt (pt-BR):** `Novidade no metrônomo: padrões de estudo. Monte até quatro compassos, acentue ou silencie qualquer tempo ou subdivisão e ative um flash na tela para ver o tempo do outro lado da sala.`
+- **he (iw-IL):** `חדש במטרונום: תבניות תרגול. לבנות עד ארבע תיבות, להדגיש או להשתיק כל פעמה או חלוקה, ולהפעיל הבהוב מסך כדי לראות את הפעמה מכל קצה החדר.`
+
+The description openings above were rewritten the same day so the quiet-corner line is
+said once (Play short description, Apple subtitle) and nowhere repeated.

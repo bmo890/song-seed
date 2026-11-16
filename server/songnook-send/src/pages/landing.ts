@@ -177,7 +177,6 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .tab:focus-visible{outline:2px solid var(--terra);outline-offset:3px;border-radius:2px}
 .tab[aria-selected="true"]{color:var(--ink)}
 .tab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ink)}
-.plans-fine{text-align:center;color:var(--ink-faint);font-size:13px;margin:18px 0 0}
 
 /* ── closing ── */
 .closing{text-align:center;padding:clamp(40px,7vw,72px) 0 0;border-top:1px solid var(--rule)}
@@ -419,7 +418,6 @@ ${alternates}
       <ul class="adds">${pair(t.proAdds)}</ul>
     </div>
   </div>
-  <p class="plans-fine">${escapeHtml(t.plansFine)}</p>
 </section>
 
 <section class="closing reveal" id="get">
