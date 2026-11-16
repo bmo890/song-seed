@@ -9,6 +9,8 @@ import { useStore } from "../state/useStore";
 import { useShelfStore } from "../state/useShelfStore";
 import { useSendPrefsStore } from "../state/useSendPrefsStore";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
+import { i18n } from "../i18n/instance";
+import { HEBREW_CHORD_AT, HEBREW_STORE_COPY } from "./storeLibraryHebrew";
 import type {
   ChordPlacement,
   ClipVersion,
@@ -20,6 +22,12 @@ import type {
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/** The library speaks the app's language: the Hebrew screenshots show Hebrew work. */
+const hebrew = () => i18n.language === "he";
+function L(text: string): string {
+  return (hebrew() && HEBREW_STORE_COPY[text]) || text;
+}
+
 type Audio = { audioUri: string; durationMs?: number; waveformPeaks?: number[] };
 
 function chord(id: string, name: string, at: number): ChordPlacement {
@@ -29,7 +37,8 @@ function chord(id: string, name: string, at: number): ChordPlacement {
 }
 
 function line(id: string, text: string, chords: Array<[string, number]> = []): LyricsLine {
-  return { id, text, chords: chords.map(([name, at], i) => chord(`${id}-c${i}`, name, at)) };
+  const offsets = hebrew() ? HEBREW_CHORD_AT[id] : undefined;
+  return { id, text, chords: chords.map(([name, at], i) => chord(`${id}-c${i}`, name, offsets?.[i] ?? at)) };
 }
 
 function collection(id: string, workspaceId: string, title: string, createdAt: number, updatedAt = createdAt): Collection {
@@ -139,27 +148,40 @@ function stageReceivedParcel(harbor: SongIdea) {
       ...clip,
       id: `${clip.id}-p`,
       parentClipId: clip.parentClipId ? `${clip.parentClipId}-p` : undefined,
-      notes: clip.isPrimary ? "Learn the bridge before Friday. The harmony comes in on the chorus." : clip.notes,
+      notes: clip.isPrimary ? L("Learn the bridge before Friday. The harmony comes in on the chorus.") : clip.notes,
     })),
   };
   const parcel: Workspace = {
     id: pkg,
-    title: "Harbor Lights",
+    title: L("Harbor Lights"),
     origin: "received",
     received: {
-      senderName: "Sam",
+      senderName: L("Sam"),
       senderUserId: null,
       transferId: `dev-store-${now}`,
       receivedAt: now - 20 * 60 * 1000,
       shareKind: "sketch",
-      shareTitle: "Harbor Lights",
-      message: "New chorus. Learn the bridge before Friday.",
+      shareTitle: L("Harbor Lights"),
+      message: L("New chorus. Learn the bridge before Friday."),
     },
-    collections: [collection(col, pkg, "Harbor Lights", now)],
+    collections: [collection(col, pkg, L("Harbor Lights"), now)],
     ideas: [copy],
   };
   // Restaging replaces the staged parcel (it shares the library's audio, owns none).
   useStore.setState((state) => ({ workspaces: [...state.workspaces.filter((w) => w.id !== pkg), parcel] }));
+}
+
+/** Restaging in the other language: the staged setlists, playlists and songbook
+ *  go too, in either language, so the new ones don't sit beside the old. */
+function clearStagedLists() {
+  const staged = new Set(
+    ["Friday at the Blue Room", "Late night listening", "Rooftop, Oct 4", "Ideas to finish", "Album running order", "Gig book"]
+      .flatMap((title) => [title, HEBREW_STORE_COPY[title]])
+  );
+  const store = useStore.getState();
+  for (const list of store.setlists) if (staged.has(list.title)) store.deleteSetlist(list.id, { recentlyDeleted: false });
+  for (const list of store.playlists) if (staged.has(list.title)) store.deletePlaylist(list.id, { recentlyDeleted: false });
+  for (const book of store.songbooks) if (staged.has(book.title)) store.deleteSongbook(book.id, { recentlyDeleted: false });
 }
 
 export async function stageStoreLibrary(): Promise<string> {
@@ -168,10 +190,11 @@ export async function stageStoreLibrary(): Promise<string> {
     .getState()
     .workspaces.find((w) => w.id === "ws-store-songs")
     ?.ideas.find((idea) => idea.id === "idea-store-harbor");
-  if (staged) {
+  if (staged && staged.title === L("Harbor Lights")) {
     stageReceivedParcel(staged);
     return "Received parcel staged";
   }
+  if (staged) clearStagedLists();
   const assets = await listDevSampleAudioAssets();
   if (assets.length < 12) return `Need 12 dev samples, found ${assets.length}`;
   const { imported } = await importAudioAssets(assets, (_asset, index) => `audio-store-${Date.now()}-${index}`, undefined, {
@@ -199,8 +222,8 @@ export async function stageStoreLibrary(): Promise<string> {
   const lyricsV2Id = "lyr-store-harbor-2";
   const harbor: SongIdea = {
     id: "idea-store-harbor",
-    title: "Harbor Lights",
-    notes: "Capo 2. Keep the chorus lift soft, let the harmony carry it.",
+    title: L("Harbor Lights"),
+    notes: L("Capo 2. Keep the chorus lift soft, let the harmony carry it."),
     status: "stem",
     completionPct: 70,
     kind: "project",
@@ -209,12 +232,12 @@ export async function stageStoreLibrary(): Promise<string> {
     createdAt: now - 250 * DAY,
     lastActivityAt: now - 2 * 60 * 60 * 1000,
     clips: [
-      take("clip-store-harbor-v1", "First hum", a(3), now - 250 * DAY),
-      take("clip-store-harbor-v2", "Slower, with capo", a(2), now - 6 * DAY, {
+      take("clip-store-harbor-v1", L("First hum"), a(3), now - 250 * DAY),
+      take("clip-store-harbor-v2", L("Slower, with capo"), a(2), now - 6 * DAY, {
         parentClipId: "clip-store-harbor-v1",
         parentAssignedAt: now - 6 * DAY,
       }),
-      take("clip-store-harbor-v3", "Chorus lift", v3, now - 2 * 60 * 60 * 1000, {
+      take("clip-store-harbor-v3", L("Chorus lift"), v3, now - 2 * 60 * 60 * 1000, {
         isPrimary: true,
         parentClipId: "clip-store-harbor-v2",
         parentAssignedAt: now - 2 * 60 * 60 * 1000,
@@ -231,18 +254,18 @@ export async function stageStoreLibrary(): Promise<string> {
           confirmed: true,
         },
         sections: [
-          { id: "sec-store-1", kind: "verse", label: "Verse", startMs: 0, endMs: Math.round(v3Ms * 0.36) },
-          { id: "sec-store-2", kind: "chorus", label: "Chorus", startMs: Math.round(v3Ms * 0.36), endMs: Math.round(v3Ms * 0.62) },
-          { id: "sec-store-3", kind: "bridge", label: "Bridge", startMs: Math.round(v3Ms * 0.62), endMs: Math.round(v3Ms * 0.82) },
-          { id: "sec-store-4", kind: "outro", label: "Outro", startMs: Math.round(v3Ms * 0.82), endMs: v3Ms },
+          { id: "sec-store-1", kind: "verse", label: L("Verse"), startMs: 0, endMs: Math.round(v3Ms * 0.36) },
+          { id: "sec-store-2", kind: "chorus", label: L("Chorus"), startMs: Math.round(v3Ms * 0.36), endMs: Math.round(v3Ms * 0.62) },
+          { id: "sec-store-3", kind: "bridge", label: L("Bridge"), startMs: Math.round(v3Ms * 0.62), endMs: Math.round(v3Ms * 0.82) },
+          { id: "sec-store-4", kind: "outro", label: L("Outro"), startMs: Math.round(v3Ms * 0.82), endMs: v3Ms },
         ],
-        practiceMarkers: [{ id: "pin-store-1", label: "Harmony here", atMs: Math.round(v3Ms * 0.44) }],
+        practiceMarkers: [{ id: "pin-store-1", label: L("Harmony here"), atMs: Math.round(v3Ms * 0.44) }],
         overdub: {
           root: { gainDb: 0, tonePreset: "neutral" },
           stems: [
             {
               id: "stem-store-harmony",
-              title: "Harmony",
+              title: L("Harmony"),
               ...a(5),
               gainDb: -3,
               offsetMs: Math.round(v3Ms * 0.36),
@@ -254,10 +277,10 @@ export async function stageStoreLibrary(): Promise<string> {
           ],
         },
       }),
-      take("clip-store-harbor-live", "Live at rehearsal", a(4), now - 3 * DAY),
-      take("clip-store-harbor-porch", "Acoustic, porch", a(7), now - 12 * DAY),
-      take("clip-store-harbor-maya", "Bridge idea from Maya", a(9), now - 9 * DAY, {
-        notes: "Maya's descending line. Try it before the last chorus.",
+      take("clip-store-harbor-live", L("Live at rehearsal"), a(4), now - 3 * DAY),
+      take("clip-store-harbor-porch", L("Acoustic, porch"), a(7), now - 12 * DAY),
+      take("clip-store-harbor-maya", L("Bridge idea from Maya"), a(9), now - 9 * DAY, {
+        notes: L("Maya's descending line. Try it before the last chorus."),
       }),
     ],
     lyrics: {
@@ -268,8 +291,8 @@ export async function stageStoreLibrary(): Promise<string> {
           updatedAt: now - 20 * DAY,
           document: {
             lines: [
-              line("l1-1", "Harbor lights are burning low"),
-              line("l1-2", "tell me where the night boats go"),
+              line("l1-1", L("Harbor lights are burning low")),
+              line("l1-2", L("tell me where the night boats go")),
             ],
           },
         },
@@ -279,18 +302,18 @@ export async function stageStoreLibrary(): Promise<string> {
           updatedAt: now - 3 * 60 * 60 * 1000,
           document: {
             lines: [
-              line("l2-1", "Harbor lights are burning low", [["G", 0], ["Em", 21]]),
-              line("l2-2", "tell me where the night boats go", [["C", 0], ["D", 19]]),
-              line("l2-3", "Kept your letter folded twice", [["G", 0], ["Em", 17]]),
-              line("l2-4", "like a map to paradise", [["C", 0], ["D", 14]]),
+              line("l2-1", L("Harbor lights are burning low"), [["G", 0], ["Em", 21]]),
+              line("l2-2", L("tell me where the night boats go"), [["C", 0], ["D", 19]]),
+              line("l2-3", L("Kept your letter folded twice"), [["G", 0], ["Em", 17]]),
+              line("l2-4", L("like a map to paradise"), [["C", 0], ["D", 14]]),
               line("l2-5", ""),
-              line("l2-6", "Hold on to the turning tide", [["Em", 0], ["C", 16]]),
-              line("l2-7", "every light we leave behind", [["G", 0], ["D", 20]]),
-              line("l2-8", "burns a little longer", [["Em", 0], ["C", 14]]),
-              line("l2-9", "on the other side", [["G", 0], ["D", 13]]),
+              line("l2-6", L("Hold on to the turning tide"), [["Em", 0], ["C", 16]]),
+              line("l2-7", L("every light we leave behind"), [["G", 0], ["D", 20]]),
+              line("l2-8", L("burns a little longer"), [["Em", 0], ["C", 14]]),
+              line("l2-9", L("on the other side"), [["G", 0], ["D", 13]]),
               line("l2-10", ""),
-              line("l2-11", "And the ferry bell is ringing", [["Am", 0], ["C", 18]]),
-              line("l2-12", "like it knows your name", [["G", 0], ["D", 15]]),
+              line("l2-11", L("And the ferry bell is ringing"), [["Am", 0], ["C", 18]]),
+              line("l2-12", L("like it knows your name"), [["G", 0], ["D", 15]]),
             ],
           },
         },
@@ -301,7 +324,7 @@ export async function stageStoreLibrary(): Promise<string> {
       sections: [
         {
           id: "cs-store-v",
-          label: "Verse",
+          label: L("Verse"),
           notes: "",
           measures: [
             { id: "m1", chords: ["G"] },
@@ -312,8 +335,8 @@ export async function stageStoreLibrary(): Promise<string> {
         },
         {
           id: "cs-store-c",
-          label: "Chorus",
-          notes: "Soft, let it lift",
+          label: L("Chorus"),
+          notes: L("Soft, let it lift"),
           measures: [
             { id: "m5", chords: ["Em"] },
             { id: "m6", chords: ["C"] },
@@ -327,7 +350,7 @@ export async function stageStoreLibrary(): Promise<string> {
 
   const paperMoon: SongIdea = {
     id: "idea-store-papermoon",
-    title: "Paper Moon Motel",
+    title: L("Paper Moon Motel"),
     notes: "",
     status: "sprout",
     completionPct: 30,
@@ -337,14 +360,14 @@ export async function stageStoreLibrary(): Promise<string> {
     createdAt: now - 40 * DAY,
     lastActivityAt: now - 1 * DAY,
     clips: [
-      take("clip-store-pm-1", "Verse idea", a(6), now - 40 * DAY),
-      take("clip-store-pm-2", "Chorus, faster", a(12), now - 1 * DAY, { isPrimary: true }),
+      take("clip-store-pm-1", L("Verse idea"), a(6), now - 40 * DAY),
+      take("clip-store-pm-2", L("Chorus, faster"), a(12), now - 1 * DAY, { isPrimary: true }),
     ],
   };
 
   const saltCedar: SongIdea = {
     id: "idea-store-salt",
-    title: "Salt and Cedar",
+    title: L("Salt and Cedar"),
     notes: "",
     status: "song",
     completionPct: 100,
@@ -353,57 +376,57 @@ export async function stageStoreLibrary(): Promise<string> {
     isTitleAutoGenerated: false,
     createdAt: now - 120 * DAY,
     lastActivityAt: now - 4 * DAY,
-    clips: [take("clip-store-salt-1", "Final", a(7), now - 4 * DAY, { isPrimary: true })],
+    clips: [take("clip-store-salt-1", L("Final"), a(7), now - 4 * DAY, { isPrimary: true })],
   };
 
-  const northbound = sketch("idea-store-north", demos, "Northbound", "sprout",
-    [take("clip-store-north-1", "Riff", a(8), now - 30 * DAY), take("clip-store-north-2", "With words", a(10), now - 2 * DAY)],
-    now - 30 * DAY, now - 2 * DAY, ["Northbound on the evening train", "counting stations in the rain"]);
-  const orchard = sketch("idea-store-orchard", demos, "Glass Orchard", "seed",
-    [take("clip-store-orchard-1", "Hum", a(6), now - 130 * DAY)], now - 130 * DAY, now - 128 * DAY);
-  const reverse = sketch("idea-store-reverse", demos, "Summer in Reverse", "song",
-    [take("clip-store-rev-1", "Demo", a(2), now - 90 * DAY), take("clip-store-rev-2", "Final", a(1), now - 60 * DAY)],
-    now - 90 * DAY, now - 60 * DAY, ["We ran the summer backwards", "till the fireflies went home"]);
-  const lantern = sketch("idea-store-lantern", cowrites, "Lantern Street", "stem",
-    [take("clip-store-lan-1", "Maya's verse", a(9), now - 20 * DAY), take("clip-store-lan-2", "Both of us", a(11), now - 7 * DAY)],
-    now - 20 * DAY, now - 7 * DAY, ["Lantern Street at closing time", "your coat on my shoulders"]);
-  const rivers = sketch("idea-store-rivers", cowrites, "Slow Rivers", "sprout",
-    [take("clip-store-riv-1", "Idea", a(5), now - 160 * DAY)], now - 160 * DAY, now - 150 * DAY);
-  const nightDrive = clipIdea("idea-store-nightdrive", memos, "Night drive riff", a(8), now - 5 * DAY);
-  const bridgeMaya = clipIdea("idea-store-bridgemaya", memos, "Bridge idea for Maya", a(9), now - 8 * DAY);
-  const kitchen = clipIdea("idea-store-kitchen", memos, "Kitchen piano, 2am", a(10), now - 2 * 365 * DAY);
-  const rehearsal = clipIdea("idea-store-rehearsal", rehearsals, "Full run, new ending", a(11), now - 3 * DAY);
-  const soundcheck = clipIdea("idea-store-soundcheck", rehearsals, "Soundcheck groove", a(12), now - 10 * DAY);
+  const northbound = sketch("idea-store-north", demos, L("Northbound"), "sprout",
+    [take("clip-store-north-1", L("Riff"), a(8), now - 30 * DAY), take("clip-store-north-2", L("With words"), a(10), now - 2 * DAY)],
+    now - 30 * DAY, now - 2 * DAY, [L("Northbound on the evening train"), L("counting stations in the rain")]);
+  const orchard = sketch("idea-store-orchard", demos, L("Glass Orchard"), "seed",
+    [take("clip-store-orchard-1", L("Hum"), a(6), now - 130 * DAY)], now - 130 * DAY, now - 128 * DAY);
+  const reverse = sketch("idea-store-reverse", demos, L("Summer in Reverse"), "song",
+    [take("clip-store-rev-1", L("Demo"), a(2), now - 90 * DAY), take("clip-store-rev-2", L("Final"), a(1), now - 60 * DAY)],
+    now - 90 * DAY, now - 60 * DAY, [L("We ran the summer backwards"), L("till the fireflies went home")]);
+  const lantern = sketch("idea-store-lantern", cowrites, L("Lantern Street"), "stem",
+    [take("clip-store-lan-1", L("Maya's verse"), a(9), now - 20 * DAY), take("clip-store-lan-2", L("Both of us"), a(11), now - 7 * DAY)],
+    now - 20 * DAY, now - 7 * DAY, [L("Lantern Street at closing time"), L("your coat on my shoulders")]);
+  const rivers = sketch("idea-store-rivers", cowrites, L("Slow Rivers"), "sprout",
+    [take("clip-store-riv-1", L("Idea"), a(5), now - 160 * DAY)], now - 160 * DAY, now - 150 * DAY);
+  const nightDrive = clipIdea("idea-store-nightdrive", memos, L("Night drive riff"), a(8), now - 5 * DAY);
+  const bridgeMaya = clipIdea("idea-store-bridgemaya", memos, L("Bridge idea for Maya"), a(9), now - 8 * DAY);
+  const kitchen = clipIdea("idea-store-kitchen", memos, L("Kitchen piano, 2am"), a(10), now - 2 * 365 * DAY);
+  const rehearsal = clipIdea("idea-store-rehearsal", rehearsals, L("Full run, new ending"), a(11), now - 3 * DAY);
+  const soundcheck = clipIdea("idea-store-soundcheck", rehearsals, L("Soundcheck groove"), a(12), now - 10 * DAY);
   const oldMemos = [
-    clipIdea("idea-store-old1", memos, "Hotel room chords", a(3), now - 14 * 30 * DAY),
-    clipIdea("idea-store-old2", memos, "Whistled melody", a(12), now - 9 * 30 * DAY),
-    clipIdea("idea-store-old3", memos, "Falsetto hook", a(5), now - 7 * 30 * DAY),
-    clipIdea("idea-store-old4", memos, "Train window lyric", a(6), now - 400 * DAY),
+    clipIdea("idea-store-old1", memos, L("Hotel room chords"), a(3), now - 14 * 30 * DAY),
+    clipIdea("idea-store-old2", memos, L("Whistled melody"), a(12), now - 9 * 30 * DAY),
+    clipIdea("idea-store-old3", memos, L("Falsetto hook"), a(5), now - 7 * 30 * DAY),
+    clipIdea("idea-store-old4", memos, L("Train window lyric"), a(6), now - 400 * DAY),
   ];
-  const fresh1 = clipIdea("idea-store-fresh1", memos, "Morning coffee riff", a(2), now - 1 * DAY);
-  const fresh2 = clipIdea("idea-store-fresh2", memos, "Chorus melody, humming", a(10), now - 4 * 60 * 60 * 1000);
-  const blueRoom = clipIdea("idea-store-blueroom", live, "Blue Room encore", a(4), now - 30 * DAY);
+  const fresh1 = clipIdea("idea-store-fresh1", memos, L("Morning coffee riff"), a(2), now - 1 * DAY);
+  const fresh2 = clipIdea("idea-store-fresh2", memos, L("Chorus melody, humming"), a(10), now - 4 * 60 * 60 * 1000);
+  const blueRoom = clipIdea("idea-store-blueroom", live, L("Blue Room encore"), a(4), now - 30 * DAY);
 
   const songs: Workspace = {
     id: ws,
-    title: "My Songs",
+    title: L("My Songs"),
     color: WORKSPACE_COLORS[0],
     avatarKey: 3,
     collections: [
-      collection(demos, ws, "Album demos", now - 300 * DAY, now - 2 * 60 * 60 * 1000),
-      collection(cowrites, ws, "Co-writes with Maya", now - 200 * DAY, now - 7 * DAY),
-      collection(memos, ws, "Voice memos", now - 800 * DAY, now - 4 * 60 * 60 * 1000),
+      collection(demos, ws, L("Album demos"), now - 300 * DAY, now - 2 * 60 * 60 * 1000),
+      collection(cowrites, ws, L("Co-writes with Maya"), now - 200 * DAY, now - 7 * DAY),
+      collection(memos, ws, L("Voice memos"), now - 800 * DAY, now - 4 * 60 * 60 * 1000),
     ],
     ideas: [harbor, paperMoon, saltCedar, northbound, orchard, reverse, lantern, rivers, nightDrive, bridgeMaya, kitchen, ...oldMemos, fresh1, fresh2],
   };
   const bandWs: Workspace = {
     id: band,
-    title: "The Night Boats",
+    title: L("The Night Boats"),
     color: WORKSPACE_COLORS[3],
     avatarKey: 7,
     collections: [
-      collection(rehearsals, band, "Rehearsals", now - 200 * DAY, now - 3 * DAY),
-      collection(live, band, "Live", now - 200 * DAY, now - 30 * DAY),
+      collection(rehearsals, band, L("Rehearsals"), now - 200 * DAY, now - 3 * DAY),
+      collection(live, band, L("Live"), now - 200 * DAY, now - 30 * DAY),
     ],
     ideas: [rehearsal, soundcheck, blueRoom],
   };
@@ -416,7 +439,7 @@ export async function stageStoreLibrary(): Promise<string> {
   }));
 
   const store = useStore.getState();
-  const setlistId = store.addSetlist("Friday at the Blue Room");
+  const setlistId = store.addSetlist(L("Friday at the Blue Room"));
   for (const idea of [harbor, saltCedar, reverse, lantern, northbound, paperMoon]) {
     store.addSetlistEntry(setlistId, {
       workspaceId: ws,
@@ -427,7 +450,7 @@ export async function stageStoreLibrary(): Promise<string> {
       includeSongNotes: false,
     });
   }
-  const playlistId = store.addPlaylist("Late night listening");
+  const playlistId = store.addPlaylist(L("Late night listening"));
   store.addItemsToPlaylist(
     playlistId,
     [nightDrive, kitchen, bridgeMaya].map((idea) => ({
@@ -438,8 +461,8 @@ export async function stageStoreLibrary(): Promise<string> {
       clipId: idea.clips[0]!.id,
     }))
   );
-  store.addSetlist("Rooftop, Oct 4");
-  const coffee = store.addPlaylist("Ideas to finish");
+  store.addSetlist(L("Rooftop, Oct 4"));
+  const coffee = store.addPlaylist(L("Ideas to finish"));
   store.addItemsToPlaylist(
     coffee,
     [northbound, orchard, rivers, paperMoon].map((idea) => ({
@@ -449,7 +472,7 @@ export async function stageStoreLibrary(): Promise<string> {
       ideaId: idea.id,
     }))
   );
-  const mix = store.addPlaylist("Album running order");
+  const mix = store.addPlaylist(L("Album running order"));
   store.addItemsToPlaylist(
     mix,
     [harbor, saltCedar, reverse, lantern].map((idea) => ({
@@ -459,7 +482,7 @@ export async function stageStoreLibrary(): Promise<string> {
       ideaId: idea.id,
     }))
   );
-  const songbookId = store.addSongbook("Gig book");
+  const songbookId = store.addSongbook(L("Gig book"));
   store.addItemsToSongbook(songbookId, [
     { kind: "lyricChart", workspaceId: ws, ideaId: harbor.id, versionId: lyricsV2Id },
     { kind: "chordChart", workspaceId: ws, ideaId: harbor.id },
@@ -470,7 +493,7 @@ export async function stageStoreLibrary(): Promise<string> {
   shelf.setAside([{ kind: "idea", id: bridgeMaya.id }], now - 3 * DAY);
   shelf.setAside([{ kind: "idea", id: nightDrive.id }], now - 1 * DAY);
   shelf.setAside([{ kind: "idea", id: fresh1.id }], now - 2 * 60 * 60 * 1000);
-  useSendPrefsStore.getState().setSenderName("Sam");
+  useSendPrefsStore.getState().setSenderName(L("Sam"));
   stageReceivedParcel(harbor);
   return "Store library staged";
 }
