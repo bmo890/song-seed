@@ -88,13 +88,14 @@ export function MetronomeScreenContent() {
             active={isRunning && model.outputs.visual}
             variant="hero"
           />
-          <Text style={s.bpmValue} accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
-            {model.bpm}
-          </Text>
-          <Text style={s.bpmCaption}>
+          {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"
+              sat apart, beside the marking, and read as unrelated); the marking is the
+              musician's word for the tempo, a quiet line of its own. */}
+          <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
+            <Text style={s.bpmValue}>{model.bpm}</Text>
             <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
-            {`  ·  ${t(`metronome.marking.${getTempoMarking(model.bpm)}`)}`}
-          </Text>
+          </View>
+          <Text style={s.bpmMarking}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
         </View>
         {statusLabel ? <Text style={s.statusLabel}>{statusLabel}</Text> : null}
 

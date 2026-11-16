@@ -35,15 +35,19 @@ export const styles = StyleSheet.create({
     minWidth: 150,
     textAlign: "center",
   },
-  bpmCaption: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 13,
-    color: colors.textSecondary,
+  tempoReadout: {
+    alignItems: "center",
   },
   bpmUnit: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  bpmMarking: {
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 17,
     color: colors.textSecondary,
   },
   // Tap · play · Meter: the transport between its two ink keys.
