@@ -208,6 +208,7 @@ export function WorkspaceListScreenContent() {
         <ProMark
           feature="workspaces"
           atLimit={!canAddWorkspace(model.data.activeWorkspaceCount, false)}
+          markInFreeMonth
           style={styles.fabProMark}
         />
       </Pressable>

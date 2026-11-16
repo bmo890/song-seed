@@ -24,6 +24,9 @@ import { currentFormatLocale } from "../../i18n/formatLocale";
 import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
 import { proUse, proUseRanking } from "../../services/proUse";
+import { useStore } from "../../state/useStore";
+import { personalWorkspaces } from "../../domain/workspaceVisibility";
+import { FREE_WORKSPACES } from "../../domain/proGating";
 import {
   manageSubscriptionUrl,
   purchasePro,
@@ -105,7 +108,16 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
   const owned = hasPro ? ownedLine() : null;
   // Re-read when a count changes; the ranking itself comes from the service.
   useSyncExternalStore(proUse.subscribe, proUse.get);
-  const used = hasPro ? [] : proUseRanking();
+  // Workspaces beyond the free ones lead the list (founder, 2026-11-16): not a count of
+  // sittings but the extras someone made in their free month and keeps, fully usable.
+  const allWorkspaces = useStore((state) => state.workspaces);
+  const keptWorkspaces = personalWorkspaces(allWorkspaces).filter((workspace) => !workspace.isArchived).length;
+  const used: { group: string; count: number }[] = hasPro
+    ? []
+    : [
+        ...(keptWorkspaces > FREE_WORKSPACES ? [{ group: "workspaces", count: keptWorkspaces }] : []),
+        ...proUseRanking(keptWorkspaces > FREE_WORKSPACES ? 2 : 3),
+      ];
   const usedLabel = [t("pro.usedTitle"), ...used.map((entry) => `${t(`pro.used.${entry.group}`)} ${entry.count}`)].join(", ");
   // Lifetime's printed price follows the launch window: $59.99 until it ends, then
   // $79.99 (a store price, when RevenueCat has one, always wins).

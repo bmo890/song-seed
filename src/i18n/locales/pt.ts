@@ -3643,7 +3643,7 @@ export const pt = {
     renewNoteIos: "Anual e mensal renovam até você cancelar. Cancele na sua conta da App Store.",
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
     usedTitle: "Usado no seu mês grátis",
-    used: { wordFinder: "Buscador de palavras", lyricSpark: "Faísca de letras", practice: "Ferramentas de prática", stage: "Ferramentas de palco", send: "Links do Send", layers: "Camadas" },
+    used: { workspaces: "Espaços de trabalho", wordFinder: "Buscador de palavras", lyricSpark: "Faísca de letras", practice: "Ferramentas de prática", stage: "Ferramentas de palco", send: "Links do Send", layers: "Camadas" },
     also: "Também com o Pro: Exportar para DAW.",
     freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {

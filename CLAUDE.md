@@ -63,6 +63,9 @@ The hard rules below are non-negotiable.
   the gate would stop (`useProLocked`), so mark and gate always agree; canon parts take
   it as a prop (`InkKey pro`, a tab's `pro`, a menu row's `pro`; Share rows get it from
   `shareExitGate`). Never draw it by hand, and never gate a door without it.
+  One exception (2026-11-16): a count door may pass `markInFreeMonth` so it wears the
+  mark during the free month once past the free allowance (new workspace beyond 2);
+  extras made then are kept for good, fully usable; only making more is gated.
 - Selection controls: single-select = `SegmentedControl`, drawn as ink tabs
   (2026-10-15): words on a hairline, the chosen one in full ink over a sliding
   2 pt rule, no track or thumb;

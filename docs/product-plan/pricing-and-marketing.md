@@ -369,3 +369,10 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   launch price until February 9, 2027), share card og.png. Change it with the store copy
   and on 2027-02-09 (lifetime price), and add the Google Play button when Android is live
   (`server/songnook-send/src/pages/legal.ts`).
+- 2026-11-16 — Workspaces made in the free month (founder asked how the extras are handled
+  once it ends): they stay fully usable for good (open, record, edit, rename, delete);
+  only making another is gated while a free person has 2 or more unarchived. Never
+  read-only. Two labels so nobody is surprised: the + on the workspace list wears the Pro
+  mark during the free month once past 2 (`ProMark markInFreeMonth`, the one exception to
+  "the mark shows only to someone the gate stops"), and the Pro page's "Used in your free
+  month" line leads with "Workspaces N" when more than 2 are kept. Five languages.
