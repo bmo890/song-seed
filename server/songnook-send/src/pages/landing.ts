@@ -184,6 +184,7 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .closing h2 em{font-style:italic;color:var(--terra)}
 .closing .lead{margin:0 auto 30px}
 .closing .stores{justify-content:center}
+.closing .stores.pair{margin-inline:auto}
 
 /* ── Hebrew: no italic in the script, and wide tracking breaks its letterforms ── */
 :lang(he) em{font-style:normal}

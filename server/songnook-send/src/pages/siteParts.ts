@@ -29,7 +29,7 @@ export function langMenu(lang: Lang, hrefFor: (l: Lang) => string): string {
   const items = LANGS.map(
     (l) => `<li><a href="${escapeHtml(hrefFor(l))}" hreflang="${l}" lang="${l}"${l === lang ? ' aria-current="true"' : ""}>${flag(l)}<span>${escapeHtml(STRINGS[l].name)}</span></a></li>`
   ).join("");
-  return `<details class="langs"><summary aria-label="${escapeHtml(t.language)}: ${escapeHtml(t.name)}">${GLOBE}<span class="code">${lang.toUpperCase()}</span>${CHEVRON}</summary><ul>${items}</ul></details>`;
+  return `<details class="langs"><summary aria-label="${escapeHtml(t.language)}: ${escapeHtml(t.name)}"><span class="globe">${GLOBE}${flag(lang)}</span><span class="code">${lang.toUpperCase()}</span>${CHEVRON}</summary><ul>${items}</ul></details>`;
 }
 
 /** Apple's and Google's own badge artwork, in the page's language. Without a Play
@@ -50,7 +50,9 @@ export function storeBadges(opts: {
   const play = opts.playHref
     ? `<a class="store" id="play-badge" href="${escapeHtml(opts.playHref)}"><img src="/badges/google-play${sfx}.png" width="168" height="50" alt="${escapeHtml(t.playAlt)}"></a>`
     : opts.instead ?? "";
-  return `<div class="stores">${apple}${play}</div>`;
+  // Two badges share one row at one height, shrinking together on a narrow phone
+  // rather than wrapping (founder 2026-11-16: same size, side by side).
+  return `<div class="stores${opts.playHref ? " pair" : ""}">${apple}${play}</div>`;
 }
 
 /** Android's "coming soon" slot beside the App Store badge. */
@@ -72,6 +74,9 @@ export const SITE_PARTS_CSS = `
   min-width:150px;background:var(--card);border:1px solid var(--rule);border-radius:10px;box-shadow:0 18px 36px -20px rgba(60,40,30,.45)}
 .langs a{display:flex;align-items:center;gap:11px;padding:8px 16px;color:var(--ink);text-decoration:none;font-size:14px;white-space:nowrap}
 .flag{flex:none;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.globe{position:relative;display:flex}
+.globe .flag{position:absolute;width:10px;height:7px;bottom:-2px;right:-4px;border-radius:1.5px;
+  box-shadow:0 0 0 1.5px var(--paper),0 0 0 2px rgba(0,0,0,.08)}
 .langs a:hover{background:var(--paper-deep)}
 .langs a[aria-current]{color:var(--terra);font-weight:700}
 @media (max-width:640px){.mast-right{gap:14px}}
@@ -82,6 +87,8 @@ export const SITE_PARTS_CSS = `
 .store:hover{transform:translateY(-2px)}
 .store:focus-visible{outline:2px solid var(--terra);outline-offset:3px}
 .store img{display:block;height:50px;width:auto}
+.stores.pair{display:grid;grid-template-columns:minmax(0,150fr) minmax(0,168fr);max-width:330px}
+.stores.pair .store img{width:100%;height:auto}
 .store-soon{display:inline-flex;align-items:center;height:50px;padding:0 16px;border:1px dashed var(--rule);
   border-radius:9px;font-size:11px;line-height:1.25;letter-spacing:.14em;text-transform:uppercase;
   color:var(--ink-faint);font-weight:700}
