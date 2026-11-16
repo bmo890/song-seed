@@ -317,8 +317,8 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
   dev store library stages in Hebrew in the Hebrew app (`src/dev/storeLibraryHebrew.ts`), so
   every title, note, lyric, collection, workspace, book and sender in the Hebrew shots is
   Hebrew. Apple: 1.0.2 pulled from review, Hebrew set swapped, resubmitted (manual release
-  kept). Play: the iw-IL phone set is replaced and saved, waiting in Publishing overview,
-  not yet sent, because sending it would restart the 1.0.2 review. songnook.app's Hebrew
+  kept). Play: the iw-IL phone set is replaced and sent with the 1.0.2 review, which the
+  founder chose to restart for it ("yes to now do it"). songnook.app's Hebrew
   page carries the six new screens (`public/screens/he/`, deployed 6c4e82ac).
 
 ---
