@@ -120,6 +120,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const setMetronomeClickVoice = useStore((s) => s.setMetronomeClickVoice);
 
   const [pulseToken, setPulseToken] = useState(0);
+  // The grid pulse the latest pulseToken stands for (run pulse 0 = the loop's start). Set
+  // in the same tick as the token, so a consumer never pairs a new flash with the beat
+  // number of the one before (2026-11-16: the page flashed two dots per beat).
+  const [pulseIndex, setPulseIndex] = useState(0);
   const [beatCount, setBeatCount] = useState(0);
   const [tapCount, setTapCount] = useState(0);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -258,11 +262,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       const msPerPulse = anchor!.msPerPulse!;
       const visualOffsetMs = routeLatencyProfileRef.current.visualLeadMs;
       const now = Date.now();
-      const pulseIndex = Math.max(
+      const gridPulse = Math.max(
         0,
         Math.ceil((now - anchor!.anchorEpochMs! - visualOffsetMs + 4) / msPerPulse)
       );
-      const fireAtMs = anchor!.anchorEpochMs! + pulseIndex * msPerPulse + visualOffsetMs;
+      const fireAtMs = anchor!.anchorEpochMs! + gridPulse * msPerPulse + visualOffsetMs;
 
       scheduler.timer = setTimeout(() => {
         void (async () => {
@@ -270,6 +274,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
             return;
           }
           if (visualPulseRef.current && outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
+            setPulseIndex(gridPulse);
             setPulseToken((current) => current + 1);
           }
           pulsesSinceAnchorRefresh += 1;
@@ -498,6 +503,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         if (state) {
           setNativeState(state);
         }
+        // A pattern edit while playing re-cues the loop (continueRun): re-anchor the
+        // visual pulse so its pulse numbering follows the new loop at once.
+        if (state?.isRunning && practiceActiveRef.current && ownsActiveRunRef.current && visualSchedulerRef.current.active) {
+          void startVisualScheduler();
+        }
       });
     }, 280);
 
@@ -507,7 +517,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         configSyncTimerRef.current = null;
       }
     };
-  }, [syncNativeConfig]);
+  }, [startVisualScheduler, syncNativeConfig]);
 
   useEffect(() => {
     if (!SongNookMetronomeModule) {
@@ -555,6 +565,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     // A practice pattern's silent beat stays silent everywhere: no flash, no buzz.
     if (practiceActiveRef.current && event.accent <= 0) {
       return;
+    }
+    if (!visualSchedulerRef.current.active) {
+      setPulseIndex(event.absolutePulse);
     }
     triggerBeatCue();
   });
@@ -735,6 +748,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     hapticLevel,
     outputs: effectiveOutputs,
     pulseToken,
+    pulseIndex,
     tapCount,
     meterId: effectiveMeterId,
     meterPreset,
@@ -1184,6 +1198,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     hapticLevel,
     outputs,
     pulseToken,
+    pulseIndex: Math.max(0, beatCount - 1),
     tapCount,
     meterId: DEFAULT_METRONOME_METER_ID,
     meterPreset: getMetronomeMeterPreset(DEFAULT_METRONOME_METER_ID),

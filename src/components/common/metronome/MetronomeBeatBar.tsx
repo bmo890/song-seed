@@ -46,6 +46,10 @@ type Props = {
   currentBeat: number;
   /** Increments on every beat event — triggers the pulse animation. */
   pulseToken: number;
+  /** 1-based beat the latest pulseToken stands for, when the caller knows it (the
+   *  anchor-timed visual pulse). Both the flash and the fill follow it, so a pulse never
+   *  lights the beat before alongside its own (2026-11-16). */
+  pulseBeat?: number;
   /** Whether the metronome is actually beating (running + visual cue on). */
   active: boolean;
   variant?: "hero" | "compact";
@@ -57,9 +61,13 @@ export function MetronomeBeatBar({
   grouping,
   currentBeat,
   pulseToken,
+  pulseBeat,
   active,
   variant = "hero",
 }: Props) {
+  const liveBeat = pulseBeat ?? currentBeat;
+  // A rest (weight 0) neither flashes nor fills: a silent beat stays silent to the eye.
+  const isSilentBeat = (beat: number) => accentPattern != null && (accentPattern[beat - 1] ?? 1) <= 0;
   const hero = variant === "hero";
   // Nine or twelve pulses need smaller dots to fit a phone's width — the tiers keep
   // their ratio, the row just tightens.
@@ -90,12 +98,13 @@ export function MetronomeBeatBar({
 
   useEffect(() => {
     if (!active || pulseToken === 0) return;
-    const anim = dotAnims[currentBeat - 1];
-    if (!anim) return;
+    const anim = dotAnims[liveBeat - 1];
+    if (!anim || isSilentBeat(liveBeat)) return;
     anim.stopAnimation();
     anim.setValue(1);
     Animated.timing(anim, { toValue: 0, duration: durations.slow, useNativeDriver: true }).start();
-  }, [active, currentBeat, dotAnims, pulseToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSilentBeat reads accentPattern
+  }, [active, liveBeat, dotAnims, pulseToken]);
 
   useEffect(() => {
     if (active) return;
@@ -111,7 +120,7 @@ export function MetronomeBeatBar({
         const accent = accentPattern ? accentOf(accentPattern[beat - 1]) : beat === 1 ? "downbeat" : "weak";
         const isDownbeat = accent === "downbeat";
         const isAccented = accent !== "weak";
-        const isCurrent = active && beat === currentBeat;
+        const isCurrent = active && beat === liveBeat && !isSilentBeat(beat);
         const dotStyle = dotStyles[beat - 1]!;
         const base = hero
           ? dense

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Press } from "../Press";
@@ -39,11 +40,24 @@ const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
  * subdivision is chosen right here as ink tabs. Sound all / Silence all are two fixed keys,
  * never one key that flips meaning.
  */
+export type PracticePulse = { token: number; bar: number; beat: number; stepMs: number };
+
+/** One pattern dot at rest, for the help sheet: the sheet shows the mark it explains. */
+export function PracticeDotMark({ tier }: { tier: "accent" | "click" | "rest" }) {
+  return <View style={[s.dot, tier === "accent" ? s.dotAccent : tier === "click" ? s.dotClick : s.dotRest]} />;
+}
+
+/** A bar's number as the row draws it, for the help sheet. */
+export function PracticeBarNumberMark() {
+  return <Text style={s.numberText}>1</Text>;
+}
+
 export function PracticePattern({
   practice,
   baseBeats,
   currentBar,
   currentBeat,
+  pulse,
   onChange,
 }: {
   practice: MetronomePractice;
@@ -52,6 +66,9 @@ export function PracticePattern({
   /** 0-based bar and beat being heard, or null when stopped. */
   currentBar: number | null;
   currentBeat: number | null;
+  /** The beat that just sounded (anchor-timed, with the visual cue on): its sounding dot
+   *  and ticks swell in turn, each on its own step. Null when stopped. */
+  pulse?: PracticePulse | null;
   onChange: (next: MetronomePractice) => void;
 }) {
   const { t } = useTranslation();
@@ -77,6 +94,7 @@ export function PracticePattern({
             subdivision={practice.subdivision}
             current={currentBar === barIndex}
             currentBeat={currentBar === barIndex ? currentBeat : null}
+            pulse={pulse && pulse.bar === barIndex ? pulse : null}
             onToggleRest={() => onChange(withBarRestToggled(practice, barIndex))}
             onTapBeat={(pulse) => onChange(withBeatCycled(practice, barIndex, pulse))}
             onTapSub={(pulse, position) => onChange(withSubCycled(practice, barIndex, pulse, position))}
@@ -84,47 +102,32 @@ export function PracticePattern({
         ))}
       </View>
 
-      {/* The key: what the three dots mean, drawn in the dots themselves. */}
-      <View style={s.legend} accessible={false}>
-        <LegendMark dot={[s.dot, s.legendDot, s.dotAccent]} label={t("metronome.practice.legendAccent")} />
-        <LegendMark dot={[s.dot, s.legendDot, s.dotClick]} label={t("metronome.practice.legendClick")} />
-        <LegendMark dot={[s.dot, s.legendDot, s.dotRest]} label={t("metronome.practice.legendSilent")} />
-      </View>
-
-      {/* Bars: one is added under the last, so the count sits under the rows. */}
-      <Stepper
-        glyphs="plusMinus"
-        onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
-        canDecrement={barCount > 1}
-        canIncrement={barCount < MAX_PRACTICE_BARS}
-        decrementLabel={t("metronome.practice.removeBar")}
-        incrementLabel={t("metronome.practice.addBar")}
-        style={s.barStepper}
-      >
-        <Text style={s.barCount}>{t("metronome.practice.bars", { count: barCount })}</Text>
-      </Stepper>
-
+      {/* One line under the rows: the bar count (a new bar appears just above it), then
+          Sound all / Silence all, two fixed keys. Wraps on a narrow phone. */}
       <View style={s.foot}>
-        <InkKey
-          glyph={<Ionicons name="volume-medium-outline" size={17} color={inkKeyColor("idle")} />}
-          label={t("metronome.practice.soundAll")}
-          onPress={() => onChange(withAllSounding(practice, baseBeats))}
-        />
-        <InkKey
-          glyph={<Ionicons name="volume-mute-outline" size={17} color={inkKeyColor("idle")} />}
-          label={t("metronome.practice.silenceAll")}
-          onPress={() => onChange(withAllSilent(practice))}
-        />
+        <Stepper
+          glyphs="plusMinus"
+          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
+          canDecrement={barCount > 1}
+          canIncrement={barCount < MAX_PRACTICE_BARS}
+          decrementLabel={t("metronome.practice.removeBar")}
+          incrementLabel={t("metronome.practice.addBar")}
+        >
+          <Text style={s.barCount}>{t("metronome.practice.bars", { count: barCount })}</Text>
+        </Stepper>
+        <View style={s.footKeys}>
+          <InkKey
+            glyph={<Ionicons name="volume-medium-outline" size={17} color={inkKeyColor("idle")} />}
+            label={t("metronome.practice.soundAll")}
+            onPress={() => onChange(withAllSounding(practice, baseBeats))}
+          />
+          <InkKey
+            glyph={<Ionicons name="volume-mute-outline" size={17} color={inkKeyColor("idle")} />}
+            label={t("metronome.practice.silenceAll")}
+            onPress={() => onChange(withAllSilent(practice))}
+          />
+        </View>
       </View>
-    </View>
-  );
-}
-
-function LegendMark({ dot, label }: { dot: StyleProp<ViewStyle>; label: string }) {
-  return (
-    <View style={s.legendItem}>
-      <View style={dot} />
-      <Text style={s.legendText}>{label}</Text>
     </View>
   );
 }
@@ -135,6 +138,7 @@ function BarRow({
   subdivision,
   current,
   currentBeat,
+  pulse: stepPulse,
   onToggleRest,
   onTapBeat,
   onTapSub,
@@ -144,12 +148,40 @@ function BarRow({
   subdivision: MetronomeSubdivision;
   current: boolean;
   currentBeat: number | null;
+  pulse: PracticePulse | null;
   onToggleRest: () => void;
   onTapBeat: (pulse: number) => void;
   onTapSub: (pulse: number, position: number) => void;
 }) {
   const { t } = useTranslation();
   const number = barIndex + 1;
+  // One clock per beat: 0 → subdivision across the beat, so step i swells as the clock
+  // passes i. Beat time, not a motion token: the swell IS the tempo.
+  const stepClock = useRef(new Animated.Value(subdivision)).current;
+  useEffect(() => {
+    if (!stepPulse) return;
+    stepClock.stopAnimation();
+    stepClock.setValue(0);
+    Animated.timing(stepClock, {
+      toValue: subdivision,
+      duration: stepPulse.stepMs * subdivision,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
+    // The token is the beat; bar, beat and step length change with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepPulse?.token]);
+  const swell = (step: number) => ({
+    transform: [
+      {
+        scale: stepClock.interpolate({
+          inputRange: [step - 0.001, step, step + 0.7],
+          outputRange: [1, SWELL, 1],
+          extrapolate: "clamp",
+        }),
+      },
+    ],
+  });
   return (
     <View style={[s.row, current ? s.rowCurrent : null]}>
       <Press
@@ -175,6 +207,8 @@ function BarRow({
           {bar.beats.map((weight, pulse) => {
             const tier = beatTier(weight);
             const now = currentBeat === pulse && tier !== "rest";
+            // Only the beat that just sounded swells, and only what it sounds.
+            const swelling = stepPulse?.beat === pulse;
             return (
               <View key={pulse} style={s.cell}>
                 <Press
@@ -190,7 +224,13 @@ function BarRow({
                   })}
                 >
                   {now ? <View style={s.halo} /> : null}
-                  <View style={[s.dot, tier === "accent" ? s.dotAccent : tier === "click" ? s.dotClick : s.dotRest]} />
+                  <Animated.View
+                    style={[
+                      s.dot,
+                      tier === "accent" ? s.dotAccent : tier === "click" ? s.dotClick : s.dotRest,
+                      swelling && tier !== "rest" ? swell(0) : null,
+                    ]}
+                  />
                 </Press>
                 {Array.from({ length: subdivision - 1 }, (_, index) => {
                   const position = index + 1;
@@ -216,7 +256,13 @@ function BarRow({
                         ),
                       })}
                     >
-                      <View style={[s.tick, state === "accent" ? s.tickAccent : state === "off" ? s.tickOff : null]} />
+                      <Animated.View
+                        style={[
+                          s.tick,
+                          state === "accent" ? s.tickAccent : state === "off" ? s.tickOff : null,
+                          swelling && state !== "off" ? swell(position) : null,
+                        ]}
+                      />
                     </Press>
                   );
                 })}
@@ -230,13 +276,12 @@ function BarRow({
 }
 
 const ROW_HEIGHT = 44;
+/** How far a sounding step swells as it plays: felt, not a pop. */
+const SWELL = 1.38;
 
 const s = StyleSheet.create({
   wrap: {
     gap: spacing.sm,
-  },
-  barStepper: {
-    alignSelf: "center",
   },
   barCount: {
     minWidth: 52,
@@ -297,8 +342,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     height: ROW_HEIGHT,
   },
+  // Every step, beat or sub-beat, takes an equal slot with its mark in the middle, so
+  // the bar sits centred in its row at any subdivision (founder, 2026-11-16).
   beatHit: {
-    width: 30,
+    flex: 1,
     height: ROW_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
@@ -372,28 +419,16 @@ const s = StyleSheet.create({
     height: 6,
     backgroundColor: colors.textSecondary,
   },
-  legend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing.lg,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  legendDot: {
-    transform: [{ scale: 0.75 }],
-  },
-  legendText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_500Medium",
-    color: colors.textSecondary,
-  },
   foot: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing.lg,
-    paddingTop: spacing.xs,
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    rowGap: spacing.xs,
+  },
+  footKeys: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
 });

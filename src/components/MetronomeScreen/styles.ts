@@ -82,10 +82,15 @@ export const styles = StyleSheet.create({
   patternBody: {
     paddingTop: spacing.xs,
   },
-  // Pushes the Sound row to the foot of the screen.
-  spacer: {
-    flexGrow: 1,
-    minHeight: spacing.xl,
+  practiceAccessory: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  // The Sound row's own strip under the scroll, on the page's gutter.
+  foot: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   rowValue: {
     maxWidth: 190,

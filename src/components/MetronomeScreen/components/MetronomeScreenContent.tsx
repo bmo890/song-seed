@@ -19,12 +19,14 @@ import {
 } from "../../../domain/metronome";
 import { CueRows, FeelControl, MeterRow, meterSummary, ms, soundSummary } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
-import { PracticePattern } from "../../common/metronome/PracticePattern";
+import { PracticeBarNumberMark, PracticeDotMark, PracticePattern } from "../../common/metronome/PracticePattern";
+import { HelpButton } from "../../common/HelpButton";
+import { HelpSheet } from "../../common/HelpSheet";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
 import { useTranslation } from "react-i18next";
 
-type SheetKey = "meter" | "sound" | null;
+type SheetKey = "meter" | "sound" | "help" | null;
 
 /**
  * Standalone metronome (2026-10-15, founder picked A, "the instrument"): one
@@ -64,6 +66,7 @@ export function MetronomeScreenContent() {
             grouping={model.grouping}
             currentBeat={model.currentBeatInBar}
             pulseToken={model.pulseToken}
+            pulseBeat={model.heroPulseBeat}
             active={isRunning && model.outputs.visual}
             variant="hero"
           />
@@ -144,11 +147,15 @@ export function MetronomeScreenContent() {
                 // haptics.ts: light — a small state flip (the Switch owns its own taps).
                 haptic="light"
                 accessory={
-                  <Switch
-                    value={model.practiceOn}
-                    onValueChange={model.setPracticeOn}
-                    accessibilityLabel={t("metronome.practice.toggle")}
-                  />
+                  <View style={s.practiceAccessory}>
+                    {/* What the dots mean is a rule you can't see: it lives behind "?". */}
+                    {model.practiceOn ? <HelpButton compact onPress={() => setSheet("help")} /> : null}
+                    <Switch
+                      value={model.practiceOn}
+                      onValueChange={model.setPracticeOn}
+                      accessibilityLabel={t("metronome.practice.toggle")}
+                    />
+                  </View>
                 }
                 onPress={() => model.setPracticeOn(!model.practiceOn)}
               />
@@ -159,14 +166,18 @@ export function MetronomeScreenContent() {
                 baseBeats={model.accentPattern}
                 currentBar={model.practiceBar}
                 currentBeat={model.practiceBeat}
+                pulse={model.practicePulse}
                 onChange={model.setPractice}
               />
             </AnimatedCollapse>
           </View>
         ) : null}
 
-        <View style={s.spacer} />
+      </ScrollView>
 
+      {/* Pinned under the scroll: Sound (beep, visual, haptic) is always at the foot, however
+          many bars the pattern holds (founder, 2026-11-16). */}
+      <View style={s.foot}>
         <ListRows>
           <ListRow
             icon="volume-medium-outline"
@@ -181,7 +192,19 @@ export function MetronomeScreenContent() {
             onPress={() => setSheet("sound")}
           />
         </ListRows>
-      </ScrollView>
+      </View>
+
+      <HelpSheet
+        visible={sheet === "help"}
+        onClose={() => setSheet(null)}
+        thesis={t("metronome.practice.helpThesis")}
+        items={[
+          { mark: <PracticeDotMark tier="accent" />, label: t("metronome.practice.legendAccent"), description: t("metronome.practice.helpAccent") },
+          { mark: <PracticeDotMark tier="click" />, label: t("metronome.practice.legendClick"), description: t("metronome.practice.helpClick") },
+          { mark: <PracticeDotMark tier="rest" />, label: t("metronome.practice.legendSilent"), description: t("metronome.practice.helpSilent") },
+          { mark: <PracticeBarNumberMark />, label: t("metronome.practice.helpBarLabel"), description: t("metronome.practice.helpBar") },
+        ]}
+      />
 
       <BottomSheet visible={sheet === "meter"} onClose={() => setSheet(null)}>
         <Text style={s.sheetTitle}>{t("metronome.meter")}</Text>

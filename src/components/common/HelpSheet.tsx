@@ -1,10 +1,14 @@
+import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
 import { colors, radii, spacing } from "../../design/tokens";
 
 export type HelpItem = {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
+  /** In place of the icon when the rule is a mark drawn on the page itself (the
+   *  metronome pattern's dots): the sheet shows the very mark it explains. */
+  mark?: ReactNode;
   /** Optional: a row that needs no heading is just its one line. */
   label?: string;
   description: string;
@@ -43,7 +47,7 @@ export function HelpSheet({
         {items.map((item) => (
           <View key={item.label ?? item.description} style={helpStyles.row}>
             <View style={helpStyles.iconWrap}>
-              <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
+              {item.mark ?? (item.icon ? <Ionicons name={item.icon} size={16} color={colors.textSecondary} /> : null)}
             </View>
             <View style={helpStyles.text}>
               {item.label ? <Text style={helpStyles.label}>{item.label}</Text> : null}

@@ -57,11 +57,34 @@ export function useMetronomeScreenModel() {
   );
   const practiceBarCount = practice.bars.length;
   const isPlaying = practiceOn && metronome.isRunning && !metronome.isCountIn;
-  const practiceBar = isPlaying ? (Math.max(1, metronome.currentBar) - 1) % practiceBarCount : null;
-  const practiceBeat = isPlaying ? Math.max(1, metronome.currentBeatInBar) - 1 : null;
+  const ppb = Math.max(1, metronome.meterPreset.pulsesPerBar);
+  // One clock on screen (2026-11-16): with the visual cue on, the bar, the beat and the
+  // pattern's pulse all read the anchor-timed pulse, so nothing lands a beat apart.
+  const pulseClock = metronome.isRunning && metronome.outputs.visual;
+  const practiceBar = !isPlaying
+    ? null
+    : pulseClock
+      ? Math.floor(metronome.pulseIndex / ppb) % practiceBarCount
+      : (Math.max(1, metronome.currentBar) - 1) % practiceBarCount;
+  const practiceBeat = !isPlaying
+    ? null
+    : pulseClock
+      ? metronome.pulseIndex % ppb
+      : Math.max(1, metronome.currentBeatInBar) - 1;
+  /** The step pulse for the pattern: which beat just sounded and how long each step lasts. */
+  const practicePulse =
+    isPlaying && pulseClock && practiceBar != null && practiceBeat != null
+      ? {
+          token: metronome.pulseToken,
+          bar: practiceBar,
+          beat: practiceBeat,
+          stepMs: metronome.beatIntervalMs / Math.max(1, practice.subdivision),
+        }
+      : null;
   // The hero's dots mirror the bar being heard (the first one while stopped).
   const heroBar = practice.bars[practiceBar ?? 0];
   const heroAccentPattern = heroBar.rest ? heroBar.beats.map(() => 0) : heroBar.beats;
+  const heroPulseBeat = pulseClock ? (metronome.pulseIndex % ppb) + 1 : undefined;
 
   // Leaving the page ends the session. The native metronome engine runs on its
   // own thread and keeps ticking after this screen unmounts, so nothing stops
@@ -149,6 +172,8 @@ export function useMetronomeScreenModel() {
     setFeelPreset,
     practiceBar,
     practiceBeat,
+    practicePulse,
+    heroPulseBeat,
     heroAccentPattern: metronome.supportsStepPattern && practiceOn ? heroAccentPattern : metronome.accentPattern,
   };
 }
