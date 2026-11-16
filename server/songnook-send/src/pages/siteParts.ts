@@ -44,13 +44,11 @@ export function storeBadges(opts: {
   const sfx = opts.lang === "en" ? "" : `-${opts.lang}`;
   // Apple's Hebrew badge is drawn right to left (apple after the words); the founder
   // wants the apple leading (2026-11-15), and Apple's art may not be altered, so a
-  // Hebrew page wears the English badge. Google's only Hebrew badge reads "כעת ב-"
-  // ("now on"), which the founder turned down (2026-11-16), so Play's goes English too.
+  // Hebrew page wears the English badge.
   const appleSfx = opts.lang === "he" ? "" : sfx;
-  const playSfx = appleSfx;
   const apple = `<a class="store" href="${escapeHtml(opts.appStoreUrl)}"><picture><source srcset="/badges/app-store-white${appleSfx}.svg" media="(prefers-color-scheme: dark)"><img src="/badges/app-store-black${appleSfx}.svg" width="150" height="50" alt="${escapeHtml(t.appStoreAlt)}"></picture></a>`;
   const play = opts.playHref
-    ? `<a class="store" id="play-badge" href="${escapeHtml(opts.playHref)}"><img src="/badges/google-play${playSfx}.png" width="168" height="50" alt="${escapeHtml(t.playAlt)}"></a>`
+    ? `<a class="store" id="play-badge" href="${escapeHtml(opts.playHref)}"><img src="/badges/google-play${sfx}.png" width="168" height="50" alt="${escapeHtml(t.playAlt)}"></a>`
     : opts.instead ?? "";
   // Two badges share one row at one height, shrinking together on a narrow phone
   // rather than wrapping (founder 2026-11-16: same size, side by side).
