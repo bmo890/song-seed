@@ -3,26 +3,32 @@ import { colors, radii, spacing } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 /**
- * Standalone Metronome page (2026-10-15, "the instrument"): the hero (beat
- * dots, the tempo between − / +, its marking), the tempo slider, Tap, one
- * round transport key, then two rows (Meter, Sound) that open sheets.
+ * Standalone Metronome page, "look up, touch down" (2026-11-16): the display
+ * (beat dots, the tempo, its marking), the practice pattern, and the pinned deck
+ * (− slider +, then Tap · the round transport key · Meter).
  */
 export const styles = StyleSheet.create({
   screen: base.screen,
   pageContent: {
     flexGrow: 1,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
     gap: spacing.lg,
   },
-  hero: {
+  // Closed pattern: the display fills the open space and sits centred in it.
+  display: {
+    flexGrow: 1,
     alignItems: "center",
+    justifyContent: "center",
     gap: spacing.md,
-    paddingTop: spacing.lg,
+    paddingVertical: spacing.lg,
   },
-  tempoStepper: {
-    gap: spacing.xl,
+  // Open pattern: the display steps up and in, the bars take the middle.
+  displayCompact: {
+    flexGrow: 0,
+    gap: spacing.sm,
+    paddingVertical: 0,
   },
   // The tempo, said once: Lora, large, tabular.
   bpmValue: {
@@ -34,6 +40,10 @@ export const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     minWidth: 150,
     textAlign: "center",
+  },
+  bpmValueCompact: {
+    fontSize: 56,
+    lineHeight: 62,
   },
   bpmCaption: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -87,16 +97,18 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
-  // The Sound row's own strip under the scroll, on the page's gutter.
-  foot: {
+  // The deck, pinned under the scroll: tempo over the transport, on the page gutter.
+  deck: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
   },
-  rowValue: {
-    maxWidth: 190,
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
+  tempoDeck: {
+    alignSelf: "stretch",
+  },
+  sliderWrap: {
+    flex: 1,
   },
   sheetTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",
