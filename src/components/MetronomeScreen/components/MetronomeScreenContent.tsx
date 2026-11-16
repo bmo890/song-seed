@@ -41,13 +41,13 @@ export function MetronomeScreenContent() {
   const tapping = model.tapCount > 0;
   const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
   const soundLine = soundSummary(model.outputs, model.supportsClickStyle ? model.clickVoice : undefined, t);
+  // Only lasting states get a line. A start in flight is a blink, and a line that came
+  // and went with it shoved the pattern down and back (2026-11-16 flicker).
   const statusLabel = !model.isNativeAvailable
     ? t("metronome.unavailable")
-    : model.isPreparing
-      ? t("metronome.preparing")
-      : isRunning && model.activeOutputCount === 0
-        ? t("metronome.noCues")
-        : null;
+    : isRunning && model.activeOutputCount === 0
+      ? t("metronome.noCues")
+      : null;
 
   return (
     <SafeAreaView style={s.screen}>
@@ -107,7 +107,7 @@ export function MetronomeScreenContent() {
             feel="surface"
             // haptics.ts: tap → any acknowledged press.
             haptic="tap"
-            style={[s.transport, model.isPreparing || !model.isNativeAvailable ? s.transportDisabled : null]}
+            style={[s.transport, !model.isNativeAvailable ? s.transportDisabled : null]}
             disabled={model.isPreparing || !model.isNativeAvailable}
             onPress={model.toggleRunning}
             accessibilityRole="button"

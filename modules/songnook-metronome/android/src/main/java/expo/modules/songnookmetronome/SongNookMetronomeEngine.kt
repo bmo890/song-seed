@@ -237,6 +237,10 @@ class SongNookMetronomeEngine(
       0
     }
 
+    // Where the click has got to, read before anything changes (see heldRunFrames).
+    val heldFrames = heldRunFrames()
+    val heldAtMs = SystemClock.elapsedRealtime()
+
     val previous = config
     config = nextConfig
 
@@ -273,6 +277,14 @@ class SongNookMetronomeEngine(
     totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar * config.patternBars).roundToInt())
 
     if (wasRunning) {
+      // A pattern edit while playing (same tempo, same meter) carries on from where the
+      // click had got to. Restarting at bar one on every tap read as a stutter (2026-11-16).
+      val sameGrid = previous.bpm == config.bpm &&
+        previous.pulsesPerBar == config.pulsesPerBar &&
+        previous.denominator == config.denominator
+      if (sameGrid && pendingCountInBars == 0 && heldFrames != null) {
+        return startInternal(countInBars = 0, phaseOffsetMs = 0.0, continueFrom = heldFrames, continueReadAtMs = heldAtMs)
+      }
       return start(pendingCountInBars)
     }
 
@@ -568,10 +580,39 @@ class SongNookMetronomeEngine(
     return startInternal(countInBars = 0, phaseOffsetMs = max(0.0, offsetMs))
   }
 
-  private fun startInternal(countInBars: Int, phaseOffsetMs: Double): Map<String, Any> {
+  /**
+   * Frames the running loop has played (across loops), off the track's head when it
+   * sounds, else the wall clock. Null during a count-in or a tempo-map run.
+   */
+  private fun heldRunFrames(): Long? {
+    if (!isRunning || isCountIn || mapSegments != null) return null
+    val track = audioTrack
+    if (config.clickEnabled && track != null) {
+      val head = track.playbackHeadPosition.toLong() and 0xffffffffL
+      val loops = if (head + framesPerPulse < lastPlaybackHeadFrames) loopCount + 1 else loopCount
+      return loops * totalFrames + head
+    }
+    return max(0L, SystemClock.elapsedRealtime() - startUptimeMs) * sampleRate / 1000L
+  }
+
+  /**
+   * `continueFrom` (a pattern edit while playing): the new loop picks up at the frames the
+   * old one had played, wrapped into the new loop's length, plus the time the rebuild took.
+   */
+  private fun startInternal(
+    countInBars: Int,
+    phaseOffsetMs: Double,
+    continueFrom: Long? = null,
+    continueReadAtMs: Long = 0L
+  ): Map<String, Any> {
+    // Rendered before the old track stops, so the gap between the two is only the swap.
+    val pcm = if (config.clickEnabled) buildLoopPcm16(config, exactFramesPerPulse, totalFrames, sampleRate) else null
     stopInternal(releaseTrack = true, emitState = false)
 
-    val phaseFrames = if (phaseOffsetMs > 0.0 && totalFrames > 0) {
+    val phaseFrames = if (continueFrom != null && totalFrames > 0) {
+      val lagFrames = max(0L, SystemClock.elapsedRealtime() - continueReadAtMs) * sampleRate / 1000L
+      ((continueFrom + lagFrames) % totalFrames).toInt()
+    } else if (phaseOffsetMs > 0.0 && totalFrames > 0) {
       ((phaseOffsetMs / 1000.0 * sampleRate).roundToInt() % totalFrames).coerceAtLeast(0)
     } else {
       0
@@ -596,8 +637,7 @@ class SongNookMetronomeEngine(
     ensureHandler()
 
     try {
-      if (config.clickEnabled) {
-        val pcm = buildLoopPcm16(config, exactFramesPerPulse, totalFrames, sampleRate)
+      if (pcm != null) {
         val minBufferSize = AudioTrack.getMinBufferSize(
           sampleRate,
           AudioFormat.CHANNEL_OUT_MONO,

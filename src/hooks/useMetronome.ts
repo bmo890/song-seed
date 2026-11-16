@@ -425,11 +425,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     });
   }, []);
 
-  const syncNativeConfig = useCallback(async () => {
+  // `preparing` marks a start in flight. The debounced live sync below passes false: a
+  // settings edit is not a start, and flagging it dimmed the play key and slid a
+  // "Preparing" line in and out under the page on every change (2026-11-16 flicker).
+  const syncNativeConfig = useCallback(async ({ preparing = true }: { preparing?: boolean } = {}) => {
     if (!SongNookMetronomeModule) {
       return null;
     }
-    setIsPreparing(true);
+    if (preparing) setIsPreparing(true);
     try {
       return await SongNookMetronomeModule.configure({
         bpm,
@@ -455,7 +458,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         stepPattern: activePractice ? activePractice.steps : [],
       });
     } finally {
-      setIsPreparing(false);
+      if (preparing) setIsPreparing(false);
     }
     // practiceStepsKey stands in for the steps array, so a re-render with the same
     // pattern never re-configures (and so never restarts) a running click.
@@ -491,7 +494,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       clearTimeout(configSyncTimerRef.current);
     }
     configSyncTimerRef.current = setTimeout(() => {
-      void syncNativeConfig().then((state) => {
+      void syncNativeConfig({ preparing: false }).then((state) => {
         if (state) {
           setNativeState(state);
         }

@@ -157,6 +157,10 @@ final class SongNookMetronomeEngine {
       ? Int(ceil(Double(countInPulsesRemaining) / Double(max(config.pulsesPerBar, 1))))
       : 0
 
+    // Where the click has got to, read before anything changes (see continueRun).
+    let heldFrames = heldRunFrames()
+    let heldAtUptime = ProcessInfo.processInfo.systemUptime
+
     let previous = config
     config = parseConfig(rawConfig)
 
@@ -192,11 +196,75 @@ final class SongNookMetronomeEngine {
     updateDerivedValues()
 
     if wasRunning {
+      // A pattern edit while playing (same tempo, same meter) carries on from where the
+      // click had got to. Restarting at bar one on every tap read as a stutter (2026-11-16).
+      let sameGrid =
+        previous.bpm == config.bpm &&
+        previous.pulsesPerBar == config.pulsesPerBar &&
+        previous.denominator == config.denominator
+      if sameGrid, pendingCountInBars == 0, let held = heldFrames {
+        return continueRun(fromRunFrames: held, readAtUptime: heldAtUptime)
+      }
       return start(countInBars: pendingCountInBars)
     }
 
     onStateChange(getState())
     return getState()
+  }
+
+  /// Frames the running loop has played (across loops), off the audio clock when it
+  /// sounds, else the wall clock. Nil during a count-in or a tempo-map run.
+  private func heldRunFrames() -> Int? {
+    guard isRunning, !isCountIn, mapSegments == nil else {
+      return nil
+    }
+    if player.isPlaying,
+       let renderTime = player.lastRenderTime,
+       let playerTime = player.playerTime(forNodeTime: renderTime) {
+      let withinLoop = (Int(playerTime.sampleTime) + phaseOffsetFrames) % max(totalFrames, 1)
+      let loops = withinLoop + framesPerPulse < lastFrameWithinLoop ? loopCount + 1 : loopCount
+      return loops * totalFrames + withinLoop
+    }
+    let elapsedMs = max(0, ProcessInfo.processInfo.systemUptime * 1000 - startUptimeMs)
+    return Int(elapsedMs / 1000 * sampleRate)
+  }
+
+  /// Re-cue the rebuilt loop at the position the old one had reached (wrapped into the
+  /// new loop's length), plus the time the rebuild took. The engine keeps running, so
+  /// only the player is re-cued and the grid stays where the ear left it.
+  private func continueRun(fromRunFrames held: Int, readAtUptime: Double) -> [String: Any] {
+    pollTimer?.cancel()
+    pollTimer = nil
+
+    let lagFrames = Int(max(0, ProcessInfo.processInfo.systemUptime - readAtUptime) * sampleRate)
+    phaseOffsetFrames = (held + lagFrames) % max(totalFrames, 1)
+    let pulse = Int(floor(Double(phaseOffsetFrames) / exactFramesPerPulse))
+    isCountIn = false
+    countInPulsesRemaining = 0
+    loopCount = 0
+    absolutePulse = pulse
+    // The pulse we land inside has already sounded its onset: never re-emit it.
+    lastEmittedPulse = pulse
+    beatInBar = (pulse % max(config.pulsesPerBar, 1)) + 1
+    barNumber = pulse / max(config.pulsesPerBar, 1) + 1
+    lastFrameWithinLoop = phaseOffsetFrames
+    startUptimeMs = ProcessInfo.processInfo.systemUptime * 1000 - Double(phaseOffsetFrames) / sampleRate * 1000
+
+    do {
+      if config.clickEnabled {
+        try prepareAndStartPlayer(atFrame: phaseOffsetFrames)
+      } else {
+        stopPlayer()
+      }
+    } catch {
+      onError("iOS metronome pattern change failed: \(error.localizedDescription)")
+      stopPlayer()
+    }
+
+    startPolling()
+    let state = getState()
+    onStateChange(state)
+    return state
   }
 
   /** Apply click volume live, without touching the running grid. */
