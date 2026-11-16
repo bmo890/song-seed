@@ -313,6 +313,13 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
   Managed publishing is off, so Play goes live as soon as Google approves.
 - **Screenshots:** Hebrew captured on a Hebrew clone of the Store 6.9 sim (`raw/he/`) and
   composed with `STORE_LANG=he`. Spanish, German and Portuguese still show the English set.
+- **Hebrew re-cut, same day (founder: "we should be using HEBREW in the actual content"):** the
+  dev store library stages in Hebrew in the Hebrew app (`src/dev/storeLibraryHebrew.ts`), so
+  every title, note, lyric, collection, workspace, book and sender in the Hebrew shots is
+  Hebrew. Apple: 1.0.2 pulled from review, Hebrew set swapped, resubmitted (manual release
+  kept). Play: the iw-IL phone set is replaced and saved, waiting in Publishing overview,
+  not yet sent, because sending it would restart the 1.0.2 review. songnook.app's Hebrew
+  page carries the six new screens (`public/screens/he/`, deployed 6c4e82ac).
 
 ---
 
