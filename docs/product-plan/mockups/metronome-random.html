@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metronome Random</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--page:#FDFBF7;--ink:#1b1c1a;--strong:#524440;--sec:#84736f;--muted:#a89994;--pri:#B87D6B;--deep:#824F3F;--wash:#F2E4DF;--hair:#E8E4DF;--ring:#D7C2BD}
+*{box-sizing:border-box}
+body{margin:0;background:#EFEBE6;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);padding:24px 16px 40px}
+.wrap{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px}
+.cap{font:600 13px 'Plus Jakarta Sans';letter-spacing:1.2px;text-transform:uppercase;color:var(--sec)}
+.capsub{font-size:13px;color:var(--sec);margin-top:-8px}
+.ph{width:330px;background:var(--page);border-radius:38px;border:8px solid #2b2624;padding:18px 20px 22px}
+.hdr{display:flex;justify-content:space-between;align-items:center;height:30px;color:var(--strong)}
+.title{font:600 21px Lora,serif;color:var(--ink)}
+.hero{display:flex;justify-content:center;align-items:center;gap:22px;height:40px;margin:22px 0 10px}
+.bpm{text-align:center;font:500 62px/1 Lora,serif}
+.unit{text-align:center;font:600 11px 'Plus Jakarta Sans';letter-spacing:2px;color:var(--sec);margin-top:6px}
+.mark{text-align:center;font:italic 400 16px Lora,serif;color:var(--sec);margin:4px 0 14px}
+.prow{border-top:.5px solid var(--hair);border-bottom:.5px solid var(--hair);display:flex;align-items:center;height:48px;gap:12px;font-size:15px}
+.sw{width:42px;height:24px;border-radius:12px;background:var(--pri);position:relative}.sw::after{content:"";position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+.tabs{display:flex;gap:26px;border-bottom:.5px solid var(--hair);margin-top:8px}
+.tab{padding:6px 0 8px;font:500 15px 'Plus Jakarta Sans';color:var(--muted);border-bottom:2px solid transparent}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+.amt{display:flex;align-items:center;gap:14px;margin:10px 0 2px;font-size:13px}
+.amt .lbl{font-size:12px;color:var(--sec)}
+.opt{background:none;border:0;padding:4px 2px;font:500 13px 'Plus Jakarta Sans';color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.opt i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--ring);display:inline-block}
+.opt.on{color:var(--ink)}.opt.on i{background:var(--pri);border-color:var(--pri)}
+.bars{margin-top:6px;height:150px}
+.row{display:flex;align-items:center;height:36px;border-radius:8px;padding:0 6px;transition:background .2s}
+.row.cur{background:var(--wash)}
+.num{width:22px;font:500 13px Lora,serif;color:var(--sec)}
+.slot{flex:1;display:flex;justify-content:center;align-items:center;height:36px}
+.dot{border-radius:50%;transition:all .16s ease-out}
+.deck{display:flex;align-items:center;gap:14px;margin:12px 4px 14px;color:var(--strong)}
+.track{flex:1;height:4px;border-radius:2px;background:#e3d7d2;position:relative}
+.track b{display:block;width:32%;height:4px;border-radius:2px;background:var(--pri)}
+.track u{position:absolute;left:32%;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:#fff;border:.5px solid #d8ccc7}
+.trans{display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:14px;color:var(--strong)}
+.play{width:68px;height:68px;border-radius:50%;background:var(--deep);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.play:focus-visible,.opt:focus-visible{outline:2px solid var(--pri);outline-offset:3px}
+svg{display:block}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap"></div>
+<script>
+const ICON={
+ menu:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+ sliders:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="#FDFBF7"/><circle cx="15" cy="12" r="2" fill="#FDFBF7"/><circle cx="8" cy="17" r="2" fill="#FDFBF7"/></svg>',
+ repeat:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#524440" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V9a3 3 0 0 1 3-3h13l-3-3M20 13v2a3 3 0 0 1-3 3H4l3 3"/></svg>',
+ help:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a89994" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4"/><circle cx="12" cy="17" r=".6" fill="#a89994"/></svg>',
+ minus:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14"/></svg>',
+ plus:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>',
+ hand:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-8a1.5 1.5 0 0 1 3 0V12M14 5.5a1.5 1.5 0 0 1 3 0V12M17 7.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-2.7L4.3 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>',
+ grid:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/></svg>',
+ play:'<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.6A1 1 0 0 0 8 5.5z"/></svg>',
+ stop:'<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+};
+const BPM=96,BEATS=4,BARS=4,AMOUNTS=[["Few",.15],["Some",.3],["Many",.5]];
+let ac=null;
+function click(w){if(!ac||w===0)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=w>=1?1500:1000;g.gain.setValueAtTime(.22,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.05);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+.06)}
+
+function phone(variant,cap,sub){
+  const col=document.createElement('div');col.className='col';
+  col.innerHTML=`<div class="cap">${cap}</div><div class="capsub">${sub}</div>
+  <div class="ph">
+    <div class="hdr">${ICON.menu}<span class="title">Metronome</span>${ICON.sliders}</div>
+    <div class="hero"></div>
+    <div class="bpm">96</div><div class="unit">BPM</div><div class="mark">Andante</div>
+    <div class="prow">${ICON.repeat}<span style="flex:1">Practice pattern</span>${ICON.help}<span class="sw"></span></div>
+    <div class="tabs"><span class="tab">Your pattern</span><span class="tab on">Random</span></div>
+    <div class="amt"><span class="lbl">Silence</span>${AMOUNTS.map(([n,a])=>`<button class="opt${a===.3?' on':''}" data-a="${a}"><i></i>${n}</button>`).join('')}</div>
+    <div class="bars"></div>
+    <div class="deck">${ICON.minus}<div class="track"><b></b><u></u></div>${ICON.plus}</div>
+    <div class="trans"><span style="display:flex;gap:6px;align-items:center">${ICON.hand}Tap</span><button class="play" aria-label="Play">${ICON.play}</button><span style="display:flex;gap:6px;align-items:center">${ICON.grid}4/4</span></div>
+  </div>`;
+  const hero=col.querySelector('.hero'),bars=col.querySelector('.bars'),btn=col.querySelector('.play');
+  let amount=.3,playing=false,pos=-1,timer=null,loop=[];
+  // Few/Some keep the one; Many may drop it too (founder 2026-11-17).
+  function roll(){loop=[];for(let b=0;b<BARS;b++){const r=[];for(let i=0;i<BEATS;i++){const keep=i===0&&amount<.5;r.push(keep||Math.random()>=amount?(i===0?1:.5):0)}loop.push(r)}}
+  function dot(w,shown){
+    if(!shown)return variant==='ticks'?'<span class="dot" style="width:4px;height:4px;background:#dcd1cc"></span>':'';
+    if(w===0)return '<span class="dot" style="width:11px;height:11px;border:1.5px solid #D7C2BD"></span>';
+    return '<span class="dot" style="width:11px;height:11px;background:#524440"></span>';
+  }
+  function render(){
+    const abs=pos<0?-1:pos%(BEATS*BARS),cb=abs<0?-1:Math.floor(abs/BEATS),ci=abs<0?-1:abs%BEATS;
+    hero.innerHTML=Array.from({length:BEATS},(_,i)=>{const lit=playing&&i===ci;const s=lit?34:26;return `<span class="dot" style="width:${s}px;height:${s}px;background:${lit?'#D9B7AA':'#E7E2DD'}"></span>`}).join('');
+    bars.innerHTML=loop.map((r,b)=>`<div class="row${playing&&b===cb?' cur':''}"><span class="num">${b+1}</span>${r.map((w,i)=>`<span class="slot">${dot(w,playing&&b*BEATS+i<=abs)}</span>`).join('')}</div>`).join('');
+  }
+  function tick(){pos++;const n=pos%(BEATS*BARS);if(n===0&&pos>0)roll();click(loop[Math.floor(n/BEATS)][n%BEATS]);render()}
+  btn.onclick=()=>{
+    if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+    if(ac&&ac.state==='suspended')ac.resume();
+    playing=!playing;btn.innerHTML=playing?ICON.stop:ICON.play;btn.setAttribute('aria-label',playing?'Stop':'Play');
+    if(playing){pos=-1;roll();tick();timer=setInterval(tick,60000/BPM)}else{clearInterval(timer);pos=-1;render()}
+  };
+  col.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{amount=+o.dataset.a;col.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===o));roll();render()});
+  roll();render();
+  return col;
+}
+const wrap=document.getElementById('wrap');
+wrap.appendChild(phone('ticks','A · Faint ticks','Beats ahead are tiny marks'));
+wrap.appendChild(phone('empty','B · Nothing','Bars fill in from empty'));
+</script>
+</body>
+</html>
