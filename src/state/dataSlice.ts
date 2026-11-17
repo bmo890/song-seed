@@ -1,5 +1,5 @@
 import { DEFAULT_AUTOMATIC_BACKUP, type AutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
-import { sanitizePractice, type MetronomePractice } from "../domain/metronomePractice";
+import { isPracticeMode, isRandomSilence, sanitizePractice, type MetronomePractice, type PracticeMode, type RandomSilence } from "../domain/metronomePractice";
 import { StateCreator } from "zustand";
 import { stringIndexToGraphemeIndex } from "../domain/chords";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
@@ -212,6 +212,10 @@ export type DataSlice = {
     /** Practice pattern switched on (2026-11-16: a mode you turn on, hidden until then).
      *  Off, the page plays the plain feel; the pattern stays for next time. */
     metronomePracticeOn: boolean;
+    /** Which practice the page plays (2026-11-17): your pattern, or Random. */
+    metronomePracticeMode: PracticeMode;
+    /** How much Random silences: few, some or many beats. */
+    metronomeRandomSilence: RandomSilence;
     /** The metronome page's visual cue also flashes its display area (opt-in, 2026-11-16). */
     metronomeScreenFlash: boolean;
     /** The visual cue's beat dots (on by default); dots and flash are independent. */
@@ -258,6 +262,8 @@ export type DataSlice = {
     setMetronomeClickVoice: (value: MetronomeClickVoice) => void;
     setMetronomePractice: (value: MetronomePractice | null) => void;
     setMetronomePracticeOn: (value: boolean) => void;
+    setMetronomePracticeMode: (value: PracticeMode) => void;
+    setMetronomeRandomSilence: (value: RandomSilence) => void;
     setMetronomeScreenFlash: (value: boolean) => void;
     setMetronomeVisualDots: (value: boolean) => void;
     setPlaybackClickHaptic: (value: boolean) => void;
@@ -1656,6 +1662,8 @@ export const createDataSlice: StateCreator<
     metronomeClickVoice: DEFAULT_METRONOME_CLICK_VOICE,
     metronomePractice: null,
     metronomePracticeOn: false,
+    metronomePracticeMode: "pattern",
+    metronomeRandomSilence: "some",
     metronomeScreenFlash: false,
     metronomeVisualDots: true,
     playbackClickHaptic: false,
@@ -1887,6 +1895,8 @@ export const createDataSlice: StateCreator<
         set({ metronomeClickVoice: isMetronomeClickVoice(value) ? value : DEFAULT_METRONOME_CLICK_VOICE }),
     setMetronomePractice: (value) => set({ metronomePractice: value === null ? null : sanitizePractice(value) }),
     setMetronomePracticeOn: (value) => set({ metronomePracticeOn: value === true }),
+    setMetronomePracticeMode: (value) => set({ metronomePracticeMode: isPracticeMode(value) ? value : "pattern" }),
+    setMetronomeRandomSilence: (value) => set({ metronomeRandomSilence: isRandomSilence(value) ? value : "some" }),
     setMetronomeScreenFlash: (value) => set({ metronomeScreenFlash: value === true }),
     setMetronomeVisualDots: (value) => set({ metronomeVisualDots: value !== false }),
     setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),

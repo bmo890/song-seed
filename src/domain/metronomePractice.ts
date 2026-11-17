@@ -198,6 +198,57 @@ export function withAllSilent(practice: MetronomePractice): MetronomePractice {
   };
 }
 
+/**
+ * Random (founder, 2026-11-17): the page silences beats you can't see coming. It always
+ * loops four bars of the feel with some beats silent; while one half plays, the other is
+ * rolled afresh (see the screen model), so every pass is new and the engine carries on
+ * from where it is. Few and Some keep the one; Many may silence it too.
+ */
+export type PracticeMode = "pattern" | "random";
+export type RandomSilence = "few" | "some" | "many";
+export const RANDOM_SILENCES: readonly RandomSilence[] = ["few", "some", "many"];
+const RANDOM_SILENCE_SHARE: Record<RandomSilence, number> = { few: 0.15, some: 0.3, many: 0.5 };
+
+export const isPracticeMode = (value: unknown): value is PracticeMode => value === "pattern" || value === "random";
+export const isRandomSilence = (value: unknown): value is RandomSilence =>
+  RANDOM_SILENCES.includes(value as RandomSilence);
+
+/** One bar of beats over the feel's weights, each silenced at the share. */
+export function rollRandomBar(
+  beatWeights: readonly number[],
+  silence: RandomSilence,
+  random: () => number = Math.random
+): number[] {
+  const share = RANDOM_SILENCE_SHARE[silence];
+  return beatWeights.map((weight, pulse) => (pulse === 0 && silence !== "many") || random() >= share ? weight : 0);
+}
+
+export function rollRandomBars(
+  beatWeights: readonly number[],
+  silence: RandomSilence,
+  count: number = MAX_PRACTICE_BARS,
+  random: () => number = Math.random
+): number[][] {
+  return Array.from({ length: count }, () => rollRandomBar(beatWeights, silence, random));
+}
+
+/** Rolled bars as a pattern the engine plays: sub-beats sound with their beat. */
+export function randomPractice(
+  meterId: MetronomeMeterId,
+  subdivision: MetronomeSubdivision,
+  bars: readonly (readonly number[])[]
+): MetronomePractice {
+  return {
+    meterId,
+    subdivision,
+    bars: bars.map((beats) => ({
+      rest: false,
+      beats: [...beats],
+      subs: beats.map((weight) => (weight > 0 ? [PRACTICE_SUB_WEIGHT, PRACTICE_SUB_WEIGHT, PRACTICE_SUB_WEIGHT] : [0, 0, 0])),
+    })),
+  };
+}
+
 export function withSubdivision(practice: MetronomePractice, subdivision: MetronomeSubdivision): MetronomePractice {
   return practiceSubdivisions(practice.meterId).includes(subdivision) ? { ...practice, subdivision } : practice;
 }

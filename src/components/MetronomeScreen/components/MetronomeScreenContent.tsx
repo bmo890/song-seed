@@ -21,6 +21,9 @@ import {
 import { CueRows, FeelControl, MeterRow, meterSummary, ms, soundSummary } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { PracticeBarNumberMark, PracticeDotMark, PracticePattern } from "../../common/metronome/PracticePattern";
+import { Fog, RandomPattern } from "../../common/metronome/RandomPattern";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import type { PracticeMode } from "../../../domain/metronomePractice";
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { styles as s } from "../styles";
@@ -45,6 +48,7 @@ export function MetronomeScreenContent() {
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [displayBottom, setDisplayBottom] = useState(0);
   const isRunning = model.isRunning;
+  const random = model.practiceOn && model.practiceMode === "random";
   const tapping = model.tapCount > 0;
   const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
   const soundLine = soundSummary(model.outputs, model.supportsClickStyle ? model.clickVoice : undefined, t);
@@ -148,14 +152,33 @@ export function MetronomeScreenContent() {
               />
             </ListRows>
             <AnimatedCollapse visible={model.practiceOn} style={s.patternBody}>
-              <PracticePattern
-                practice={model.practice}
-                baseBeats={model.accentPattern}
-                currentBar={model.practiceBar}
-                currentBeat={model.practiceBeat}
-                pulse={model.practicePulse}
-                onChange={model.setPractice}
+              {/* Your pattern, or Random: the page hides the silences (founder, 2026-11-17). */}
+              <SegmentedControl<PracticeMode>
+                options={[
+                  { key: "pattern", label: t("metronome.practice.modePattern") },
+                  { key: "random", label: t("metronome.practice.modeRandom") },
+                ]}
+                value={model.practiceMode}
+                onChange={model.setPracticeMode}
               />
+              {model.practiceMode === "random" && model.randomShown ? (
+                <RandomPattern
+                  bars={model.randomShown}
+                  silence={model.randomSilence}
+                  onChangeSilence={model.setRandomSilence}
+                  currentBar={model.practiceBar}
+                  currentBeat={model.practiceBeat}
+                />
+              ) : (
+                <PracticePattern
+                  practice={model.practice}
+                  baseBeats={model.accentPattern}
+                  currentBar={model.practiceBar}
+                  currentBeat={model.practiceBeat}
+                  pulse={model.practicePulse}
+                  onChange={model.setPractice}
+                />
+              )}
             </AnimatedCollapse>
           </View>
         ) : null}
@@ -224,12 +247,14 @@ export function MetronomeScreenContent() {
         visible={sheet === "help"}
         onClose={() => setSheet(null)}
         thesis={t("metronome.practice.helpPurpose")}
-        lead={t("metronome.practice.helpTap")}
+        lead={t(random ? "metronome.practice.helpRandom" : "metronome.practice.helpTap")}
         items={[
           { mark: <PracticeDotMark tier="accent" />, label: t("metronome.practice.legendAccent"), description: t("metronome.practice.helpAccent") },
           { mark: <PracticeDotMark tier="click" />, label: t("metronome.practice.legendClick"), description: t("metronome.practice.helpClick") },
           { mark: <PracticeDotMark tier="rest" />, label: t("metronome.practice.legendSilent"), description: t("metronome.practice.helpSilent") },
-          { mark: <PracticeBarNumberMark />, label: t("metronome.practice.helpBarLabel"), description: t("metronome.practice.helpBar") },
+          random
+            ? { mark: <Fog />, label: t("metronome.practice.helpAheadLabel"), description: t("metronome.practice.helpAhead") }
+            : { mark: <PracticeBarNumberMark />, label: t("metronome.practice.helpBarLabel"), description: t("metronome.practice.helpBar") },
         ]}
       />
 

@@ -12,8 +12,10 @@
  *       switch (metronomePracticeOn) and the visual cue's dots and screen flash
  *       (metronomeVisualDots, metronomeScreenFlash); folded
  *       into 14 before 14 left the test phones
+ *   15  2026-11-17 the practice mode (metronomePracticeMode: your pattern or Random)
+ *       and how much Random silences (metronomeRandomSilence)
  */
-export const STORE_VERSION = 14;
+export const STORE_VERSION = 15;
 
 /** The oldest backup data version Merge accepts: sanitizing on hydrate covers 12 → 14. */
 export const MERGE_MIN_STORE_VERSION = 12;

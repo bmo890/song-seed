@@ -85,6 +85,7 @@ export const styles = StyleSheet.create({
   },
   patternBody: {
     paddingTop: spacing.xs,
+    gap: spacing.sm,
   },
   practiceAccessory: {
     flexDirection: "row",

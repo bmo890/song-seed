@@ -1,5 +1,5 @@
 import { sanitizeAutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
-import { sanitizePractice } from "../domain/metronomePractice";
+import { isPracticeMode, isRandomSilence, sanitizePractice } from "../domain/metronomePractice";
 import { AppState } from "react-native";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -248,6 +248,8 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             : DEFAULT_METRONOME_CLICK_VOICE,
         metronomePractice: sanitizePractice(state?.metronomePractice),
         metronomePracticeOn: state?.metronomePracticeOn === true,
+        metronomePracticeMode: isPracticeMode(state?.metronomePracticeMode) ? state.metronomePracticeMode : "pattern",
+        metronomeRandomSilence: isRandomSilence(state?.metronomeRandomSilence) ? state.metronomeRandomSilence : "some",
         metronomeScreenFlash: state?.metronomeScreenFlash === true,
         metronomeVisualDots: state?.metronomeVisualDots !== false,
         playbackClickHaptic: state?.playbackClickHaptic === true,
