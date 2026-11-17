@@ -48,6 +48,10 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
   /** Optional: true on Android binaries whose map runs fill the stream track before it
    *  starts. Older Android map runs never started (silent); keep them off the map. */
   supportsPrimedMapStream?(): boolean;
+  /** Optional: true on Android binaries whose looping click starts part-way through the
+   *  loop and keeps counting from there (pattern edits and tempo changes keep their
+   *  place). Older Android loops lost the count after such a start. */
+  supportsLoopPhase?(): boolean;
   /** Optional: start the click with the loop already `offsetMs` into the bar, so it
    *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
   startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;

@@ -59,6 +59,7 @@ export const styles = StyleSheet.create({
   // Your pattern · Random: two marks, not the width of the line.
   modeTabs: {
     width: 88,
+    justifyContent: "flex-end",
   },
   bpmUnit: {
     fontFamily: "PlusJakartaSans_700Bold",

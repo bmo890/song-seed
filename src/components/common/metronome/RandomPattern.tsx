@@ -129,6 +129,7 @@ const s = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "center",
     columnGap: spacing.md,
   },
   silenceLabel: {

@@ -93,6 +93,11 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    // Part-way loop starts keep their count (a rotated loop, not a seek), 2026-11-17.
+    Function("supportsLoopPhase") {
+      true
+    }
+
     Function("supportsStepPattern") {
       true
     }

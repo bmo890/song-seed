@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { Press } from "../Press";
 import { Stepper } from "../Stepper";
 import { IconButton } from "../IconButton";
-import { AppAlert } from "../AppAlert";
 import { SegmentedControl } from "../SegmentedControl";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { getMetronomeFeels, type MetronomeSubdivision } from "../../../domain/metronome";
@@ -53,19 +52,14 @@ export function PracticeLine({ lead, children }: { lead: ReactNode; children?: R
   );
 }
 
-/** A hairline between the sections of the practice line. */
-export function PracticeLineRule() {
-  return <View style={s.lineRule} />;
-}
 
 /**
  * The metronome page's practice pattern (founder, 2026-11-16, mockup v6): one row per bar,
  * at most four. In a row every beat and every sub-beat is its own switch — a beat cycles
  * accent → click → silent, a sub-beat sound → accent → silent — and the bar's number rests
  * the whole bar (a whole-rest sign; tapping again brings back what it held). The practice
- * line above the rows holds the subdivision as the Meter sheet's notes, − + for bars (+
- * quiet at four), and "…" with Sound all / Silence all, each its own row, never one key
- * that flips meaning (2026-11-17).
+ * line above the rows holds the mode and the subdivision as the Meter sheet's notes; a quiet
+ * row beneath them holds − + for bars and Sound all / Silence all (2026-11-17).
  */
 export type PracticePulse = { token: number; bar: number; beat: number; stepMs: number };
 
@@ -105,24 +99,6 @@ export function PracticePattern({
   const subdivisions = practiceSubdivisions(practice.meterId);
   const barCount = practice.bars.length;
 
-  // Sound all / Silence all: one "…", each still its own row (a single key that flipped
-  // between the two read as confusing, 2026-11-16).
-  const openMore = () =>
-    AppAlert.menu(t("metronome.practice.title"), [
-      {
-        key: "soundAll",
-        label: t("metronome.practice.soundAll"),
-        icon: "volume-medium-outline",
-        onPress: () => onChange(withAllSounding(practice, baseBeats)),
-      },
-      {
-        key: "silenceAll",
-        label: t("metronome.practice.silenceAll"),
-        icon: "volume-mute-outline",
-        onPress: () => onChange(withAllSilent(practice)),
-      },
-    ]);
-
   return (
     <View style={s.wrap}>
       <PracticeLine lead={lead}>
@@ -143,23 +119,6 @@ export function PracticePattern({
         ) : (
           <View style={s.grow} />
         )}
-        <PracticeLineRule />
-        {/* Bars: − + right on the line, + quiet at four (founder, 2026-11-17). */}
-        <Stepper
-          glyphs="plusMinus"
-          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
-          canDecrement={barCount > 1}
-          canIncrement={barCount < MAX_PRACTICE_BARS}
-          decrementLabel={t("metronome.practice.removeBar")}
-          incrementLabel={t("metronome.practice.addBar")}
-        />
-        <IconButton
-          icon="ellipsis-horizontal"
-          tone="strong"
-          size={20}
-          onPress={openMore}
-          accessibilityLabel={t("common.more")}
-        />
       </PracticeLine>
 
       <View style={s.rows}>
@@ -177,6 +136,36 @@ export function PracticePattern({
             onTapSub={(pulse, position) => onChange(withSubCycled(practice, barIndex, pulse, position))}
           />
         ))}
+      </View>
+
+      {/* The tools of the bars, a quiet row of their own beneath them (founder,
+          2026-11-17): − + for bars (+ quiet at four), then Sound all and Silence all as
+          two marks, each its own key, never one key that flips meaning. */}
+      <View style={s.tools}>
+        <Stepper
+          glyphs="plusMinus"
+          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
+          canDecrement={barCount > 1}
+          canIncrement={barCount < MAX_PRACTICE_BARS}
+          decrementLabel={t("metronome.practice.removeBar")}
+          incrementLabel={t("metronome.practice.addBar")}
+        />
+        <View style={s.toolKeys}>
+          <IconButton
+            icon="volume-medium-outline"
+            tone="strong"
+            size={20}
+            onPress={() => onChange(withAllSounding(practice, baseBeats))}
+            accessibilityLabel={t("metronome.practice.soundAll")}
+          />
+          <IconButton
+            icon="volume-mute-outline"
+            tone="strong"
+            size={20}
+            onPress={() => onChange(withAllSilent(practice))}
+            accessibilityLabel={t("metronome.practice.silenceAll")}
+          />
+        </View>
       </View>
     </View>
   );
@@ -336,13 +325,14 @@ const s = StyleSheet.create({
   // The practice line sits on one hairline; its tabs draw their rule onto it.
   line: {
     flexDirection: "row",
-    alignItems: "center",
-    minHeight: 44,
+    alignItems: "stretch",
+    minHeight: 46,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
     gap: spacing.xs,
   },
   lineRule: {
+    alignSelf: "center",
     width: StyleSheet.hairlineWidth,
     height: 20,
     backgroundColor: colors.borderMuted,
@@ -350,6 +340,18 @@ const s = StyleSheet.create({
   },
   notes: {
     flex: 1,
+    justifyContent: "flex-end",
+  },
+  tools: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 40,
+  },
+  toolKeys: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
   },
   grow: {
     flex: 1,

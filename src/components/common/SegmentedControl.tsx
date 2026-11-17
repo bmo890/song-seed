@@ -166,6 +166,7 @@ export function SegmentedControl<T extends string>({
             <View style={[segmentedControlStyles.segmentInner, option.glyph ? segmentedControlStyles.segmentInnerStacked : null]}>
               {option.glyph ? (
                 <Text
+                  numberOfLines={1}
                   style={[
                     segmentedControlStyles.segmentGlyph,
                     glyphOnly ? segmentedControlStyles.segmentGlyphAlone : null,

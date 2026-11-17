@@ -174,6 +174,15 @@ class SongNookMetronomeEngine(
   private var startUptimeMs = 0L
   private var loopCount = 0L
   private var lastPlaybackHeadFrames = 0L
+  /**
+   * Where in the loop the current track's first sample sits. A part-way start (a pattern
+   * edit or tempo change while playing) writes the loop ROTATED to begin there and plays
+   * it from frame 0, rather than seeking the track: on current Android a static track's
+   * head counts frames played since play(), not its place in the buffer, so a seek kept
+   * the sound but lost the count (founder, 2026-11-17: "jumps, separated from the
+   * animations"). Every head reading adds this back.
+   */
+  private var loopPhaseFrames = 0L
 
   // ── Tempo-map mode (streamed clicks) ──────────────────────────────────────
   // When `mapSegments` is set, the engine streams rendered audio instead of looping a
@@ -395,6 +404,7 @@ class SongNookMetronomeEngine(
     mapWriteFrame = 0
     lastPlaybackHeadFrames = 0
     loopCount = 0
+    loopPhaseFrames = 0
 
     val segments = mapSegments!!
     if (countInPulses > 0) {
@@ -590,7 +600,7 @@ class SongNookMetronomeEngine(
     if (config.clickEnabled && track != null) {
       val head = track.playbackHeadPosition.toLong() and 0xffffffffL
       val loops = if (head + framesPerPulse < lastPlaybackHeadFrames) loopCount + 1 else loopCount
-      return loops * totalFrames + head
+      return loopPhaseFrames + loops * totalFrames + head
     }
     return max(0L, SystemClock.elapsedRealtime() - startUptimeMs) * sampleRate / 1000L
   }
@@ -628,9 +638,10 @@ class SongNookMetronomeEngine(
     beatInBar = (initialPulse % config.pulsesPerBar) + 1
     barNumber = initialPulse / config.pulsesPerBar + 1
     loopCount = 0
-    // The static track reports the REAL head (which starts at phaseFrames), so the
-    // audio-clock path needs no extra offset; back-date only the silent-run clock.
-    lastPlaybackHeadFrames = phaseFrames.toLong()
+    // The track plays the loop rotated to start at phaseFrames from its own frame 0, so
+    // its head starts at 0 whatever the device reports; the phase is added back on read.
+    loopPhaseFrames = phaseFrames.toLong()
+    lastPlaybackHeadFrames = 0L
     startUptimeMs = SystemClock.elapsedRealtime() -
       (phaseFrames.toDouble() / sampleRate.toDouble() * 1000.0).toLong()
 
@@ -658,11 +669,8 @@ class SongNookMetronomeEngine(
           AudioTrack.MODE_STATIC,
           AudioManager.AUDIO_SESSION_ID_GENERATE
         )
-        track.write(pcm, 0, pcm.size)
+        track.write(rotatedLoop(pcm, phaseFrames), 0, pcm.size)
         track.setLoopPoints(0, totalFrames, -1)
-        if (phaseFrames > 0) {
-          track.playbackHeadPosition = phaseFrames
-        }
         track.setVolume(config.clickVolume.toFloat())
         track.play()
         audioTrack = track
@@ -802,6 +810,7 @@ class SongNookMetronomeEngine(
     lastEmittedPulse = -1
     loopCount = 0
     lastPlaybackHeadFrames = 0
+    loopPhaseFrames = 0
     startUptimeMs = 0L
 
     if (releaseTrack) {
@@ -853,7 +862,7 @@ class SongNookMetronomeEngine(
         loopCount += 1
       }
       lastPlaybackHeadFrames = currentPlaybackHeadFrames
-      val absoluteFrames = loopCount * totalFrames + currentPlaybackHeadFrames
+      val absoluteFrames = loopPhaseFrames + loopCount * totalFrames + currentPlaybackHeadFrames
       floor(absoluteFrames.toDouble() / exactFramesPerPulse).toInt()
     } else {
       val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
@@ -1088,7 +1097,7 @@ class SongNookMetronomeEngine(
     val track = audioTrack
     val anchorEpochMs = if (config.clickEnabled && track != null) {
       val currentPlaybackHeadFrames = track.playbackHeadPosition.toLong() and 0xffffffffL
-      val absoluteFrames = loopCount * totalFrames + currentPlaybackHeadFrames
+      val absoluteFrames = loopPhaseFrames + loopCount * totalFrames + currentPlaybackHeadFrames
       nowEpochMs - absoluteFrames.toDouble() / sampleRate.toDouble() * 1000.0
     } else {
       val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
@@ -1112,6 +1121,17 @@ class SongNookMetronomeEngine(
  * 0.62); clicks (0.44) and sub-clicks (0.18) stay in the weak voice.
  */
 private const val ACCENT_VOICE_MIN_WEIGHT = 0.6
+
+/** The 16-bit loop rotated to begin `phaseFrames` in (bytes are little-endian frames). */
+private fun rotatedLoop(pcm: ByteArray, phaseFrames: Int): ByteArray {
+  if (phaseFrames <= 0 || pcm.isEmpty()) return pcm
+  val offset = (phaseFrames.toLong() * 2 % pcm.size).toInt()
+  if (offset == 0) return pcm
+  val out = ByteArray(pcm.size)
+  System.arraycopy(pcm, offset, out, 0, pcm.size - offset)
+  System.arraycopy(pcm, 0, out, pcm.size - offset, offset)
+  return out
+}
 
 private fun buildLoopPcm16(
   config: MetronomeConfig,

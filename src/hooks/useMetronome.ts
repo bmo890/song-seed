@@ -209,6 +209,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const supportsRests = !!SongNookMetronomeModule?.supportsSilentBeats?.();
   // Binaries whose engines loop a practice pattern of up to four bars of steps.
   const supportsStepPattern = !!SongNookMetronomeModule?.supportsStepPattern?.();
+  // Android binaries before supportsLoopPhase can't start the loop part-way: the
+  // track's head counts from the start while the sound starts at the phase, so a
+  // pattern edit or tempo change kept place in sound but lost it in the beat count and
+  // the next re-cue jumped (founder, 2026-11-17: "jumps, separated from the
+  // animations"). There a change while playing starts the loop over, in step.
+  const loopPhaseReliable = Platform.OS !== "android" || !!SongNookMetronomeModule?.supportsLoopPhase?.();
+  /** The loop's structure as last given to the engine (see the config sync below). */
+  const lastLoopKeyRef = useRef("");
   const activePractice = supportsStepPattern ? practice : null;
   const practiceStepsKey = activePractice ? activePractice.steps.join(",") : "";
   const activeStream = stream && metronomeSupportsStream() ? stream : null;
@@ -537,6 +545,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
 
   /** What a Random run must re-cue for: anything the engine treats as structural. */
   const streamConfigKey = `${bpm}|${meterId}|${accentPattern.join(",")}|${outputs.beep}|${subdivision}|${clickVoice}`;
+  /** Everything that rebuilds the looping bar: a change to it while playing is a re-cue. */
+  const loopKey = `${streamConfigKey}|${activePractice?.subdivision ?? 0}|${practiceStepsKey}`;
 
   /**
    * (Re)start Random along its map. keepPlace: carry on from where the run had got to
@@ -630,6 +640,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const keepPlaceThroughTempoChange = useCallback(async (): Promise<NativeMetronomeState | null> => {
     const engine = SongNookMetronomeModule;
     if (!engine?.getGridAnchor || !engine.startAtPhase || engine.supportsPhaseStart?.() !== true) return null;
+    if (!loopPhaseReliable) return null;
     if (!ownsActiveRunRef.current || runUsesMapRef.current) return null;
     const anchor = await engine.getGridAnchor().catch(() => null);
     if (!anchor?.isRunning || anchor.isCountIn || anchor.anchorEpochMs == null || anchor.msPerPulse == null) {
@@ -732,8 +743,24 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           return;
         }
         if (await keepPlaceThroughTempoChange()) {
+          lastLoopKeyRef.current = loopKey;
           return;
         }
+        if (engine && !loopPhaseReliable && running && !runUsesMapRef.current && lastLoopKeyRef.current !== loopKey) {
+          rephaseHoldUntilRef.current = Date.now() + 2000;
+          try {
+            await engine.stop();
+            await syncNativeConfig({ preparing: false });
+            const state = await engine.start();
+            lastLoopKeyRef.current = loopKey;
+            setNativeState(state);
+            void startVisualScheduler();
+          } finally {
+            rephaseHoldUntilRef.current = Date.now() + 250;
+          }
+          return;
+        }
+        lastLoopKeyRef.current = loopKey;
         const state = await syncNativeConfig({ preparing: false });
         if (state) {
           setNativeState(state);
@@ -862,6 +889,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         }
       }
       setBeatCount(0);
+      lastLoopKeyRef.current = loopKey;
       const wantsPhaseStart =
         options.phaseOffsetMs != null &&
         Number.isFinite(options.phaseOffsetMs) &&
