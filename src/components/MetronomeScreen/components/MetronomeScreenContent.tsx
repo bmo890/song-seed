@@ -133,9 +133,9 @@ export function MetronomeScreenContent() {
               sat apart, beside the marking, and read as unrelated); the marking is the
               musician's word for the tempo, a quiet line of its own. */}
           {model.practiceOn ? (
-            // The bars show the beat, so the dots step aside and the tempo steps down.
+            // The bars show the beat, so the dots step aside; the tempo keeps its size.
             <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
-              <Text style={[s.bpmValue, s.bpmValueCompact]}>{model.bpm}</Text>
+              <Text style={s.bpmValue}>{model.bpm}</Text>
               <View style={s.compactLine}>
                 <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
                 <Text style={[s.bpmMarking, s.bpmMarkingCompact]}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>

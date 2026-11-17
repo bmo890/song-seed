@@ -39,14 +39,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   // With Practice on (founder, 2026-11-17) the display steps back so the bars fit on one
-  // screen: no dots, the tempo a size down, the unit and the marking on one line.
+  // screen: no dots, the unit and the marking on one line; the tempo keeps its full size
+  // (the tools' own row made room for it).
   displayCompact: {
     gap: spacing.xs,
     paddingVertical: spacing.sm,
-  },
-  bpmValueCompact: {
-    fontSize: 68,
-    lineHeight: 76,
   },
   compactLine: {
     flexDirection: "row",
