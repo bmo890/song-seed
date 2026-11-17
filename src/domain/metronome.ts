@@ -148,9 +148,12 @@ export function clampMetronomeLevel(value: number) {
   return Math.min(MAX_METRONOME_LEVEL, Math.max(MIN_METRONOME_LEVEL, Math.round(value)));
 }
 
+/** The engine's click gain for a slider level. The top of the slider is full gain
+ *  (founder, 2026-11-17: "the volume is low"): it used to stop at 0.56, so a weak beat
+ *  peaked near -11 dBFS at the loudest setting. The quiet end is unchanged. */
 export function getMetronomeBeepVolume(level: MetronomeBeepLevel) {
   const normalized = clampMetronomeLevel(level) / MAX_METRONOME_LEVEL;
-  return 0.16 + normalized * 0.4;
+  return 0.16 + normalized * 0.84;
 }
 
 export function getMetronomeHapticFallbackDuration(level: MetronomeHapticLevel) {
