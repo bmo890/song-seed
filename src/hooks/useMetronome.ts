@@ -162,6 +162,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const practiceStepsKey = activePractice ? activePractice.steps.join(",") : "";
   const practiceActiveRef = useRef(false);
   practiceActiveRef.current = !!activePractice;
+  /** While a tempo change re-cues the click in place, the engine's passing stop is not a stop. */
+  const rephaseHoldUntilRef = useRef(0);
+  /** The run was started along a tempo map (a take's grid): never re-cued in place. */
+  const runUsesMapRef = useRef(false);
 
   // Live-route cue timing (latency model output), refreshed at every start. outputMs
   // delays visual/haptic beat EVENTS on the engine (matters on Bluetooth); the signed
@@ -470,6 +474,61 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey]);
 
+  // A tempo change while the click runs keeps its place (founder, 2026-11-17: on beat 3,
+  // a + started over at 1). Both engines rebuild a new tempo from the loop's start, so
+  // here, in JS (no new binary), we read where the loop has got to, stop, configure, and
+  // start the new tempo at that point. A new meter still starts a new bar, and a pattern
+  // edit at one tempo already carries on inside the engine (continueRun), so neither
+  // comes here. Returns null when it does not apply.
+  const practiceStepCount = activePractice ? activePractice.steps.length : 0;
+  const keepPlaceThroughTempoChange = useCallback(async (): Promise<NativeMetronomeState | null> => {
+    const engine = SongNookMetronomeModule;
+    if (!engine?.getGridAnchor || !engine.startAtPhase || engine.supportsPhaseStart?.() !== true) return null;
+    if (!ownsActiveRunRef.current || runUsesMapRef.current) return null;
+    const anchor = await engine.getGridAnchor().catch(() => null);
+    if (!anchor?.isRunning || anchor.isCountIn || anchor.anchorEpochMs == null || anchor.msPerPulse == null) {
+      return null;
+    }
+    const pulsesPerBar = meterPreset.pulsesPerBar;
+    const nextMsPerPulse = getMetronomeBeatIntervalMs(bpm);
+    if (anchor.pulsesPerBar !== pulsesPerBar || Math.abs(anchor.msPerPulse - nextMsPerPulse) < 0.01) return null;
+
+    const readAt = Date.now();
+    const heardPulses = Math.max(0, (readAt - anchor.anchorEpochMs) / anchor.msPerPulse);
+    // The new loop's length, as the engines count it: a practice pattern runs its bars.
+    const stepsPerPulse = activePractice ? Math.max(1, activePractice.subdivision) : 1;
+    const loopBars = practiceStepCount > 0 ? Math.max(1, Math.floor(practiceStepCount / (pulsesPerBar * stepsPerPulse))) : 1;
+    const loopPulses = pulsesPerBar * loopBars;
+    const loopMs = loopPulses * nextMsPerPulse;
+
+    rephaseHoldUntilRef.current = Date.now() + 2000;
+    try {
+      await engine.stop();
+      await syncNativeConfig({ preparing: false });
+      // The new tempo takes over where the old one was read, so the time the swap took
+      // counts at the new tempo.
+      const offsetMs = ((heardPulses % loopPulses) * nextMsPerPulse + (Date.now() - readAt)) % loopMs;
+      const state = await engine.startAtPhase(Math.max(1, offsetMs));
+      setNativeState(state);
+      // The pulse follows the new grid at once instead of at the next bar's re-anchor.
+      void startVisualScheduler();
+      return state;
+    } catch (error) {
+      console.warn("Metronome tempo change failed", error);
+      haptic.error(); // haptics vocabulary: `error` — something failed
+      stopVisualScheduler();
+      ownsActiveRunRef.current = false;
+      rephaseHoldUntilRef.current = 0;
+      const state = await engine.getState().catch(() => null);
+      if (state) setNativeState(state);
+      return state;
+    } finally {
+      if (rephaseHoldUntilRef.current) rephaseHoldUntilRef.current = Date.now() + 250;
+    }
+    // practiceStepCount + subdivision stand in for the practice object (see syncNativeConfig).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bpm, meterPreset.pulsesPerBar, practiceStepCount, activePractice?.subdivision, startVisualScheduler, stopVisualScheduler, syncNativeConfig]);
+
   // Volume applies instantly and live: the native engines treat volume as a live param
   // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
   // binaries that predate setClickVolume the debounced configure below still carries it.
@@ -499,7 +558,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       clearTimeout(configSyncTimerRef.current);
     }
     configSyncTimerRef.current = setTimeout(() => {
-      void syncNativeConfig({ preparing: false }).then((state) => {
+      void (async () => {
+        if (await keepPlaceThroughTempoChange()) {
+          return;
+        }
+        const state = await syncNativeConfig({ preparing: false });
         if (state) {
           setNativeState(state);
         }
@@ -508,7 +571,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         if (state?.isRunning && practiceActiveRef.current && ownsActiveRunRef.current && visualSchedulerRef.current.active) {
           void startVisualScheduler();
         }
-      });
+      })();
     }, 280);
 
     return () => {
@@ -517,7 +580,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         configSyncTimerRef.current = null;
       }
     };
-  }, [startVisualScheduler, syncNativeConfig]);
+  }, [keepPlaceThroughTempoChange, startVisualScheduler, syncNativeConfig]);
 
   useEffect(() => {
     if (!SongNookMetronomeModule) {
@@ -529,6 +592,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, []);
 
   useEventListener(SongNookMetronomeModule!, "onStateChange", (state) => {
+    // A tempo change re-cueing the click in place passes through a stop: not a real one.
+    if (!state.isRunning && Date.now() < rephaseHoldUntilRef.current) {
+      return;
+    }
     // Any stop ends this instance's ownership — otherwise a stale claim from an earlier
     // run would make this instance cue along to the NEXT run even if it's foreign.
     if (!state.isRunning) {
@@ -594,12 +661,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       }
       // The config sync above clears any installed map (structural configure);
       // install the run's map AFTER it so the start schedules along the map.
+      runUsesMapRef.current = false;
       if (
         options.tempoMapSegments &&
         SongNookMetronomeModule.supportsTempoMap?.() &&
         SongNookMetronomeModule.configureTempoMap
       ) {
         await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
+        runUsesMapRef.current = true;
       }
       setBeatCount(0);
       const wantsPhaseStart =
@@ -634,12 +703,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           setNativeState(nextState);
         }
         // See start(): the map must go in after the (map-clearing) config sync.
+        runUsesMapRef.current = false;
         if (
           options.tempoMapSegments &&
           SongNookMetronomeModule.supportsTempoMap?.() &&
           SongNookMetronomeModule.configureTempoMap
         ) {
           await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
+          runUsesMapRef.current = true;
         }
         setBeatCount(0);
         const state = await SongNookMetronomeModule.startCountIn(bars);
@@ -660,6 +731,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       stopVisualScheduler();
       cueActivationAtRef.current = 0;
       ownsActiveRunRef.current = false;
+      rephaseHoldUntilRef.current = 0;
+      runUsesMapRef.current = false;
       const state = await SongNookMetronomeModule.stop();
       // Leave no installed map behind: the standalone metronome must never
       // accidentally start in map mode because a take's map was still loaded.

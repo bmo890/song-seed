@@ -112,9 +112,14 @@ export function useMetronomeScreenModel() {
           stepMs: metronome.beatIntervalMs / Math.max(1, practice.subdivision),
         }
       : null;
-  // The hero's dots mirror the bar being heard (the first one while stopped).
-  const heroBar = practice.bars[practiceBar ?? 0];
-  const heroAccentPattern = heroBar.rest ? heroBar.beats.map(() => 0) : heroBar.beats;
+  // The display only counts (founder, 2026-11-17): every beat lights alike and only the
+  // one is marked, whatever the pattern or feel accents or silences. The pattern shows
+  // itself below; someone who wants no visual turns the dots off. Groups still open
+  // their gap (6/8 reads 3 + 3) from the grouping.
+  const heroAccentPattern = useMemo(
+    () => Array.from({ length: ppb }, (_, pulse) => (pulse === 0 ? 1 : 0.5)),
+    [ppb]
+  );
   const heroPulseBeat = pulseClock ? (metronome.pulseIndex % ppb) + 1 : undefined;
 
   // Leaving the page ends the session. The native metronome engine runs on its
@@ -210,6 +215,6 @@ export function useMetronomeScreenModel() {
     practiceBeat,
     practicePulse,
     heroPulseBeat,
-    heroAccentPattern: metronome.supportsStepPattern && practiceOn ? heroAccentPattern : metronome.accentPattern,
+    heroAccentPattern,
   };
 }

@@ -9,9 +9,9 @@ const BEAT_PEAK = 0.14;
 
 /**
  * The opt-in screen flash (founder, 2026-11-16): the display area, title bar to the
- * practice pattern, washes terracotta on each sounding beat, stronger on the one, for a
- * stand across the room or a loud stage. It rides the same pulse as the dots (token +
- * beat), so it never lands a beat apart from them, and a silent beat never flashes.
+ * practice pattern, washes terracotta on each beat, stronger on the one, for a stand
+ * across the room or a loud stage. It rides the same pulse as the dots (token + beat),
+ * so it never lands a beat apart from them; like them it only counts (2026-11-17).
  */
 export function DisplayFlash({
   active,
