@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metronome Random &amp; Click</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap">
+<style>
+/* SongNook tokens (src/design/tokens.ts). The app is light-only, so the mockup is too. */
+:root{--page:#FDFBF7;--ink:#1b1c1a;--strong:#524440;--sec:#84736f;--muted:#a89994;--pri:#B87D6B;--deep:#824F3F;--wash:#F2E4DF;--hair:#E8E4DF;--ring:#D7C2BD;--paper2:#F4F1ED;--edge:#C8C4BF;--high:#EDE9E4}
+*{box-sizing:border-box}
+body{margin:0;background:#EFEBE6;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);padding:28px 16px 48px}
+h1{font:600 24px Lora,serif;text-align:center;margin:0 0 4px}
+.lede{font-size:14px;color:var(--sec);text-align:center;margin:0 auto 28px;max-width:56ch;line-height:1.5}
+h2{font:600 19px Lora,serif;text-align:center;margin:56px 0 4px}
+.wrap{display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:330px}
+.cap{font:600 13px 'Plus Jakarta Sans';letter-spacing:1.2px;text-transform:uppercase;color:var(--sec)}
+.capsub{font-size:13px;color:var(--sec);margin-top:-8px;text-align:center;line-height:1.45}
+.ph{width:330px;background:var(--page);border-radius:38px;border:8px solid #2b2624;padding:18px 20px 22px}
+.hdr{display:flex;justify-content:space-between;align-items:center;height:30px;color:var(--strong)}
+.title{font:600 21px Lora,serif;color:var(--ink)}
+.hero{display:flex;justify-content:center;align-items:center;gap:22px;height:40px;margin:22px 0 10px}
+.bpm{text-align:center;font:500 62px/1 Lora,serif}
+.unit{text-align:center;font:600 11px 'Plus Jakarta Sans';letter-spacing:2px;color:var(--sec);margin-top:6px}
+.mark{text-align:center;font:italic 400 16px Lora,serif;color:var(--sec);margin:4px 0 14px}
+.prow{border-top:.5px solid var(--hair);border-bottom:.5px solid var(--hair);display:flex;align-items:center;height:48px;gap:12px;font-size:15px}
+.sw{width:42px;height:24px;border-radius:12px;background:var(--pri);position:relative}.sw::after{content:"";position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+.tabs{display:flex;gap:26px;border-bottom:.5px solid var(--hair);margin-top:8px}
+.tab{padding:6px 0 8px;font:500 15px 'Plus Jakarta Sans';color:var(--muted);border-bottom:2px solid transparent}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+.amt{display:flex;align-items:center;gap:14px;margin:10px 0 2px;font-size:13px}
+.amt .lbl{font-size:12px;color:var(--sec)}
+.opt{background:none;border:0;padding:4px 2px;font:500 13px 'Plus Jakarta Sans';color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.opt i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--ring);display:inline-block}
+.opt.on{color:var(--ink)}.opt.on i{background:var(--pri);border-color:var(--pri)}
+.bars{margin-top:6px;height:150px;position:relative}
+.row{display:flex;align-items:center;height:36px;border-radius:8px;padding:0 6px;position:relative;transition:background .2s}
+.row.cur{background:var(--wash)}
+.num{width:22px;font:500 13px Lora,serif;color:var(--sec);position:relative;z-index:2}
+.slot{flex:1;display:flex;justify-content:center;align-items:center;height:36px}
+.dot{border-radius:50%;display:inline-block}
+.deck{display:flex;align-items:center;gap:14px;margin:12px 4px 14px;color:var(--strong)}
+.track{flex:1;height:4px;border-radius:2px;background:#e3d7d2;position:relative}
+.track b{display:block;width:32%;height:4px;border-radius:2px;background:var(--pri)}
+.track u{position:absolute;left:32%;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:#fff;border:.5px solid #d8ccc7}
+.trans{display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:14px;color:var(--strong)}
+.play{width:68px;height:68px;border-radius:50%;background:var(--deep);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.play:focus-visible,.opt:focus-visible,.lis:focus-visible{outline:2px solid var(--pri);outline-offset:3px}
+svg{display:block}
+
+/* C · Frost: every beat ahead is the same soft blur, so nothing leaks; it comes into focus as it plays. */
+.fog{width:13px;height:13px;background:#cdbfba;filter:blur(3.2px);opacity:.75}
+.sharp{animation:focus .22s ease-out}
+@keyframes focus{from{filter:blur(3px);opacity:.5}to{filter:blur(0);opacity:1}}
+
+/* D · Paper slip: a slip of paper covers the music ahead and slides along one beat at a time. */
+.slip{position:absolute;top:0;bottom:0;right:0;background:var(--paper2);border-left:1px solid var(--edge);transition:left .14s ease-out;z-index:1}
+.slip.full{border-left:0}
+.slip.first{border-top:1px solid var(--edge)}
+.slip.gone{left:100%!important;border-left:0}
+
+/* E · Reel: one strip runs past a fixed playhead, like the player's reel. Ahead is blank paper. */
+.reel{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 100%);mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 100%)}
+.reel .line{position:absolute;left:0;right:0;top:75px;height:.5px;background:var(--hair)}
+.reel .head{position:absolute;top:44px;height:62px;width:1.5px;background:var(--pri);border-radius:1px}
+.reel .bl{position:absolute;top:52px;height:46px;width:.5px;background:var(--edge)}
+.reel .bn{position:absolute;top:30px;font:500 12px Lora,serif;color:var(--sec);transform:translateX(-50%)}
+.reel .rd{position:absolute;top:75px;transform:translate(-50%,-50%)}
+
+/* Click volume listening strip */
+.listen{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:18px}
+.lis{width:240px;text-align:left;background:var(--page);border:0;border-radius:12px;box-shadow:0 1px 3px rgba(43,38,36,.06);padding:16px 18px;cursor:pointer;font-family:'Plus Jakarta Sans';color:var(--ink);display:flex;gap:14px;align-items:flex-start}
+.lis .pb{flex:none;width:36px;height:36px;border-radius:50%;background:var(--high);display:flex;align-items:center;justify-content:center;color:var(--strong)}
+.lis.on .pb{background:var(--wash);color:var(--deep)}
+.lis b{display:block;font:600 14px 'Plus Jakarta Sans';margin-bottom:3px}
+.lis span{display:block;font-size:12.5px;color:var(--sec);line-height:1.45}
+.lis em{display:block;font-style:normal;font:600 11px 'Plus Jakarta Sans';letter-spacing:1px;text-transform:uppercase;color:var(--deep);margin-top:8px}
+.note{font-size:13px;color:var(--sec);text-align:center;margin:16px auto 0;max-width:60ch;line-height:1.5}
+@media (prefers-reduced-motion:reduce){.sharp{animation:none}.slip{transition:none}}
+</style>
+</head>
+<body>
+<h1>Random, round two</h1>
+<p class="lede">Three ways to hide the beats ahead. Each phone plays with sound; press play and let it loop a few times. Every pass is a new pattern.</p>
+<div class="wrap" id="wrap"></div>
+
+<h2>Click volume</h2>
+<p class="lede" style="margin-bottom:0">The same two bars three ways, built with the app's own click formula. Set your phone's volume once, then compare.</p>
+<div class="listen" id="listen"></div>
+<p class="note">Today the slider stops at about half of what the engine can give. The middle one can go out over the air. The louder click needs a new store build.</p>
+
+<script>
+const ICON={
+ menu:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+ sliders:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="#FDFBF7"/><circle cx="15" cy="12" r="2" fill="#FDFBF7"/><circle cx="8" cy="17" r="2" fill="#FDFBF7"/></svg>',
+ repeat:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#524440" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V9a3 3 0 0 1 3-3h13l-3-3M20 13v2a3 3 0 0 1-3 3H4l3 3"/></svg>',
+ help:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a89994" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4"/><circle cx="12" cy="17" r=".6" fill="#a89994"/></svg>',
+ minus:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14"/></svg>',
+ plus:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>',
+ hand:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-8a1.5 1.5 0 0 1 3 0V12M14 5.5a1.5 1.5 0 0 1 3 0V12M17 7.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-2.7L4.3 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>',
+ grid:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/></svg>',
+ play:'<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.6A1 1 0 0 0 8 5.5z"/></svg>',
+ stop:'<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+ sPlay:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.6A1 1 0 0 0 8 5.5z"/></svg>',
+ sStop:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+};
+const BPM=96,BEATS=4,BARS=4,BEAT_MS=60000/BPM,AMOUNTS=[["Few",.15],["Some",.3],["Many",.5]];
+
+/* ---- Audio: the app's own click (SongNookMetronomeEngine, "click" voice) ---- */
+let ac=null;
+function ensureAudio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==='suspended')ac.resume();return ac}
+// Today's voices: downbeat 1960/2940 Hz, beat 1560/2350 Hz, amplitude = base + weight * scale.
+const VOICE={
+  today:{down:{f:1960,o:2940,p:2.8,mb:.78,mo:.22,d:.034,a:.003,base:.22,scale:.46},beat:{f:1560,o:2350,p:2.4,mb:.78,mo:.22,d:.034,a:.003,base:.22,scale:.46}},
+  // Proposed: same pitch and character, accent peaks near full scale, a little more body.
+  louder:{down:{f:1960,o:2940,p:2.2,mb:.78,mo:.22,d:.05,a:.002,base:.5,scale:.46},beat:{f:1560,o:2350,p:2.0,mb:.78,mo:.22,d:.05,a:.002,base:.5,scale:.46}}
+};
+const bufCache={};
+function clickBuffer(voice,weight,gain){
+  const key=voice+weight+gain;if(bufCache[key])return bufCache[key];
+  const v=VOICE[voice][weight>=.95?'down':'beat'],sr=ac.sampleRate,n=Math.round(sr*v.d),af=Math.max(1,Math.round(sr*v.a));
+  const b=ac.createBuffer(1,n,sr),ch=b.getChannelData(0),amp=(v.base+weight*v.scale)*gain;
+  for(let i=0;i<n;i++){const t=i/sr,att=Math.min(1,i/af),dec=Math.pow(1-i/n,v.p);ch[i]=Math.max(-1,Math.min(1,(Math.sin(2*Math.PI*v.f*t)*v.mb+Math.sin(2*Math.PI*v.o*t)*v.mo)*amp*att*dec))}
+  return bufCache[key]=b;
+}
+function playClick(weight,when,voice='today',gain=.448){
+  if(!ac||weight===0)return;const s=ac.createBufferSource();s.buffer=clickBuffer(voice,weight,gain);s.connect(ac.destination);s.start(when||ac.currentTime);
+}
+
+/* ---- Phones ---- */
+function phone(variant,cap,sub){
+  const col=document.createElement('div');col.className='col';
+  col.innerHTML=`<div class="cap">${cap}</div><div class="capsub">${sub}</div>
+  <div class="ph">
+    <div class="hdr">${ICON.menu}<span class="title">Metronome</span>${ICON.sliders}</div>
+    <div class="hero"></div>
+    <div class="bpm">96</div><div class="unit">BPM</div><div class="mark">Andante</div>
+    <div class="prow">${ICON.repeat}<span style="flex:1">Practice pattern</span>${ICON.help}<span class="sw"></span></div>
+    <div class="tabs"><span class="tab">Your pattern</span><span class="tab on">Random</span></div>
+    <div class="amt"><span class="lbl">Silence</span>${AMOUNTS.map(([n,a])=>`<button class="opt${a===.3?' on':''}" data-a="${a}"><i></i>${n}</button>`).join('')}</div>
+    <div class="bars"></div>
+    <div class="deck">${ICON.minus}<div class="track"><b></b><u></u></div>${ICON.plus}</div>
+    <div class="trans"><span style="display:flex;gap:6px;align-items:center">${ICON.hand}Tap</span><button class="play" aria-label="Play">${ICON.play}</button><span style="display:flex;gap:6px;align-items:center">${ICON.grid}4/4</span></div>
+  </div>`;
+  const hero=col.querySelector('.hero'),bars=col.querySelector('.bars'),btn=col.querySelector('.play');
+  let amount=.3,playing=false,pos=-1,timer=null,loop=[],history=[],startAt=0,raf=0;
+  // Few/Some keep the one; Many may drop it too (founder 2026-11-17).
+  function rollBars(){const out=[];for(let b=0;b<BARS;b++){const r=[];for(let i=0;i<BEATS;i++){const keep=i===0&&amount<.5;r.push(keep||Math.random()>=amount?(i===0?1:.5):0)}out.push(r)}return out}
+  function roll(){loop=rollBars()}
+  const truth=w=>w===0
+    ?'<span class="dot" style="width:11px;height:11px;border:1.5px solid #D7C2BD"></span>'
+    :'<span class="dot" style="width:11px;height:11px;background:#524440"></span>';
+
+  function heroHtml(ci){return Array.from({length:BEATS},(_,i)=>{const lit=playing&&i===ci;const s=lit?34:26;return `<span class="dot" style="width:${s}px;height:${s}px;background:${lit?'#D9B7AA':'#E7E2DD'}"></span>`}).join('')}
+
+  function renderGrid(){
+    const abs=pos<0?-1:pos%(BEATS*BARS),cb=abs<0?-1:Math.floor(abs/BEATS),ci=abs<0?-1:abs%BEATS;
+    hero.innerHTML=heroHtml(ci);
+    if(variant==='frost'){
+      bars.innerHTML=loop.map((r,b)=>`<div class="row${playing&&b===cb?' cur':''}"><span class="num">${b+1}</span>${r.map((w,i)=>{
+        const k=b*BEATS+i,shown=playing&&k<=abs;
+        return `<span class="slot">${shown?(k===abs?truth(w).replace('class="dot"','class="dot sharp"'):truth(w)):'<span class="dot fog"></span>'}</span>`}).join('')}</div>`).join('');
+    }else{ // slip
+      bars.innerHTML=loop.map((r,b)=>{
+        // the slip's edge sits just past the beat that is sounding now
+        let cls='slip',left='28px';
+        if(!playing||b>cb){cls+=' full';if(b===cb+1||(!playing&&b===0))cls+=' first'}
+        else if(b<cb){cls+=' gone'}
+        else{left=`calc(28px + (100% - 34px) * ${(ci+1)/BEATS})`; if(ci===BEATS-1)cls+=' gone'}
+        return `<div class="row${playing&&b===cb?' cur':''}"><span class="num">${b+1}</span>${r.map(w=>`<span class="slot">${truth(w)}</span>`).join('')}<span class="${cls}" style="left:${left}"></span></div>`}).join('');
+    }
+  }
+
+  // Reel: a continuous strip; history keeps every beat that has played (truth), ahead is blank.
+  const PX=32,HEAD=118;
+  function renderReel(){
+    const now=playing?(performance.now()-startAt)/BEAT_MS:0; // beats since start, continuous
+    const abs=pos,ci=abs<0?-1:abs%BEATS;
+    hero.innerHTML=heroHtml(ci);
+    let html='<div class="line"></div>';
+    const first=Math.max(0,Math.floor(now-HEAD/PX)-1),last=Math.ceil(now+(330-HEAD)/PX);
+    for(let k=first;k<=last;k++){
+      const x=HEAD+(k-now)*PX;
+      if(k%BEATS===0){html+=`<span class="bl" style="left:${x-PX/2}px"></span><span class="bn" style="left:${x-PX/2+10}px">${(Math.floor(k/BEATS)%BARS)+1}</span>`}
+      if(k<=abs&&history[k]!==undefined)html+=`<span class="rd" style="left:${x}px">${truth(history[k])}</span>`;
+    }
+    html+=`<span class="head" style="left:${HEAD}px"></span>`;
+    bars.innerHTML=`<div class="reel">${html}</div>`;
+    if(playing)raf=requestAnimationFrame(renderReel);
+  }
+  const render=()=>variant==='reel'?(playing||renderReel()):renderGrid();
+
+  function tick(){
+    pos++;const n=pos%(BEATS*BARS);if(n===0&&pos>0)roll();
+    const w=loop[Math.floor(n/BEATS)][n%BEATS];history[pos]=w;playClick(w);
+    if(variant!=='reel')renderGrid();
+  }
+  btn.onclick=()=>{
+    ensureAudio();
+    playing=!playing;btn.innerHTML=playing?ICON.stop:ICON.play;btn.setAttribute('aria-label',playing?'Stop':'Play');
+    if(playing){pos=-1;history=[];roll();startAt=performance.now();tick();timer=setInterval(tick,BEAT_MS);if(variant==='reel')renderReel()}
+    else{clearInterval(timer);cancelAnimationFrame(raf);pos=-1;history=[];variant==='reel'?renderReel():renderGrid()}
+  };
+  col.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{amount=+o.dataset.a;col.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===o));roll();if(!playing)render()});
+  roll();variant==='reel'?renderReel():renderGrid();
+  return col;
+}
+const wrap=document.getElementById('wrap');
+wrap.appendChild(phone('frost','C · Frost','Beats ahead are out of focus, all alike. Each comes sharp as it plays.'));
+wrap.appendChild(phone('slip','D · Paper slip','A slip of paper covers the music ahead and slides along one beat at a time.'));
+wrap.appendChild(phone('reel','E · Reel','One strip runs past the playhead, like the player. Ahead is blank paper.'));
+
+/* ---- Listening strip ---- */
+const LISTEN=[
+  ['today',.56,'Today, loudest','The slider all the way up, as it is now.','In the app now'],
+  ['today',1,'Slider goes higher','Same click, the slider reaches full volume. About twice as loud at the top.','Over the air'],
+  ['louder',1,'Louder click','Same pitch and feel, a fuller click that uses the whole range.','Store build']
+];
+const PATTERN=[1,.46,.72,.46,1,.46,.72,.46];
+const listen=document.getElementById('listen');let stopAt=0;
+LISTEN.forEach(([voice,gain,title,body,when])=>{
+  const b=document.createElement('button');b.className='lis';
+  b.innerHTML=`<span class="pb">${ICON.sPlay}</span><span><b>${title}</b><span>${body}</span><em>${when}</em></span>`;
+  b.onclick=()=>{
+    if(!ensureAudio())return;
+    listen.querySelectorAll('.lis').forEach(x=>{x.classList.remove('on');x.querySelector('.pb').innerHTML=ICON.sPlay});
+    b.classList.add('on');b.querySelector('.pb').innerHTML=ICON.sStop;
+    const t0=ac.currentTime+.05;PATTERN.forEach((w,i)=>playClick(w,t0+i*BEAT_MS/1000,voice,gain));
+    clearTimeout(stopAt);stopAt=setTimeout(()=>{b.classList.remove('on');b.querySelector('.pb').innerHTML=ICON.sPlay},PATTERN.length*BEAT_MS);
+  };
+  listen.appendChild(b);
+});
+</script>
+</body>
+</html>

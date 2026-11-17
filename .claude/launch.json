@@ -39,6 +39,18 @@
         "server/songnook-send/public"
       ],
       "port": 8799
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8790",
+        "--directory",
+        "docs/product-plan/mockups"
+      ],
+      "port": 8790
     }
   ]
 }
