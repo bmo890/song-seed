@@ -134,8 +134,9 @@ export function MetronomeScreenContent() {
                 haptic="light"
                 accessory={
                   <View style={s.practiceAccessory}>
-                    {/* What the dots mean is a rule you can't see: it lives behind "?". */}
-                    {model.practiceOn ? <HelpButton compact onPress={() => setSheet("help")} /> : null}
+                    {/* What the mode is for and what the dots mean live behind "?", there
+                        before it is switched on too (founder, 2026-11-17). */}
+                    <HelpButton compact onPress={() => setSheet("help")} />
                     <Switch
                       value={model.practiceOn}
                       onValueChange={model.setPracticeOn}
@@ -222,7 +223,8 @@ export function MetronomeScreenContent() {
       <HelpSheet
         visible={sheet === "help"}
         onClose={() => setSheet(null)}
-        thesis={t("metronome.practice.helpThesis")}
+        thesis={t("metronome.practice.helpPurpose")}
+        lead={t("metronome.practice.helpTap")}
         items={[
           { mark: <PracticeDotMark tier="accent" />, label: t("metronome.practice.legendAccent"), description: t("metronome.practice.helpAccent") },
           { mark: <PracticeDotMark tier="click" />, label: t("metronome.practice.legendClick"), description: t("metronome.practice.helpClick") },

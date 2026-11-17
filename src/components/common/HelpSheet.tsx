@@ -28,16 +28,21 @@ export function HelpSheet({
   visible,
   onClose,
   thesis,
+  lead,
   items,
 }: {
   visible: boolean;
   onClose: () => void;
   thesis: string;
+  /** Optional: one quiet line under the thesis, the gesture the rows share (when the
+   *  thesis says what the tool is for, this says how to work it). */
+  lead?: string;
   items: HelpItem[];
 }) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={helpStyles.thesis}>{thesis}</Text>
+      <Text style={[helpStyles.thesis, lead ? helpStyles.thesisWithLead : null]}>{thesis}</Text>
+      {lead ? <Text style={helpStyles.lead}>{lead}</Text> : null}
       <ScrollView
         style={helpStyles.scroll}
         contentContainerStyle={helpStyles.list}
@@ -66,6 +71,16 @@ const helpStyles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 26,
     color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  thesisWithLead: {
+    marginBottom: spacing.xs,
+  },
+  lead: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
     marginBottom: spacing.lg,
   },
   scroll: {
