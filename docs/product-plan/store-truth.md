@@ -320,6 +320,8 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
   kept). Play: the iw-IL phone set is replaced and sent with the 1.0.2 review, which the
   founder chose to restart for it ("yes to now do it"). songnook.app's Hebrew
   page carries the six new screens (`public/screens/he/`, deployed 6c4e82ac).
+- **Apple approved 1.0.2, 2026-11-17** (email "Review of your SongNook (iOS) submission is
+  complete", submission 421b1379). Manual release: live once the founder presses Release.
 
 ---
 
