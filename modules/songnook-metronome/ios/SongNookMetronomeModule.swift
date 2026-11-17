@@ -160,6 +160,19 @@ public class SongNookMetronomeModule: Module {
       return self.engine.serially { self.engine.startAtPhase(offsetMs: offsetMs) }
     }
 
+    // Random's re-cue in one step: settings, map and start on the engine's queue.
+    AsyncFunction("restreamAtPhase") { (config: [String: Any], segments: [[String: Any]], offsetMs: Double, sinceEpochMs: Double) -> [String: Any] in
+      return self.engine.serially {
+        self.engine.restreamAtPhase(config: config, segments: segments, offsetMs: offsetMs, sinceEpochMs: sinceEpochMs)
+      }
+    }
+
+    // startAtPhase, with the time since the caller read the offset added natively, so
+    // the bridge and the re-cue don't make the join late (2026-11-17).
+    AsyncFunction("startAtPhaseSince") { (offsetMs: Double, sinceEpochMs: Double) -> [String: Any] in
+      return self.engine.serially { self.engine.startAtPhase(offsetMs: offsetMs, sinceEpochMs: sinceEpochMs) }
+    }
+
     AsyncFunction("stop") { () -> [String: Any] in
       return self.engine.serially { self.engine.stop() }
     }

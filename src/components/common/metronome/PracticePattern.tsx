@@ -198,7 +198,13 @@ function BarRow({
   // passes i. Beat time, not a motion token: the swell IS the tempo.
   const stepClock = useRef(new Animated.Value(subdivision)).current;
   useEffect(() => {
-    if (!stepPulse) return;
+    if (!stepPulse) {
+      // Stopped (or this bar no longer playing): every step rests at its size, never held
+      // mid-swell (2026-11-17: a stop left the beat it caught enlarged).
+      stepClock.stopAnimation();
+      stepClock.setValue(subdivision);
+      return;
+    }
     stepClock.stopAnimation();
     stepClock.setValue(0);
     Animated.timing(stepClock, {
@@ -209,7 +215,7 @@ function BarRow({
     }).start();
     // The token is the beat; bar, beat and step length change with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepPulse?.token]);
+  }, [stepPulse?.token, stepPulse == null]);
   const swell = (step: number) => ({
     transform: [
       {

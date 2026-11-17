@@ -96,6 +96,9 @@ export type NativeGridAnchor = {
   pulsesPerBar?: number;
   countInPulsesRemaining?: number;
   absolutePulse?: number;
+  /** Map runs: the grid pulse this run's pulse 0 is (a run joined part-way counts from
+   *  it). Absent on older binaries. */
+  runStartGridPulse?: number;
 };
 
 export type BeatEventPayload = {

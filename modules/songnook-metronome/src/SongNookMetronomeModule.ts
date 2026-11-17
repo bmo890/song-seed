@@ -59,6 +59,18 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
   /** Optional: start the click with the loop already `offsetMs` into the bar, so it
    *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
   startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;
+  /** Optional: Random's re-cue in one native step: these settings, this map, start at
+   *  `offsetMs` (0 = from the top) plus the time since `sinceEpochMs`. No gap between
+   *  stop and start for a click to fall into. */
+  restreamAtPhase?(
+    config: NativeMetronomeConfig,
+    segments: NativeTempoMapSegment[],
+    offsetMs: number,
+    sinceEpochMs: number
+  ): Promise<NativeMetronomeState>;
+  /** Optional: startAtPhase with the time since `sinceEpochMs` (when the caller read the
+   *  offset) added natively, after the rebuild, so the join is not late. */
+  startAtPhaseSince?(offsetMs: number, sinceEpochMs: number): Promise<NativeMetronomeState>;
   stop(): Promise<NativeMetronomeState>;
 }
 

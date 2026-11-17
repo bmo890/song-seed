@@ -106,6 +106,9 @@ final class SongNookMetronomeEngine {
   private var lastEmittedPulse = -1
   private var framesPerPulse = 0
   private var exactFramesPerPulse: Double = 1
+  /// Bumped whenever a run ends or re-cues: callbacks queued under an older value (beats
+  /// delayed for output latency, scheduled buzzes) are stale and do nothing (2026-11-17).
+  private var runGeneration = 0
   private var totalFrames = 0
   private var lastFrameWithinLoop = 0
   private var loopCount = 0
@@ -209,9 +212,15 @@ final class SongNookMetronomeEngine {
         previous.pulsesPerBar == config.pulsesPerBar &&
         previous.denominator == config.denominator
       if sameMeter, pendingCountInBars == 0, let held = heldFrames {
-        let from = previous.bpm == config.bpm
+        let scaled = previous.bpm == config.bpm
           ? held
-          : Int((Double(held) / previousExactFramesPerPulse * exactFramesPerPulse).rounded()) % max(totalFrames, 1)
+          : Int((Double(held) / previousExactFramesPerPulse * exactFramesPerPulse).rounded())
+        // A loop that got shorter than where the click is (the bar being played was
+        // removed): that bar plays out as the new loop's last, then bar 1 comes round.
+        let barFrames = max(1, Int((exactFramesPerPulse * Double(config.pulsesPerBar)).rounded()))
+        let from = scaled >= totalFrames
+          ? max(0, totalFrames - barFrames) + scaled % barFrames
+          : scaled
         return continueRun(fromRunFrames: from, readAtUptime: heldAtUptime)
       }
       return start(countInBars: pendingCountInBars)
@@ -244,6 +253,8 @@ final class SongNookMetronomeEngine {
   private func continueRun(fromRunFrames held: Int, readAtUptime: Double) -> [String: Any] {
     pollTimer?.cancel()
     pollTimer = nil
+    // The old loop's queued beats and buzzes belong to the old grid.
+    runGeneration += 1
 
     let lagFrames = Int(max(0, ProcessInfo.processInfo.systemUptime - readAtUptime) * sampleRate)
     phaseOffsetFrames = (held + lagFrames) % max(totalFrames, 1)
@@ -271,6 +282,7 @@ final class SongNookMetronomeEngine {
     }
 
     startPolling()
+    scheduleJoinHaptic(phaseFrames: phaseOffsetFrames)
     let state = getState()
     onStateChange(state)
     return state
@@ -332,7 +344,32 @@ final class SongNookMetronomeEngine {
    * already-moving take exactly in phase. No count-in, no pulse-0 haptic (the start is
    * mid-bar by definition — cues self-correct from the next beat via emitBeat).
    */
-  func startAtPhase(offsetMs: Double) -> [String: Any] {
+  /// Random's re-cue in one step (2026-11-17): take the new settings and the new map and
+  /// start along it at `offsetMs` (plus the time since `sinceEpochMs`), all in one call on
+  /// the engine's queue. Done as stop, configure, map, start from JS, a click whose onset
+  /// fell in the gap between those calls was lost.
+  func restreamAtPhase(
+    config rawConfig: [String: Any],
+    segments rawSegments: [[String: Any]],
+    offsetMs: Double,
+    sinceEpochMs: Double
+  ) -> [String: Any] {
+    let previousVoice = config.clickVoice
+    config = parseConfig(rawConfig)
+    if previousVoice != config.clickVoice {
+      clickCache.removeAll()
+    }
+    updateDerivedValues()
+    _ = configureTempoMap(rawSegments)
+    guard mapSegments != nil else { return getState() }
+    return offsetMs > 0 ? startAtPhase(offsetMs: offsetMs, sinceEpochMs: sinceEpochMs) : start(countInBars: 0)
+  }
+
+  func startAtPhase(offsetMs requestedMs: Double, sinceEpochMs: Double = 0) -> [String: Any] {
+    // The time since the caller read the offset (bridge, rebuild) counts too, so the click
+    // joins where the grid has got to by now (2026-11-17).
+    let lagMs = sinceEpochMs > 0 ? max(0, Date().timeIntervalSince1970 * 1000 - sinceEpochMs) : 0
+    let offsetMs = requestedMs + lagMs
     if mapSegments != nil {
       // Map mode: the offset is a position along the WHOLE grid, not within one bar.
       return startMapRun(countInPulses: 0, gridOffsetMs: offsetMs)
@@ -369,6 +406,7 @@ final class SongNookMetronomeEngine {
     }
 
     startPolling()
+    scheduleJoinHaptic(phaseFrames: phaseOffsetFrames)
     let state = getState()
     onStateChange(state)
     return state
@@ -672,7 +710,9 @@ final class SongNookMetronomeEngine {
         "msPerPulse": segment.exactFramesPerPulse / sampleRate * 1000,
         "pulsesPerBar": segment.pulsesPerBar,
         "countInPulsesRemaining": countInPulsesRemaining,
-        "absolutePulse": absolutePulse
+        "absolutePulse": absolutePulse,
+        // The grid pulse this run's pulse 0 is (a run joined part-way counts from it).
+        "runStartGridPulse": firstRunGridPulse
       ]
     }
 
@@ -705,6 +745,8 @@ final class SongNookMetronomeEngine {
     pollTimer?.cancel()
     pollTimer = nil
     stopPlayer()
+    // Beats, snapshots and buzzes queued by the run that ends die with it.
+    runGeneration += 1
 
     isRunning = false
     isCountIn = false
@@ -913,8 +955,9 @@ final class SongNookMetronomeEngine {
     // beat lands with the audible click. The audio itself is untouched.
     if config.outputLatencyMs > 0 {
       let delay = Double(config.outputLatencyMs) / 1000.0
+      let generation = runGeneration
       queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-        guard let self = self, self.isRunning else { return }
+        guard let self = self, self.isRunning, self.runGeneration == generation else { return }
         self.onBeat(beatPayload)
       }
     } else {
@@ -939,8 +982,9 @@ final class SongNookMetronomeEngine {
     let beatStateSnapshot = getState()
     if config.outputLatencyMs > 0 {
       let delay = Double(config.outputLatencyMs) / 1000.0
+      let generation = runGeneration
       queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-        guard let self = self, self.isRunning else { return }
+        guard let self = self, self.isRunning, self.runGeneration == generation else { return }
         self.onStateChange(beatStateSnapshot)
       }
     } else {
@@ -960,13 +1004,24 @@ final class SongNookMetronomeEngine {
 
   private func scheduleHaptic(afterMs: Double) {
     let strength = min(1, max(0, config.hapticStrength))
+    let generation = runGeneration
     DispatchQueue.main.asyncAfter(deadline: .now() + afterMs / 1000.0) { [weak self] in
-      guard let self = self, self.isRunning, self.config.hapticEnabled else { return }
+      guard let self = self, self.isRunning, self.config.hapticEnabled, self.runGeneration == generation else { return }
       let style: UIImpactFeedbackGenerator.FeedbackStyle =
         strength >= 0.75 ? .heavy : strength >= 0.4 ? .medium : .light
       let generator = UIImpactFeedbackGenerator(style: style)
       generator.impactOccurred(intensity: CGFloat(0.5 + strength * 0.5))
     }
+  }
+
+  /// A part-way start (a re-cue) emits no beat before the next one, so nothing has queued
+  /// its buzz: queue it here, at its onset, if it sounds.
+  private func scheduleJoinHaptic(phaseFrames: Int) {
+    guard config.hapticEnabled, phaseFrames > 0, exactFramesPerPulse > 0 else { return }
+    let next = Int(floor(Double(phaseFrames) / exactFramesPerPulse)) + 1
+    guard pulseAccent(next) > 0 else { return }
+    let untilMs = (Double(next) * exactFramesPerPulse - Double(phaseFrames)) / sampleRate * 1000
+    scheduleHaptic(afterMs: max(1, untilMs + Double(config.hapticOffsetMs)))
   }
 
   private func countInBarsRemaining() -> Int {

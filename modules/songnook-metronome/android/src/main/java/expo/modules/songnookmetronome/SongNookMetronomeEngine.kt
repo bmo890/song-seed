@@ -184,6 +184,9 @@ class SongNookMetronomeEngine(
    * animations"). Every head reading adds this back.
    */
   private var loopPhaseFrames = 0L
+  /** Bumped whenever a run ends or re-cues: callbacks queued under an older value (beats
+   *  delayed for output latency, scheduled buzzes) are stale and do nothing (2026-11-17). */
+  @Volatile private var runGeneration = 0L
 
   // ── Tempo-map mode (streamed clicks) ──────────────────────────────────────
   // When `mapSegments` is set, the engine streams rendered audio instead of looping a
@@ -300,10 +303,18 @@ class SongNookMetronomeEngine(
       val sameMeter = previous.pulsesPerBar == config.pulsesPerBar &&
         previous.denominator == config.denominator
       if (sameMeter && pendingCountInBars == 0 && heldFrames != null) {
-        val from = if (previous.bpm == config.bpm) {
+        val scaled = if (previous.bpm == config.bpm) {
           heldFrames
         } else {
-          (heldFrames.toDouble() / previousExactFramesPerPulse * exactFramesPerPulse).roundToLong() % totalFrames
+          (heldFrames.toDouble() / previousExactFramesPerPulse * exactFramesPerPulse).roundToLong()
+        }
+        // A loop that got shorter than where the click is (the bar being played was
+        // removed): that bar plays out as the new loop's last, then bar 1 comes round.
+        val barFrames = max(1L, (exactFramesPerPulse * config.pulsesPerBar).roundToLong())
+        val from = if (scaled >= totalFrames) {
+          max(0L, totalFrames - barFrames) + scaled % barFrames
+        } else {
+          scaled
         }
         return startInternal(countInBars = 0, phaseOffsetMs = 0.0, continueFrom = from, continueReadAtMs = heldAtMs)
       }
@@ -595,12 +606,34 @@ class SongNookMetronomeEngine(
    * already-moving take exactly in phase. No count-in, no pulse-0 haptic (the start is
    * mid-bar by definition — cues self-correct from the next beat via emitBeat).
    */
-  fun startAtPhase(offsetMs: Double): Map<String, Any> {
+  /**
+   * Random's re-cue in one step (2026-11-17): take the new settings and the new map and
+   * start along it at `offsetMs` (plus the time since `sinceEpochMs`), all under the engine
+   * lock. Done as stop, configure, map, start from JS, a click whose onset fell in the gap
+   * between those calls was lost.
+   */
+  fun restreamAtPhase(
+    rawConfig: Map<String, Any?>,
+    rawSegments: List<Map<String, Any?>>,
+    offsetMs: Double,
+    sinceEpochMs: Double
+  ): Map<String, Any> {
+    config = parseConfig(rawConfig)
+    exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
+    framesPerPulse = framesPerPulseForBpm(config.bpm)
+    totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar * config.patternBars).roundToInt())
+    configureTempoMap(rawSegments)
+    if (mapSegments == null) return getState()
+    return if (offsetMs > 0.0) startAtPhase(offsetMs, sinceEpochMs) else start(0)
+  }
+
+  fun startAtPhase(offsetMs: Double, sinceEpochMs: Double = 0.0): Map<String, Any> {
     mapSegments?.let {
       // Map mode: the offset is a position along the WHOLE grid, not within one bar.
-      return startMapRun(0, max(0.0, offsetMs))
+      val lagMs = if (sinceEpochMs > 0.0) max(0.0, System.currentTimeMillis() - sinceEpochMs) else 0.0
+      return startMapRun(0, max(0.0, offsetMs + lagMs))
     }
-    return startInternal(countInBars = 0, phaseOffsetMs = max(0.0, offsetMs))
+    return startInternal(countInBars = 0, phaseOffsetMs = max(0.0, offsetMs), phaseSinceEpochMs = sinceEpochMs)
   }
 
   /**
@@ -626,7 +659,10 @@ class SongNookMetronomeEngine(
     countInBars: Int,
     phaseOffsetMs: Double,
     continueFrom: Long? = null,
-    continueReadAtMs: Long = 0L
+    continueReadAtMs: Long = 0L,
+    /** When the caller read `phaseOffsetMs` (epoch ms): the time since, rendering
+     *  included, is added so the click joins where the grid has got to by now. */
+    phaseSinceEpochMs: Double = 0.0
   ): Map<String, Any> {
     // Rendered before the old track stops, so the gap between the two is only the swap.
     val pcm = if (config.clickEnabled) buildLoopPcm16(config, exactFramesPerPulse, totalFrames, sampleRate) else null
@@ -636,7 +672,8 @@ class SongNookMetronomeEngine(
       val lagFrames = max(0L, SystemClock.elapsedRealtime() - continueReadAtMs) * sampleRate / 1000L
       ((continueFrom + lagFrames) % totalFrames).toInt()
     } else if (phaseOffsetMs > 0.0 && totalFrames > 0) {
-      ((phaseOffsetMs / 1000.0 * sampleRate).roundToInt() % totalFrames).coerceAtLeast(0)
+      val lagMs = if (phaseSinceEpochMs > 0.0) max(0.0, System.currentTimeMillis() - phaseSinceEpochMs) else 0.0
+      (((phaseOffsetMs + lagMs) / 1000.0 * sampleRate).roundToInt() % totalFrames).coerceAtLeast(0)
     } else {
       0
     }
@@ -698,6 +735,15 @@ class SongNookMetronomeEngine(
     // self-correct off the audio clock via emitBeat. Mid-bar phase starts skip it.
     if (config.hapticEnabled && phaseFrames == 0 && config.pulseAccent(0) > 0.0) {
       scheduleHaptic(max(1L, config.hapticOffsetMs.toLong()))
+    }
+    // A part-way start (a re-cue) emits no beat before the next one, so nothing has queued
+    // its buzz: queue it here, at its onset, if it sounds.
+    if (config.hapticEnabled && phaseFrames > 0) {
+      val next = initialPulse + 1
+      if (config.pulseAccent(next) > 0.0) {
+        val untilMs = (next * exactFramesPerPulse - phaseFrames) / sampleRate * 1000.0
+        scheduleHaptic(max(1L, (untilMs + config.hapticOffsetMs).toLong()))
+      }
     }
 
     handler?.post(pollRunnable)
@@ -811,6 +857,8 @@ class SongNookMetronomeEngine(
   private fun stopInternal(releaseTrack: Boolean, emitState: Boolean) {
     handler?.removeCallbacks(pollRunnable)
     handler?.removeCallbacks(mapWriterRunnable)
+    // Beats, snapshots and buzzes queued by the run that ends die with it.
+    runGeneration += 1
     runStartGridFrame = 0.0
     firstRunGridPulse = 0
     mapWriteFrame = 0
@@ -948,7 +996,8 @@ class SongNookMetronomeEngine(
     // on-screen beat lands with the audible click. The audio itself is untouched.
     val latency = config.outputLatencyMs.toLong()
     if (latency > 0L) {
-      handler?.postDelayed({ if (isRunning) onBeat(beatPayload) }, latency)
+      val generation = runGeneration
+      handler?.postDelayed({ if (isRunning && runGeneration == generation) onBeat(beatPayload) }, latency)
     } else {
       onBeat(beatPayload)
     }
@@ -970,7 +1019,8 @@ class SongNookMetronomeEngine(
     // counts before I hear the beep" bug on Bluetooth).
     val beatStateSnapshot = getState()
     if (latency > 0L) {
-      handler?.postDelayed({ if (isRunning) onStateChange(beatStateSnapshot) }, latency)
+      val generation = runGeneration
+      handler?.postDelayed({ if (isRunning && runGeneration == generation) onStateChange(beatStateSnapshot) }, latency)
     } else {
       onStateChange(beatStateSnapshot)
     }
@@ -990,8 +1040,9 @@ class SongNookMetronomeEngine(
 
   private fun scheduleHaptic(delayMs: Long) {
     val strength = config.hapticStrength.coerceIn(0.0, 1.0)
+    val generation = runGeneration
     handler?.postDelayed({
-      if (isRunning && config.hapticEnabled) {
+      if (isRunning && config.hapticEnabled && runGeneration == generation) {
         try {
           triggerHaptic(strength)
         } catch (_: Throwable) {
@@ -1106,6 +1157,8 @@ class SongNookMetronomeEngine(
         "pulsesPerBar" to segment.pulsesPerBar,
         "countInPulsesRemaining" to countInPulsesRemaining,
         "absolutePulse" to absolutePulse,
+        // The grid pulse this run's pulse 0 is (a run joined part-way counts from it).
+        "runStartGridPulse" to firstRunGridPulse,
       )
     }
     val track = audioTrack

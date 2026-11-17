@@ -156,6 +156,17 @@ class SongNookMetronomeModule : Module() {
       engine.serially { engine.startAtPhase(offsetMs) }
     }
 
+    // Random's re-cue in one step: settings, map and start under the engine lock.
+    AsyncFunction("restreamAtPhase") { config: Map<String, Any?>, segments: List<Map<String, Any?>>, offsetMs: Double, sinceEpochMs: Double ->
+      engine.serially { engine.restreamAtPhase(config, segments, offsetMs, sinceEpochMs) }
+    }
+
+    // startAtPhase, with the time since the caller read the offset added natively, so
+    // the bridge, the render and the track start don't make the join late (2026-11-17).
+    AsyncFunction("startAtPhaseSince") { offsetMs: Double, sinceEpochMs: Double ->
+      engine.serially { engine.startAtPhase(offsetMs, sinceEpochMs) }
+    }
+
     AsyncFunction("stop") {
       engine.serially { engine.stop() }
     }
