@@ -48,7 +48,7 @@ export function MetronomeScreenContent() {
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [displayBottom, setDisplayBottom] = useState(0);
   const isRunning = model.isRunning;
-  const random = model.practiceOn && model.practiceMode === "random";
+  const random = model.practiceOn && model.randomAvailable && model.practiceMode === "random";
   const tapping = model.tapCount > 0;
   const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
   const soundLine = soundSummary(model.outputs, model.supportsClickStyle ? model.clickVoice : undefined, t);
@@ -153,21 +153,23 @@ export function MetronomeScreenContent() {
             </ListRows>
             <AnimatedCollapse visible={model.practiceOn} style={s.patternBody}>
               {/* Your pattern, or Random: the page hides the silences (founder, 2026-11-17). */}
-              <SegmentedControl<PracticeMode>
-                options={[
-                  { key: "pattern", label: t("metronome.practice.modePattern") },
-                  { key: "random", label: t("metronome.practice.modeRandom") },
-                ]}
-                value={model.practiceMode}
-                onChange={model.setPracticeMode}
-              />
-              {model.practiceMode === "random" && model.randomShown ? (
+              {model.randomAvailable ? (
+                <SegmentedControl<PracticeMode>
+                  options={[
+                    { key: "pattern", label: t("metronome.practice.modePattern") },
+                    { key: "random", label: t("metronome.practice.modeRandom") },
+                  ]}
+                  value={model.practiceMode}
+                  onChange={model.setPracticeMode}
+                />
+              ) : null}
+              {random && model.randomShown ? (
                 <RandomPattern
                   bars={model.randomShown}
                   silence={model.randomSilence}
                   onChangeSilence={model.setRandomSilence}
-                  currentBar={model.practiceBar}
-                  currentBeat={model.practiceBeat}
+                  currentBar={model.randomCurrentBar}
+                  currentBeat={model.randomCurrentBeat}
                 />
               ) : (
                 <PracticePattern

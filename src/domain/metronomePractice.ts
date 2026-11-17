@@ -199,10 +199,10 @@ export function withAllSilent(practice: MetronomePractice): MetronomePractice {
 }
 
 /**
- * Random (founder, 2026-11-17): the page silences beats you can't see coming. It always
- * loops four bars of the feel with some beats silent; while one half plays, the other is
- * rolled afresh (see the screen model), so every pass is new and the engine carries on
- * from where it is. Few and Some keep the one; Many may silence it too.
+ * Random (founder, 2026-11-17): the page silences beats you can't see coming. Bars of the
+ * feel with some beats silent are rolled ahead of the one playing and streamed to the
+ * engine (useMetronome's MetronomeStream), shown four to a pass, so every pass is new.
+ * Few and Some keep the one; Many may silence it too.
  */
 export type PracticeMode = "pattern" | "random";
 export type RandomSilence = "few" | "some" | "many";
@@ -230,23 +230,6 @@ export function rollRandomBars(
   random: () => number = Math.random
 ): number[][] {
   return Array.from({ length: count }, () => rollRandomBar(beatWeights, silence, random));
-}
-
-/** Rolled bars as a pattern the engine plays: sub-beats sound with their beat. */
-export function randomPractice(
-  meterId: MetronomeMeterId,
-  subdivision: MetronomeSubdivision,
-  bars: readonly (readonly number[])[]
-): MetronomePractice {
-  return {
-    meterId,
-    subdivision,
-    bars: bars.map((beats) => ({
-      rest: false,
-      beats: [...beats],
-      subs: beats.map((weight) => (weight > 0 ? [PRACTICE_SUB_WEIGHT, PRACTICE_SUB_WEIGHT, PRACTICE_SUB_WEIGHT] : [0, 0, 0])),
-    })),
-  };
 }
 
 export function withSubdivision(practice: MetronomePractice, subdivision: MetronomeSubdivision): MetronomePractice {

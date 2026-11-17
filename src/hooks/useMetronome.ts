@@ -34,6 +34,7 @@ import {
   getMetronomeGrouping,
   getMetronomeHapticFallbackDuration,
   getMetronomeMeterPreset,
+  isSameAccentPattern,
   resolveMetronomeFeelId,
   shouldResetTapTempo,
   type MetronomeBeepLevel,
@@ -60,7 +61,55 @@ type UseMetronomeArgs = {
    *  Only that page passes it; every other click sends none, so a pattern can never
    *  follow anyone into a take or the player. */
   practice?: { subdivision: MetronomeSubdivision; steps: number[] } | null;
+  /** The standalone page's Random practice (2026-11-17): bar after bar of the feel's
+   *  weights, 0 = silent, streamed along a tempo map so bars can be added while it plays
+   *  without the click starting over. See MetronomeStream. Never with `practice`. */
+  stream?: MetronomeStream | null;
 };
+
+/**
+ * Random's bars, from bar 1 of the run. Appending bars feeds the playing map; a new
+ * `revision` (same key) re-cues the run in place with the bars as they now stand; a new
+ * `key` (another meter or feel) starts it over.
+ *
+ * Why a map and not the step pattern (Android, 2026-11-17): re-cueing a looping pattern
+ * mid-bar restarted the loop there ("resets halfway, double beats"). A map run streams
+ * its clicks, so new bars simply arrive ahead of the playhead on both engines. iOS
+ * schedules map clicks up to STREAM_SCHEDULE_PULSES ahead, so a bar that close is fixed.
+ */
+export type MetronomeStream = { key: string; revision: number; bars: number[][] };
+export const STREAM_SCHEDULE_PULSES = 32;
+
+/** Binaries that can stream Random: tempo map with rests, phase starts, and on Android
+ *  a map stream primed before it plays (older Android map runs never sounded). */
+export function metronomeSupportsStream(): boolean {
+  const engine = SongNookMetronomeModule;
+  return (
+    !!engine?.supportsTempoMap?.() &&
+    !!engine.configureTempoMap &&
+    !!engine.startAtPhase &&
+    engine.supportsPhaseStart?.() === true &&
+    !!engine.supportsSilentBeats?.() &&
+    (Platform.OS !== "android" || !!engine.supportsPrimedMapStream?.())
+  );
+}
+
+/** Bars as map segments; a run of identical bars is one segment (the last one holds on). */
+function streamSegments(
+  bars: readonly (readonly number[])[],
+  bpm: number,
+  meterId: MetronomeMeterId,
+  pulsesPerBar: number,
+  denominator: number
+): import("../../modules/songnook-metronome").NativeTempoMapSegment[] {
+  const segments: import("../../modules/songnook-metronome").NativeTempoMapSegment[] = [];
+  bars.forEach((accents, index) => {
+    const last = segments[segments.length - 1];
+    if (last && isSameAccentPattern(last.accentPattern, accents)) return;
+    segments.push({ atBar: index + 1, bpm, meterId, pulsesPerBar, denominator, accentPattern: [...accents] });
+  });
+  return segments;
+}
 
 type MetronomeStartOptions = {
   manageAudioSession?: boolean;
@@ -84,15 +133,15 @@ type MetronomeStartOptions = {
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
-export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null }: UseMetronomeArgs = {}) {
+export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null, stream = null }: UseMetronomeArgs = {}) {
   if (SongNookMetronomeModule) {
-    return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse, practice });
+    return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse, practice, stream });
   }
 
   return useLegacyMetronomeImpl({ initialBpm, initialOutputs, visualPulse });
 }
 
-function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null }: UseMetronomeArgs = {}) {
+function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null, stream = null }: UseMetronomeArgs = {}) {
   const { t } = useTranslation();
   const visualPulseRef = useRef(visualPulse);
   visualPulseRef.current = visualPulse;
@@ -128,6 +177,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const [tapCount, setTapCount] = useState(0);
   const [isPreparing, setIsPreparing] = useState(false);
   const [nativeState, setNativeState] = useState<NativeMetronomeState | null>(null);
+  const nativeStateRef = useRef(nativeState);
+  nativeStateRef.current = nativeState;
   const [countInCompletionToken, setCountInCompletionToken] = useState(0);
   const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
 
@@ -160,8 +211,17 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const supportsStepPattern = !!SongNookMetronomeModule?.supportsStepPattern?.();
   const activePractice = supportsStepPattern ? practice : null;
   const practiceStepsKey = activePractice ? activePractice.steps.join(",") : "";
+  const activeStream = stream && metronomeSupportsStream() ? stream : null;
+  const streamOn = !!activeStream;
+  const streamRef = useRef(activeStream);
+  streamRef.current = activeStream;
+  /** What the current Random run was started from (null: not a Random run). */
+  const runStreamRef = useRef<{ key: string; revision: number; barCount: number; configKey: string } | null>(null);
+  /** The grid pulse a re-cued Random run resumed at: the engine counts the run from 0
+   *  again, the page counts the whole stream. */
+  const runPulseOffsetRef = useRef(0);
   const practiceActiveRef = useRef(false);
-  practiceActiveRef.current = !!activePractice;
+  practiceActiveRef.current = !!activePractice || streamOn;
   /** While a tempo change re-cues the click in place, the engine's passing stop is not a stop. */
   const rephaseHoldUntilRef = useRef(0);
   /** The run was started along a tempo map (a take's grid): never re-cued in place. */
@@ -278,7 +338,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
             return;
           }
           if (visualPulseRef.current && outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
-            setPulseIndex(gridPulse);
+            setPulseIndex(gridPulse + runPulseOffsetRef.current);
             setPulseToken((current) => current + 1);
           }
           pulsesSinceAnchorRefresh += 1;
@@ -389,8 +449,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
 
     // Engines with scheduled cues fire haptics natively (no bridge at fire time, signed
-    // lead applied) — the JS fallback below is for older binaries only.
-    if (nativeCuesSupported) {
+    // lead applied) — the JS fallback below is for older binaries, and for Random, whose
+    // map run would buzz its silent beats natively (only step patterns skip them there).
+    if (nativeCuesSupported && !streamRef.current) {
       return;
     }
 
@@ -455,7 +516,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         // visual/haptic beat EVENTS so legacy consumers land with the audible click.
         outputLatencyMs: routeLatencyProfileRef.current.outputMs,
         // Scheduled-cue engines fire haptics themselves with the signed lead.
-        hapticEnabled: nativeCuesSupported && outputs.haptic,
+        hapticEnabled: nativeCuesSupported && outputs.haptic && !streamOn,
         hapticStrength: clampMetronomeLevel(hapticLevel) / MAX_METRONOME_LEVEL,
         hapticOffsetMs: routeLatencyProfileRef.current.hapticLeadMs,
         // Audio-only ornaments (structural on the engine). Sent unconditionally: older
@@ -472,7 +533,92 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     // practiceStepsKey stands in for the steps array, so a re-render with the same
     // pattern never re-configures (and so never restarts) a running click.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey]);
+  }, [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey, streamOn]);
+
+  /** What a Random run must re-cue for: anything the engine treats as structural. */
+  const streamConfigKey = `${bpm}|${meterId}|${accentPattern.join(",")}|${outputs.beep}|${subdivision}|${clickVoice}`;
+
+  /**
+   * (Re)start Random along its map. keepPlace: carry on from where the run had got to
+   * (a tempo change, a new silence amount), counted at the new tempo; else bar 1.
+   */
+  const restream = useCallback(async (keepPlace: boolean): Promise<NativeMetronomeState | null> => {
+    const engine = SongNookMetronomeModule;
+    const current = streamRef.current;
+    if (!engine?.configureTempoMap || !engine.startAtPhase || !current) return null;
+    const msPerPulse = getMetronomeBeatIntervalMs(bpm);
+    let heardPulses = 0;
+    let readAt = Date.now();
+    if (keepPlace && engine.getGridAnchor) {
+      const anchor = await engine.getGridAnchor().catch(() => null);
+      if (anchor?.isRunning && !anchor.isCountIn && anchor.anchorEpochMs != null && anchor.msPerPulse != null) {
+        readAt = Date.now();
+        heardPulses = runPulseOffsetRef.current + Math.max(0, (readAt - anchor.anchorEpochMs) / anchor.msPerPulse);
+      }
+    }
+    rephaseHoldUntilRef.current = Date.now() + 2000;
+    try {
+      await engine.stop();
+      await syncNativeConfig({ preparing: false });
+      await engine.configureTempoMap(
+        streamSegments(current.bars, bpm, meterId, meterPreset.pulsesPerBar, meterPreset.denominator)
+      );
+      runUsesMapRef.current = true;
+      const offsetMs = heardPulses > 0 ? heardPulses * msPerPulse + (Date.now() - readAt) : 0;
+      const state = offsetMs > 0 ? await engine.startAtPhase(offsetMs) : await engine.start();
+      // The engine starts its count at the first pulse at or after the offset.
+      runPulseOffsetRef.current = offsetMs > 0 ? Math.ceil(offsetMs / msPerPulse - 0.001) : 0;
+      runStreamRef.current = {
+        key: current.key,
+        revision: current.revision,
+        barCount: current.bars.length,
+        configKey: streamConfigKey,
+      };
+      ownsActiveRunRef.current = true;
+      setNativeState(state);
+      void startVisualScheduler();
+      return state;
+    } catch (error) {
+      console.warn("Metronome Random re-cue failed", error);
+      haptic.error(); // haptics vocabulary: `error` — something failed
+      stopVisualScheduler();
+      ownsActiveRunRef.current = false;
+      runStreamRef.current = null;
+      rephaseHoldUntilRef.current = 0;
+      const state = await engine.getState().catch(() => null);
+      if (state) setNativeState(state);
+      return state;
+    } finally {
+      if (rephaseHoldUntilRef.current) rephaseHoldUntilRef.current = Date.now() + 250;
+    }
+    // streamConfigKey stands in for bpm/meter/feel/cue choices already listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bpm, meterId, meterPreset, startVisualScheduler, stopVisualScheduler, syncNativeConfig, streamConfigKey]);
+
+  // Random while it plays: new bars go straight onto the map (no restart); a new silence
+  // amount re-cues in place. Another meter or feel comes through the config sync below.
+  const streamBarCount = activeStream?.bars.length ?? 0;
+  const streamRevision = activeStream?.revision ?? 0;
+  const streamKey = activeStream?.key ?? "";
+  useEffect(() => {
+    const engine = SongNookMetronomeModule;
+    const run = runStreamRef.current;
+    const current = streamRef.current;
+    if (!engine?.configureTempoMap || !run || !current || !ownsActiveRunRef.current) return;
+    if (run.key !== current.key || run.configKey !== streamConfigKey) return;
+    if (run.revision !== current.revision) {
+      void restream(true);
+      return;
+    }
+    if (current.bars.length !== run.barCount) {
+      run.barCount = current.bars.length;
+      void engine
+        .configureTempoMap(streamSegments(current.bars, bpm, meterId, meterPreset.pulsesPerBar, meterPreset.denominator))
+        .catch(() => {});
+    }
+    // The counts and key stand in for the stream object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamBarCount, streamRevision, streamKey, restream]);
 
   // A tempo change while the click runs keeps its place (founder, 2026-11-17: on beat 3,
   // a + started over at 1). Both engines rebuild a new tempo from the loop's start, so
@@ -559,6 +705,32 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
     configSyncTimerRef.current = setTimeout(() => {
       void (async () => {
+        // Random runs along a map: a structural change re-cues it (in place when the
+        // meter and feel hold), and switching Random on or off while playing swaps runs.
+        const run = runStreamRef.current;
+        const running = !!nativeStateRef.current?.isRunning && ownsActiveRunRef.current;
+        if (running && streamRef.current && (!run || run.key !== streamRef.current.key || run.configKey !== streamConfigKey)) {
+          await restream(!!run && run.key === streamRef.current.key);
+          return;
+        }
+        const engine = SongNookMetronomeModule;
+        if (engine && running && run && !streamRef.current) {
+          rephaseHoldUntilRef.current = Date.now() + 2000;
+          try {
+            await engine.stop();
+            await engine.clearTempoMap?.().catch(() => {});
+            runStreamRef.current = null;
+            runUsesMapRef.current = false;
+            runPulseOffsetRef.current = 0;
+            await syncNativeConfig({ preparing: false });
+            const state = await engine.start();
+            setNativeState(state);
+            void startVisualScheduler();
+          } finally {
+            rephaseHoldUntilRef.current = Date.now() + 250;
+          }
+          return;
+        }
         if (await keepPlaceThroughTempoChange()) {
           return;
         }
@@ -580,7 +752,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         configSyncTimerRef.current = null;
       }
     };
-  }, [keepPlaceThroughTempoChange, startVisualScheduler, syncNativeConfig]);
+    // streamConfigKey and streamOn bring Random's re-cue through here; restream is stable
+    // for them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keepPlaceThroughTempoChange, startVisualScheduler, syncNativeConfig, streamOn]);
 
   useEffect(() => {
     if (!SongNookMetronomeModule) {
@@ -634,7 +809,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       return;
     }
     if (!visualSchedulerRef.current.active) {
-      setPulseIndex(event.absolutePulse);
+      setPulseIndex(event.absolutePulse + runPulseOffsetRef.current);
     }
     triggerBeatCue();
   });
@@ -662,13 +837,29 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       // The config sync above clears any installed map (structural configure);
       // install the run's map AFTER it so the start schedules along the map.
       runUsesMapRef.current = false;
+      runStreamRef.current = null;
+      runPulseOffsetRef.current = 0;
+      const streamNow = options.tempoMapSegments ? null : streamRef.current;
+      const mapSegments =
+        options.tempoMapSegments ??
+        (streamNow
+          ? streamSegments(streamNow.bars, bpm, meterId, meterPreset.pulsesPerBar, meterPreset.denominator)
+          : undefined);
       if (
-        options.tempoMapSegments &&
+        mapSegments &&
         SongNookMetronomeModule.supportsTempoMap?.() &&
         SongNookMetronomeModule.configureTempoMap
       ) {
-        await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
+        await SongNookMetronomeModule.configureTempoMap(mapSegments);
         runUsesMapRef.current = true;
+        if (streamNow) {
+          runStreamRef.current = {
+            key: streamNow.key,
+            revision: streamNow.revision,
+            barCount: streamNow.bars.length,
+            configKey: streamConfigKey,
+          };
+        }
       }
       setBeatCount(0);
       const wantsPhaseStart =
@@ -687,7 +878,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
       throw error;
     }
-  }, [startVisualScheduler, syncNativeConfig]);
+    // streamConfigKey stands in for bpm and the meter's fields.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startVisualScheduler, syncNativeConfig, streamConfigKey]);
 
   const startCountIn = useCallback(
     async (bars = effectiveCountInBars, options: MetronomeStartOptions = {}) => {
@@ -733,6 +926,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       ownsActiveRunRef.current = false;
       rephaseHoldUntilRef.current = 0;
       runUsesMapRef.current = false;
+      runStreamRef.current = null;
+      runPulseOffsetRef.current = 0;
       const state = await SongNookMetronomeModule.stop();
       // Leave no installed map behind: the standalone metronome must never
       // accidentally start in map mode because a take's map was still loaded.

@@ -2,7 +2,12 @@ import { Animated } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { useMetronome } from "../../../hooks/useMetronome";
+import {
+  STREAM_SCHEDULE_PULSES,
+  metronomeSupportsStream,
+  useMetronome,
+  type MetronomeStream,
+} from "../../../hooks/useMetronome";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { durations } from "../../../design/motion";
 import { useStore } from "../../../state/useStore";
@@ -11,8 +16,6 @@ import {
   MAX_PRACTICE_BARS,
   defaultPractice,
   practiceSteps,
-  randomPractice,
-  rollRandomBar,
   rollRandomBars,
   type MetronomePractice,
 } from "../../../domain/metronomePractice";
@@ -48,29 +51,32 @@ export function useMetronomeScreenModel() {
   const setPracticeMode = useStore((s) => s.setMetronomePracticeMode);
   const randomSilence = useStore((s) => s.metronomeRandomSilence);
   const setRandomSilence = useStore((s) => s.setMetronomeRandomSilence);
-  const randomOn = practiceOn && practiceMode === "random";
+  // Random needs a binary that streams a tempo map (every 1.0.2 build); elsewhere the
+  // page keeps to your pattern and hides the tab.
+  const randomAvailable = metronomeSupportsStream();
+  const randomOn = practiceOn && practiceMode === "random" && randomAvailable;
 
-  // Random (2026-11-17): four bars of the feel with beats silenced. `front` holds the first
-  // two bars as they were heard this pass, once they have been rolled again for the next.
-  // The feel's weights come from the engine hook below, a render behind: set during render
-  // (never an effect), so the first committed frame already plays the right feel.
+  // Random (2026-11-17): bar after bar of the feel with beats silenced, streamed to the
+  // engine (useMetronome's MetronomeStream), shown four bars to a pass. The feel's weights
+  // come from the engine hook below, a render behind: set during render (never an
+  // effect), so the first committed frame already plays the right feel.
   const [feelBeats, setFeelBeats] = useState<number[] | null>(null);
-  const [random, setRandom] = useState<{ key: string; bars: number[][]; front: number[][] | null } | null>(null);
-  const randomKey = feelBeats ? `${storeMeterId}|${feelBeats.join(",")}|${randomSilence}` : "";
-  if (feelBeats && random?.key !== randomKey) {
-    setRandom({ key: randomKey, bars: rollRandomBars(feelBeats, randomSilence), front: null });
+  const [stream, setStream] = useState<MetronomeStream | null>(null);
+  const streamKey = feelBeats ? `${storeMeterId}|${feelBeats.join(",")}` : "";
+  const ppbNow = feelBeats?.length ?? 1;
+  // Bars stay rolled this far past the one playing: beyond what the engine has already
+  // scheduled, so a bar is never changed once it can be heard.
+  const barsAhead = Math.ceil(STREAM_SCHEDULE_PULSES / Math.max(1, ppbNow)) + 2;
+  if (feelBeats && stream?.key !== streamKey) {
+    setStream({ key: streamKey, revision: 0, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS) });
   }
-  const randomBars = random?.key === randomKey ? random.bars : null;
+  const liveStream = stream?.key === streamKey ? stream : null;
 
-  const enginePractice = !practiceOn
-    ? null
-    : randomOn
-      ? randomBars
-        ? randomPractice(storeMeterId, fittingPractice?.subdivision ?? 1, randomBars)
-        : null
-      : fittingPractice;
   const metronome = useMetronome({
-    practice: enginePractice ? { subdivision: enginePractice.subdivision, steps: practiceSteps(enginePractice) } : null,
+    practice: practiceOn && !randomOn && fittingPractice
+      ? { subdivision: fittingPractice.subdivision, steps: practiceSteps(fittingPractice) }
+      : null,
+    stream: randomOn ? liveStream : null,
   });
   if (!feelBeats || !isSameAccentPattern(feelBeats, metronome.accentPattern)) {
     setFeelBeats([...metronome.accentPattern]);
@@ -117,7 +123,7 @@ export function useMetronomeScreenModel() {
     },
     [metronome.outputs.visual, screenFlash, setStoredVisualDots, toggleCueOutput, visualDots]
   );
-  const practiceBarCount = randomOn ? MAX_PRACTICE_BARS : practice.bars.length;
+  const practiceBarCount = practice.bars.length;
   const isPlaying = practiceOn && metronome.isRunning && !metronome.isCountIn;
   const ppb = Math.max(1, metronome.meterPreset.pulsesPerBar);
   // One clock on screen (2026-11-16): with the visual cue on, the bar, the beat and the
@@ -151,39 +157,63 @@ export function useMetronomeScreenModel() {
   const heroAccentPattern = useMemo(() => Array.from({ length: ppb }, () => 0.5), [ppb]);
   const heroPulseBeat = pulseClock ? (metronome.pulseIndex % ppb) + 1 : undefined;
 
-  // Random rolls the half that is not playing: entering bar 3, the first two bars are rolled
-  // for the next pass (what they played stays on screen as `front`); back at bar 1, the last
-  // two. A rolled bar is always a bar or more away, so the engine has it in time and carries
-  // on from where it is (same-grid configure continues).
-  const lastRandomBarRef = useRef<number | null>(null);
+  // Random's place in the stream: the absolute bar and beat (the engine counts a map run
+  // along the whole grid), shown four bars to a pass.
+  const randomPulse = !randomOn || !isPlaying
+    ? null
+    : pulseClock
+      ? metronome.pulseIndex
+      : (Math.max(1, metronome.currentBar) - 1) * ppb + Math.max(1, metronome.currentBeatInBar) - 1;
+  const randomBar = randomPulse == null ? null : Math.floor(randomPulse / ppb);
+  // Keep bars rolled ahead of the one playing; a new pass starts fogged.
   useEffect(() => {
-    const previous = lastRandomBarRef.current;
-    lastRandomBarRef.current = randomOn ? practiceBar : null;
-    if (!randomOn || practiceBar == null || previous == null || previous === practiceBar || !feelBeats) return;
-    if (practiceBar === 2) {
-      setRandom((current) =>
-        current && {
+    if (randomBar == null || !feelBeats || !liveStream) return;
+    const needed = randomBar + barsAhead + MAX_PRACTICE_BARS;
+    if (liveStream.bars.length >= needed) return;
+    setStream((current) =>
+      current && current.key === liveStream.key
+        ? { ...current, bars: [...current.bars, ...rollRandomBars(feelBeats, randomSilence, needed - current.bars.length)] }
+        : current
+    );
+  }, [barsAhead, feelBeats, liveStream, randomBar, randomSilence]);
+  // Stopped, the stream starts over: the next run opens on fresh bars.
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    const was = wasRunningRef.current;
+    wasRunningRef.current = metronome.isRunning;
+    if (!was || metronome.isRunning || !feelBeats) return;
+    setStream((current) =>
+      current
+        ? { ...current, revision: current.revision + 1, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS) }
+        : current
+    );
+  }, [barsAhead, feelBeats, metronome.isRunning, randomSilence]);
+  /** A new amount takes over from the next bar: the bars not yet heard are rolled again. */
+  const changeRandomSilence = useCallback(
+    (next: Parameters<typeof setRandomSilence>[0]) => {
+      setRandomSilence(next);
+      if (!feelBeats) return;
+      setStream((current) => {
+        if (!current) return current;
+        const keep = randomBar == null ? 0 : randomBar + 1;
+        const length = Math.max(current.bars.length, keep + barsAhead + MAX_PRACTICE_BARS);
+        return {
           ...current,
-          front: current.bars.slice(0, 2),
-          bars: [rollRandomBar(feelBeats, randomSilence), rollRandomBar(feelBeats, randomSilence), ...current.bars.slice(2)],
-        }
-      );
-    } else if (practiceBar === 0) {
-      setRandom((current) =>
-        current && {
-          ...current,
-          front: null,
-          bars: [...current.bars.slice(0, 2), rollRandomBar(feelBeats, randomSilence), rollRandomBar(feelBeats, randomSilence)],
-        }
-      );
-    }
-  }, [feelBeats, practiceBar, randomOn, randomSilence]);
-  /** What each bar of this pass plays, for the page: the first two as heard once rolled anew. */
-  const randomShown = useMemo(() => {
-    if (!randomBars) return null;
-    if (practiceBar != null && practiceBar >= 2 && random?.front) return [...random.front, ...randomBars.slice(2)];
-    return randomBars;
-  }, [practiceBar, random?.front, randomBars]);
+          revision: current.revision + 1,
+          bars: [...current.bars.slice(0, keep), ...rollRandomBars(feelBeats, next, length - keep)],
+        };
+      });
+    },
+    [barsAhead, feelBeats, randomBar, setRandomSilence]
+  );
+  /** This pass's four bars as they play, the bar and beat being heard within it. */
+  const randomPass = randomBar == null ? 0 : Math.floor(randomBar / MAX_PRACTICE_BARS);
+  const randomShown = useMemo(
+    () => liveStream?.bars.slice(randomPass * MAX_PRACTICE_BARS, (randomPass + 1) * MAX_PRACTICE_BARS) ?? null,
+    [liveStream?.bars, randomPass]
+  );
+  const randomCurrentBar = randomBar == null ? null : randomBar % MAX_PRACTICE_BARS;
+  const randomCurrentBeat = randomPulse == null ? null : randomPulse % ppb;
 
   // Leaving the page ends the session. The native metronome engine runs on its
   // own thread and keeps ticking after this screen unmounts, so nothing stops
@@ -270,9 +300,12 @@ export function useMetronomeScreenModel() {
     setPracticeOn,
     practiceMode,
     setPracticeMode,
+    randomAvailable,
     randomSilence,
-    setRandomSilence,
+    setRandomSilence: changeRandomSilence,
     randomShown,
+    randomCurrentBar,
+    randomCurrentBeat,
     screenFlash,
     setScreenFlash,
     visualDots,

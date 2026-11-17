@@ -85,7 +85,7 @@ describe("metronome practice pattern", () => {
 });
 
 describe("random practice", () => {
-  const { rollRandomBar, rollRandomBars, randomPractice, PRACTICE_SUB_WEIGHT: SUB } = jest.requireActual("../metronomePractice");
+  const { rollRandomBar, rollRandomBars } = jest.requireActual("../metronomePractice");
   const feel = [1, 0.46, 0.72, 0.46];
 
   it("keeps the one on Few and Some, may drop it on Many", () => {
@@ -98,12 +98,5 @@ describe("random practice", () => {
   it("sounds a beat at the feel's own weight when it is not silenced", () => {
     expect(rollRandomBar(feel, "many", () => 0.99)).toEqual(feel);
     expect(rollRandomBars(feel, "some", 4, () => 0.99)).toHaveLength(4);
-  });
-
-  it("plays sub-beats only with their beat", () => {
-    const practice = randomPractice("4/4", 2, [[1, 0, 0.72, 0.46]]);
-    expect(practice.bars[0].subs[0]).toEqual([SUB, SUB, SUB]);
-    expect(practice.bars[0].subs[1]).toEqual([0, 0, 0]);
-    expect(practice.bars[0].rest).toBe(false);
   });
 });
