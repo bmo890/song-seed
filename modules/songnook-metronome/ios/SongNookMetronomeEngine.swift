@@ -157,8 +157,12 @@ final class SongNookMetronomeEngine {
       ? Int(ceil(Double(countInPulsesRemaining) / Double(max(config.pulsesPerBar, 1))))
       : 0
 
-    // Where the click has got to, read before anything changes (see continueRun).
-    let heldFrames = heldRunFrames()
+    // Where the click has got to IN ITS LOOP, read before anything changes (see continueRun).
+    // Within the current loop, not across the run: a bar added or removed while playing
+    // then carries on in the bar being heard instead of wrapping the whole run's length
+    // into the new loop, which landed in another bar (2026-11-17).
+    let loopFramesBefore = max(totalFrames, 1)
+    let heldFrames = heldRunFrames().map { $0 % loopFramesBefore }
     let heldAtUptime = ProcessInfo.processInfo.systemUptime
 
     let previous = config
@@ -193,17 +197,22 @@ final class SongNookMetronomeEngine {
     // metronome's controls) — an installed map is stale the moment it happens.
     mapSegments = nil
 
+    let previousExactFramesPerPulse = exactFramesPerPulse
     updateDerivedValues()
 
     if wasRunning {
-      // A pattern edit while playing (same tempo, same meter) carries on from where the
-      // click had got to. Restarting at bar one on every tap read as a stutter (2026-11-16).
-      let sameGrid =
-        previous.bpm == config.bpm &&
+      // A pattern edit while playing carries on from where the click had got to (restarting
+      // at bar one on every tap read as a stutter, 2026-11-16), and so does a new tempo: the
+      // same place in the bar, counted in the new tempo's frames (2026-11-17; a
+      // stop-and-restart left a gap a click could fall into). Only a new meter starts a new bar.
+      let sameMeter =
         previous.pulsesPerBar == config.pulsesPerBar &&
         previous.denominator == config.denominator
-      if sameGrid, pendingCountInBars == 0, let held = heldFrames {
-        return continueRun(fromRunFrames: held, readAtUptime: heldAtUptime)
+      if sameMeter, pendingCountInBars == 0, let held = heldFrames {
+        let from = previous.bpm == config.bpm
+          ? held
+          : Int((Double(held) / previousExactFramesPerPulse * exactFramesPerPulse).rounded()) % max(totalFrames, 1)
+        return continueRun(fromRunFrames: from, readAtUptime: heldAtUptime)
       }
       return start(countInBars: pendingCountInBars)
     }
@@ -915,8 +924,9 @@ final class SongNookMetronomeEngine {
     // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
     // (route latency − motor spin-up) can land the tap exactly on the audible click, even
     // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
-    // A practice pattern's silent beat is silent in the hand too.
-    if config.hapticEnabled && (config.stepPattern.isEmpty || nextAccent > 0) {
+    // A silent beat is silent in the hand too: a pattern's rest and a feel's rest alike
+    // (2026-11-17: the feels with rests used to buzz on them).
+    if config.hapticEnabled && nextAccent > 0 {
       scheduleHaptic(afterMs: max(1, beatIntervalMsForCues + Double(config.hapticOffsetMs)))
     }
 

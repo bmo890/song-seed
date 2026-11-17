@@ -50,6 +50,11 @@ public class SongNookMetronomeModule: Module {
       true
     }
 
+    // A tempo change while playing carries on in place inside configure(), 2026-11-17.
+    Function("supportsTempoContinue") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { (segments: [[String: Any]]) -> [String: Any] in
       return self.engine.serially { self.engine.configureTempoMap(segments) }
     }

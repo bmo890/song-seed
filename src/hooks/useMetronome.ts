@@ -306,6 +306,13 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     const scheduler = visualSchedulerRef.current;
     scheduler.token += 1;
     const token = scheduler.token;
+    // While the new anchor settles, the engine's own beat events carry the pulse: a re-cue
+    // (tempo, pattern, meter) otherwise left a beat in that window with no flash.
+    scheduler.active = false;
+    if (scheduler.timer) {
+      clearTimeout(scheduler.timer);
+      scheduler.timer = null;
+    }
 
     const fetchAnchor = async () => {
       const next = await SongNookMetronomeModule!.getGridAnchor!().catch(() => null);
@@ -440,7 +447,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setTapCount(0);
   }, []);
 
-  const triggerBeatCue = useCallback(() => {
+  const triggerBeatCue = useCallback((silent = false) => {
     if (Date.now() < cueActivationAtRef.current) {
       return;
     }
@@ -452,7 +459,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       setPulseToken((current) => current + 1);
     }
 
-    if (!activeOutputs.haptic) {
+    if (!activeOutputs.haptic || silent) {
       return;
     }
 
@@ -641,6 +648,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     const engine = SongNookMetronomeModule;
     if (!engine?.getGridAnchor || !engine.startAtPhase || engine.supportsPhaseStart?.() !== true) return null;
     if (!loopPhaseReliable) return null;
+    // Binaries that carry a tempo on inside configure() need none of this.
+    if (engine.supportsTempoContinue?.() === true) return null;
     if (!ownsActiveRunRef.current || runUsesMapRef.current) return null;
     const anchor = await engine.getGridAnchor().catch(() => null);
     if (!anchor?.isRunning || anchor.isCountIn || anchor.anchorEpochMs == null || anchor.msPerPulse == null) {
@@ -760,14 +769,17 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           }
           return;
         }
+        const loopChanged = lastLoopKeyRef.current !== loopKey;
         lastLoopKeyRef.current = loopKey;
         const state = await syncNativeConfig({ preparing: false });
         if (state) {
           setNativeState(state);
         }
-        // A pattern edit while playing re-cues the loop (continueRun): re-anchor the
-        // visual pulse so its pulse numbering follows the new loop at once.
-        if (state?.isRunning && practiceActiveRef.current && ownsActiveRunRef.current && visualSchedulerRef.current.active) {
+        // Anything that rebuilds the loop while playing re-cues it: a pattern edit or a feel
+        // carries on (continueRun), a new meter starts on its one. Either way the visual
+        // pulse re-anchors at once, so the flash never runs a bar on the old grid
+        // (2026-11-17; it used to wait for the next bar's refresh outside a pattern).
+        if (state?.isRunning && loopChanged && ownsActiveRunRef.current && visualSchedulerRef.current.active) {
           void startVisualScheduler();
         }
       })();
@@ -831,14 +843,13 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       return;
     }
     setBeatCount(event.absolutePulse + 1);
-    // A practice pattern's silent beat stays silent everywhere: no flash, no buzz.
-    if (practiceActiveRef.current && event.accent <= 0) {
-      return;
-    }
     if (!visualSchedulerRef.current.active) {
       setPulseIndex(event.absolutePulse + runPulseOffsetRef.current);
     }
-    triggerBeatCue();
+    // The visual counts every beat, as the scheduled pulse does; a silent beat is silent
+    // in the hand (2026-11-17: this path used to skip the flash too, so a silent beat
+    // flashed or not depending on which clock drew it).
+    triggerBeatCue(event.accent <= 0);
   });
 
   useEventListener(SongNookMetronomeModule!, "onCountInComplete", () => {

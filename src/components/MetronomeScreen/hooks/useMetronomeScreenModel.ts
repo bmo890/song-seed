@@ -11,7 +11,7 @@ import {
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { durations } from "../../../design/motion";
 import { useStore } from "../../../state/useStore";
-import { isSameAccentPattern } from "../../../domain/metronome";
+import { isSameAccentPattern, type MetronomeSubdivision } from "../../../domain/metronome";
 import {
   MAX_PRACTICE_BARS,
   defaultPractice,
@@ -34,7 +34,9 @@ export function useMetronomeScreenModel() {
   useBrowseRootBackHandler();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   // The practice pattern: stored once someone edits it, and only while it fits the meter
-  // (a new meter opens on its feel again). Before any edit the engine plays the feel.
+  // (a new meter opens on its feel again). Before any edit the page draws the feel as a
+  // pattern, and the engine plays that same drawn pattern (2026-11-17: it used to play the
+  // plain feel, whose voice differs, so an accent drawn on beat 3 sounded like a click).
   const storedPractice = useStore((s) => s.metronomePractice);
   const setStoredPractice = useStore((s) => s.setMetronomePractice);
   const storeMeterId = useStore((s) => s.metronomeMeterId);
@@ -61,6 +63,7 @@ export function useMetronomeScreenModel() {
   // come from the engine hook below, a render behind: set during render (never an
   // effect), so the first committed frame already plays the right feel.
   const [feelBeats, setFeelBeats] = useState<number[] | null>(null);
+  const [feelSubdivision, setFeelSubdivision] = useState<MetronomeSubdivision>(1);
   const [stream, setStream] = useState<MetronomeStream | null>(null);
   const streamKey = feelBeats ? `${storeMeterId}|${feelBeats.join(",")}` : "";
   const ppbNow = feelBeats?.length ?? 1;
@@ -72,14 +75,19 @@ export function useMetronomeScreenModel() {
   }
   const liveStream = stream?.key === streamKey ? stream : null;
 
+  const drawnPractice =
+    fittingPractice ?? (feelBeats ? defaultPractice(storeMeterId, feelBeats, feelSubdivision) : null);
   const metronome = useMetronome({
-    practice: practiceOn && !randomOn && fittingPractice
-      ? { subdivision: fittingPractice.subdivision, steps: practiceSteps(fittingPractice) }
+    practice: practiceOn && !randomOn && drawnPractice
+      ? { subdivision: drawnPractice.subdivision, steps: practiceSteps(drawnPractice) }
       : null,
     stream: randomOn ? liveStream : null,
   });
   if (!feelBeats || !isSameAccentPattern(feelBeats, metronome.accentPattern)) {
     setFeelBeats([...metronome.accentPattern]);
+  }
+  if (feelSubdivision !== metronome.subdivision) {
+    setFeelSubdivision(metronome.subdivision);
   }
   const practice: MetronomePractice = useMemo(
     () =>

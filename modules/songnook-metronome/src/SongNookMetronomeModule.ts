@@ -52,6 +52,10 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
    *  loop and keeps counting from there (pattern edits and tempo changes keep their
    *  place). Older Android loops lost the count after such a start. */
   supportsLoopPhase?(): boolean;
+  /** Optional: true on binaries whose configure() carries a tempo change on in place
+   *  (same meter, mid-run), the new loop rendered before the old stops. JS then skips its
+   *  stop-and-restart (keepPlaceThroughTempoChange). */
+  supportsTempoContinue?(): boolean;
   /** Optional: start the click with the loop already `offsetMs` into the bar, so it
    *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
   startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;

@@ -12,6 +12,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.math.sin
 
 private data class MetronomeConfig(
@@ -246,8 +247,12 @@ class SongNookMetronomeEngine(
       0
     }
 
-    // Where the click has got to, read before anything changes (see heldRunFrames).
-    val heldFrames = heldRunFrames()
+    // Where the click has got to IN ITS LOOP, read before anything changes (see
+    // heldRunFrames). Within the current loop, not across the run: a bar added or removed
+    // while playing then carries on in the bar being heard instead of wrapping the whole
+    // run's length into the new loop, which landed in another bar (2026-11-17).
+    val loopFramesBefore = max(1, totalFrames)
+    val heldFrames = heldRunFrames()?.let { it % loopFramesBefore }
     val heldAtMs = SystemClock.elapsedRealtime()
 
     val previous = config
@@ -281,18 +286,26 @@ class SongNookMetronomeEngine(
     // metronome's controls) — an installed map is stale the moment it happens.
     mapSegments = null
 
+    val previousExactFramesPerPulse = exactFramesPerPulse
     exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
     framesPerPulse = framesPerPulseForBpm(config.bpm)
     totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar * config.patternBars).roundToInt())
 
     if (wasRunning) {
-      // A pattern edit while playing (same tempo, same meter) carries on from where the
-      // click had got to. Restarting at bar one on every tap read as a stutter (2026-11-16).
-      val sameGrid = previous.bpm == config.bpm &&
-        previous.pulsesPerBar == config.pulsesPerBar &&
+      // A pattern edit while playing carries on from where the click had got to (restarting
+      // at bar one on every tap read as a stutter, 2026-11-16), and so does a new tempo: the
+      // same place in the bar, counted in the new tempo's frames, the new loop rendered
+      // before the old one stops (2026-11-17; a stop-and-restart left a gap a click could
+      // fall into). Only a new meter starts a new bar.
+      val sameMeter = previous.pulsesPerBar == config.pulsesPerBar &&
         previous.denominator == config.denominator
-      if (sameGrid && pendingCountInBars == 0 && heldFrames != null) {
-        return startInternal(countInBars = 0, phaseOffsetMs = 0.0, continueFrom = heldFrames, continueReadAtMs = heldAtMs)
+      if (sameMeter && pendingCountInBars == 0 && heldFrames != null) {
+        val from = if (previous.bpm == config.bpm) {
+          heldFrames
+        } else {
+          (heldFrames.toDouble() / previousExactFramesPerPulse * exactFramesPerPulse).roundToLong() % totalFrames
+        }
+        return startInternal(countInBars = 0, phaseOffsetMs = 0.0, continueFrom = from, continueReadAtMs = heldAtMs)
       }
       return start(pendingCountInBars)
     }
@@ -943,8 +956,9 @@ class SongNookMetronomeEngine(
     // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
     // (route latency − motor spin-up) can land the buzz exactly on the audible click, even
     // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
-    // A practice pattern's silent beat is silent in the hand too.
-    if (config.hapticEnabled && (config.stepPattern.isEmpty() || nextAccent > 0.0)) {
+    // A silent beat is silent in the hand too: a pattern's rest and a feel's rest alike
+    // (2026-11-17: the feels with rests used to buzz on them).
+    if (config.hapticEnabled && nextAccent > 0.0) {
       scheduleHaptic(max(1L, (beatIntervalMsForCues + config.hapticOffsetMs).toLong()))
     }
 

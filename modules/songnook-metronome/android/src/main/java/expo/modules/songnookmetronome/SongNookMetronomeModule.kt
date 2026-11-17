@@ -98,6 +98,11 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    // A tempo change while playing carries on in place inside configure(), 2026-11-17.
+    Function("supportsTempoContinue") {
+      true
+    }
+
     Function("supportsStepPattern") {
       true
     }
