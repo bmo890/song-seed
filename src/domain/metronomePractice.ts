@@ -213,14 +213,21 @@ export const isPracticeMode = (value: unknown): value is PracticeMode => value =
 export const isRandomSilence = (value: unknown): value is RandomSilence =>
   RANDOM_SILENCES.includes(value as RandomSilence);
 
-/** One bar of beats over the feel's weights, each silenced at the share. */
+/**
+ * One bar of beats, each silenced at the share. The one keeps the feel's accent and every
+ * other beat that sounds is a plain click: Random plays along a tempo map, where only the
+ * one has the bright voice, so the page shows no accent it cannot sound (2026-11-17).
+ */
 export function rollRandomBar(
   beatWeights: readonly number[],
   silence: RandomSilence,
   random: () => number = Math.random
 ): number[] {
   const share = RANDOM_SILENCE_SHARE[silence];
-  return beatWeights.map((weight, pulse) => (pulse === 0 && silence !== "many") || random() >= share ? weight : 0);
+  return beatWeights.map((weight, pulse) => {
+    if (!((pulse === 0 && silence !== "many") || random() >= share)) return 0;
+    return pulse === 0 || weight <= 0 ? weight : METRONOME_PULSE_WEIGHTS.click;
+  });
 }
 
 export function rollRandomBars(

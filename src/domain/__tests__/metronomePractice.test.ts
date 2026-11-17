@@ -95,8 +95,9 @@ describe("random practice", () => {
     expect(rollRandomBar(feel, "many", allSilent)).toEqual([0, 0, 0, 0]);
   });
 
-  it("sounds a beat at the feel's own weight when it is not silenced", () => {
-    expect(rollRandomBar(feel, "many", () => 0.99)).toEqual(feel);
+  it("keeps the feel's accent on the one, plain clicks elsewhere", () => {
+    expect(rollRandomBar(feel, "many", () => 0.99)).toEqual([1, 0.44, 0.44, 0.44]);
+    expect(rollRandomBar([1, 0, 0.72, 0], "few", () => 0.99)).toEqual([1, 0, 0.44, 0]);
     expect(rollRandomBars(feel, "some", 4, () => 0.99)).toHaveLength(4);
   });
 });
