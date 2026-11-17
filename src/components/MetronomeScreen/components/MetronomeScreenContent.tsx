@@ -21,7 +21,7 @@ import {
 import { CueRows, FeelControl, MeterRow, meterSummary, ms, soundSummary } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { PracticeBarNumberMark, PracticeDotMark, PracticePattern } from "../../common/metronome/PracticePattern";
-import { Fog, RandomPattern } from "../../common/metronome/RandomPattern";
+import { Fog, PatternModeGlyph, RandomPattern } from "../../common/metronome/RandomPattern";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import type { PracticeMode } from "../../../domain/metronomePractice";
 import { HelpButton } from "../../common/HelpButton";
@@ -49,6 +49,22 @@ export function MetronomeScreenContent() {
   const [displayBottom, setDisplayBottom] = useState(0);
   const isRunning = model.isRunning;
   const random = model.practiceOn && model.randomAvailable && model.practiceMode === "random";
+  // Your pattern · Random as two marks at the start of the practice line (founder,
+  // 2026-11-17): a little score of dots, and the shuffle. Without Random, no tabs.
+  const modeTabs = model.randomAvailable ? (
+    <View style={s.modeTabs}>
+      <SegmentedControl<PracticeMode>
+        glyphOnly
+        bare
+        options={[
+          { key: "pattern", label: t("metronome.practice.modePattern"), icon: (color) => <PatternModeGlyph color={color} /> },
+          { key: "random", label: t("metronome.practice.modeRandom"), icon: "shuffle" },
+        ]}
+        value={model.practiceMode}
+        onChange={model.setPracticeMode}
+      />
+    </View>
+  ) : null;
   const tapping = model.tapCount > 0;
   const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
   const soundLine = soundSummary(model.outputs, model.supportsClickStyle ? model.clickVoice : undefined, t);
@@ -92,7 +108,7 @@ export function MetronomeScreenContent() {
           height={displayBottom}
         />
         <View
-          style={s.display}
+          style={[s.display, model.practiceOn ? s.displayCompact : null]}
           onLayout={(event) => {
             const { y, height } = event.nativeEvent.layout;
             setDisplayBottom(Math.round(y + height));
@@ -101,7 +117,7 @@ export function MetronomeScreenContent() {
           {/* The beat dots are the pulse: one place for where the beat is. They are the
               visual cue's Dots, so they are only there while Visual and Dots are on
               (founder, 2026-11-16: flash alone shows no dots). */}
-          {model.outputs.visual && model.visualDots ? (
+          {model.outputs.visual && model.visualDots && !model.practiceOn ? (
             <MetronomeBeatBar
               beatsPerBar={model.meterPreset.pulsesPerBar}
               accentPattern={model.heroAccentPattern}
@@ -116,11 +132,24 @@ export function MetronomeScreenContent() {
           {/* The unit labels its number from right beneath it (founder, 2026-11-16: "BPM"
               sat apart, beside the marking, and read as unrelated); the marking is the
               musician's word for the tempo, a quiet line of its own. */}
-          <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
-            <Text style={s.bpmValue}>{model.bpm}</Text>
-            <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
-          </View>
-          <Text style={s.bpmMarking}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
+          {model.practiceOn ? (
+            // The bars show the beat, so the dots step aside and the tempo steps down.
+            <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
+              <Text style={[s.bpmValue, s.bpmValueCompact]}>{model.bpm}</Text>
+              <View style={s.compactLine}>
+                <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
+                <Text style={[s.bpmMarking, s.bpmMarkingCompact]}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
+                <Text style={s.bpmValue}>{model.bpm}</Text>
+                <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
+              </View>
+              <Text style={s.bpmMarking}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
+            </>
+          )}
         </View>
         {statusLabel ? <Text style={s.statusLabel}>{statusLabel}</Text> : null}
 
@@ -153,18 +182,9 @@ export function MetronomeScreenContent() {
             </ListRows>
             <AnimatedCollapse visible={model.practiceOn} style={s.patternBody}>
               {/* Your pattern, or Random: the page hides the silences (founder, 2026-11-17). */}
-              {model.randomAvailable ? (
-                <SegmentedControl<PracticeMode>
-                  options={[
-                    { key: "pattern", label: t("metronome.practice.modePattern") },
-                    { key: "random", label: t("metronome.practice.modeRandom") },
-                  ]}
-                  value={model.practiceMode}
-                  onChange={model.setPracticeMode}
-                />
-              ) : null}
               {random && model.randomShown ? (
                 <RandomPattern
+                  lead={modeTabs}
                   bars={model.randomShown}
                   silence={model.randomSilence}
                   onChangeSilence={model.setRandomSilence}
@@ -173,6 +193,7 @@ export function MetronomeScreenContent() {
                 />
               ) : (
                 <PracticePattern
+                  lead={modeTabs}
                   practice={model.practice}
                   baseBeats={model.accentPattern}
                   currentBar={model.practiceBar}

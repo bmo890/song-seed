@@ -61,6 +61,11 @@ type Props<T extends string> = {
   onSelect?: (key: T) => void;
   /** Persistent thumb (see useSegmentedThumb) for controls that remount. */
   persist?: SegmentedThumb;
+  /** Glyph or icon alone, the word kept for the screen reader (the metronome's
+   *  practice line, 2026-11-17: its note values and modes read as marks, not words). */
+  glyphOnly?: boolean;
+  /** No hairline of its own: the control sits in a line that draws one. */
+  bare?: boolean;
 };
 
 /**
@@ -79,6 +84,8 @@ export function SegmentedControl<T extends string>({
   selectedKey,
   onSelect,
   persist,
+  glyphOnly = false,
+  bare = false,
 }: Props<T>) {
   const activeKey = selectedKey ?? value;
   const activeIndex = Math.max(
@@ -133,7 +140,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <View
-      style={segmentedControlStyles.root}
+      style={[segmentedControlStyles.root, bare ? segmentedControlStyles.rootBare : null]}
       onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
     >
       {segmentWidth > 0 ? (
@@ -154,12 +161,14 @@ export function SegmentedControl<T extends string>({
             onPress={() => handleSelect(option.key)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
+            accessibilityLabel={glyphOnly ? option.label : undefined}
           >
             <View style={[segmentedControlStyles.segmentInner, option.glyph ? segmentedControlStyles.segmentInnerStacked : null]}>
               {option.glyph ? (
                 <Text
                   style={[
                     segmentedControlStyles.segmentGlyph,
+                    glyphOnly ? segmentedControlStyles.segmentGlyphAlone : null,
                     active ? segmentedControlStyles.segmentGlyphActive : null,
                   ]}
                 >
@@ -171,13 +180,13 @@ export function SegmentedControl<T extends string>({
               ) : option.icon ? (
                 <Ionicons
                   name={option.icon}
-                  size={15}
+                  size={glyphOnly ? 20 : 15}
                   color={active ? colors.textPrimary : colors.textSecondary}
                 />
               ) : null}
               {/* One line always: a long word in a tight row ("Portuguese" among five
                   languages) shrinks a little rather than breaking mid-word. */}
-              <Text
+              {glyphOnly ? null : <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
@@ -188,7 +197,7 @@ export function SegmentedControl<T extends string>({
                 ]}
               >
                 {option.label}
-              </Text>
+              </Text>}
               {option.pro ? <ProMarkText /> : null}
               {option.dot ? <View style={segmentedControlStyles.segmentDot} /> : null}
               {option.mark && !option.dot ? <View style={segmentedControlStyles.segmentMark} /> : null}
@@ -206,6 +215,9 @@ const segmentedControlStyles = StyleSheet.create({
     paddingHorizontal: TRACK_PAD_H,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
+  },
+  rootBare: {
+    borderBottomWidth: 0,
   },
   // The chosen tab's rule: 2 pt of ink, sitting on the hairline.
   thumb: {
@@ -242,6 +254,11 @@ const segmentedControlStyles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 20,
     color: colors.textSecondary,
+  },
+  // Alone, the note stands a size up and centres in the line.
+  segmentGlyphAlone: {
+    fontSize: 21,
+    lineHeight: 26,
   },
   segmentGlyphActive: {
     color: colors.textPrimary,

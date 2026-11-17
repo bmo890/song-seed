@@ -5,7 +5,7 @@ import { InkOption } from "../InkOption";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { RANDOM_SILENCES, beatTier, type RandomSilence } from "../../../domain/metronomePractice";
-import { PracticeDotMark } from "./PracticePattern";
+import { PracticeDotMark, PracticeLine } from "./PracticePattern";
 
 const SILENCE_LABEL_KEYS: Record<RandomSilence, string> = {
   few: "metronome.practice.silenceFew",
@@ -21,12 +21,15 @@ const SILENCE_LABEL_KEYS: Record<RandomSilence, string> = {
  * line of ink options above the rows.
  */
 export function RandomPattern({
+  lead,
   bars,
   silence,
   onChangeSilence,
   currentBar,
   currentBeat,
 }: {
+  /** The mode tabs, at the start of the practice line. */
+  lead: ReactNode;
   /** Each bar's beat weights as this pass plays them (0 = silent). */
   bars: readonly (readonly number[])[];
   silence: RandomSilence;
@@ -38,7 +41,8 @@ export function RandomPattern({
   const { t } = useTranslation();
   return (
     <View style={s.wrap}>
-      <View style={s.silenceLine}>
+      <PracticeLine lead={lead}>
+        <View style={s.silenceLine}>
         <Text style={s.silenceLabel}>{t("metronome.practice.silence")}</Text>
         {RANDOM_SILENCES.map((amount) => (
           <InkOption
@@ -49,7 +53,8 @@ export function RandomPattern({
             accessibilityLabel={t("metronome.practice.silenceA11y", { amount: t(SILENCE_LABEL_KEYS[amount]) })}
           />
         ))}
-      </View>
+        </View>
+      </PracticeLine>
       <View style={s.rows}>
         {bars.map((beats, barIndex) => (
           <View
@@ -82,6 +87,17 @@ export function RandomPattern({
   );
 }
 
+/** "Your pattern" as a mark: a little score of an accent, a click and a rest. */
+export function PatternModeGlyph({ color }: { color: string }) {
+  return (
+    <View style={s.modeGlyph}>
+      <View style={[s.modeAccent, { backgroundColor: color }]} />
+      <View style={[s.modeClick, { backgroundColor: color }]} />
+      <View style={[s.modeRest, { borderColor: color }]} />
+    </View>
+  );
+}
+
 /** A beat not yet heard: the same soft blur for every beat, three tonal rings. */
 export function Fog() {
   return (
@@ -107,12 +123,12 @@ const FOG = 20;
 
 const s = StyleSheet.create({
   wrap: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   silenceLine: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
     columnGap: spacing.md,
   },
   silenceLabel: {
@@ -166,6 +182,28 @@ const s = StyleSheet.create({
     height: ROW_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
+  },
+  modeGlyph: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    height: 20,
+  },
+  modeAccent: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.round,
+  },
+  modeClick: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: radii.round,
+  },
+  modeRest: {
+    width: 5,
+    height: 5,
+    borderRadius: radii.round,
+    borderWidth: 1.2,
   },
   fog: {
     width: FOG,

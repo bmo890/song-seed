@@ -38,6 +38,28 @@ export const styles = StyleSheet.create({
   tempoReadout: {
     alignItems: "center",
   },
+  // With Practice on (founder, 2026-11-17) the display steps back so the bars fit on one
+  // screen: no dots, the tempo a size down, the unit and the marking on one line.
+  displayCompact: {
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  bpmValueCompact: {
+    fontSize: 68,
+    lineHeight: 76,
+  },
+  compactLine: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+  },
+  bpmMarkingCompact: {
+    fontSize: 15,
+  },
+  // Your pattern · Random: two marks, not the width of the line.
+  modeTabs: {
+    width: 88,
+  },
   bpmUnit: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,

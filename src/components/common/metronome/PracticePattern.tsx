@@ -1,13 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Press } from "../Press";
 import { Stepper } from "../Stepper";
-import { InkKey, inkKeyColor } from "../InkKey";
+import { IconButton } from "../IconButton";
+import { AppAlert } from "../AppAlert";
 import { SegmentedControl } from "../SegmentedControl";
 import { colors, radii, spacing } from "../../../design/tokens";
-import type { MetronomeSubdivision } from "../../../domain/metronome";
+import { getMetronomeFeels, type MetronomeSubdivision } from "../../../domain/metronome";
 import {
   MAX_PRACTICE_BARS,
   beatTier,
@@ -32,13 +32,40 @@ const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
   4: "metronome.feel.sixteenths",
 };
 
+/** The Meter sheet's own note for a subdivision (its feels ♩ ♫ ♪³ ♬), so the two never differ. */
+function subdivisionGlyph(subdivision: MetronomeSubdivision): string {
+  const feel = getMetronomeFeels("4/4").find((candidate) => candidate.subdivision === subdivision && !candidate.grouping);
+  return feel?.glyph ?? "♩";
+}
+
+/**
+ * One line above the rows (founder, 2026-11-17: "lower the noise with icons"): the mode
+ * tabs the page hands in, a hairline, then what the mode needs. Every mark here is a
+ * glyph; the words live in the screen reader's labels.
+ */
+export function PracticeLine({ lead, children }: { lead: ReactNode; children?: ReactNode }) {
+  return (
+    <View style={s.line}>
+      {lead}
+      <View style={s.lineRule} />
+      {children}
+    </View>
+  );
+}
+
+/** A hairline between the sections of the practice line. */
+export function PracticeLineRule() {
+  return <View style={s.lineRule} />;
+}
+
 /**
  * The metronome page's practice pattern (founder, 2026-11-16, mockup v6): one row per bar,
  * at most four. In a row every beat and every sub-beat is its own switch — a beat cycles
  * accent → click → silent, a sub-beat sound → accent → silent — and the bar's number rests
- * the whole bar (a whole-rest sign; tapping again brings back what it held). The
- * subdivision is chosen right here as ink tabs. Sound all / Silence all are two fixed keys,
- * never one key that flips meaning.
+ * the whole bar (a whole-rest sign; tapping again brings back what it held). The practice
+ * line above the rows holds the subdivision as the Meter sheet's notes, − + for bars (+
+ * quiet at four), and "…" with Sound all / Silence all, each its own row, never one key
+ * that flips meaning (2026-11-17).
  */
 export type PracticePulse = { token: number; bar: number; beat: number; stepMs: number };
 
@@ -59,7 +86,10 @@ export function PracticePattern({
   currentBeat,
   pulse,
   onChange,
+  lead,
 }: {
+  /** The mode tabs, at the start of the practice line. */
+  lead: ReactNode;
   practice: MetronomePractice;
   /** The feel's own accents: what Sound all brings back. */
   baseBeats: readonly number[];
@@ -75,15 +105,62 @@ export function PracticePattern({
   const subdivisions = practiceSubdivisions(practice.meterId);
   const barCount = practice.bars.length;
 
+  // Sound all / Silence all: one "…", each still its own row (a single key that flipped
+  // between the two read as confusing, 2026-11-16).
+  const openMore = () =>
+    AppAlert.menu(t("metronome.practice.title"), [
+      {
+        key: "soundAll",
+        label: t("metronome.practice.soundAll"),
+        icon: "volume-medium-outline",
+        onPress: () => onChange(withAllSounding(practice, baseBeats)),
+      },
+      {
+        key: "silenceAll",
+        label: t("metronome.practice.silenceAll"),
+        icon: "volume-mute-outline",
+        onPress: () => onChange(withAllSilent(practice)),
+      },
+    ]);
+
   return (
     <View style={s.wrap}>
-      {subdivisions.length > 1 ? (
-        <SegmentedControl
-          options={subdivisions.map((sub) => ({ key: String(sub), label: t(SUBDIVISION_LABEL_KEYS[sub]) }))}
-          value={String(practice.subdivision)}
-          onChange={(key) => onChange(withSubdivision(practice, Number(key) as MetronomeSubdivision))}
+      <PracticeLine lead={lead}>
+        {subdivisions.length > 1 ? (
+          <View style={s.notes}>
+            <SegmentedControl
+              glyphOnly
+              bare
+              options={subdivisions.map((sub) => ({
+                key: String(sub),
+                label: t(SUBDIVISION_LABEL_KEYS[sub]),
+                glyph: subdivisionGlyph(sub),
+              }))}
+              value={String(practice.subdivision)}
+              onChange={(key) => onChange(withSubdivision(practice, Number(key) as MetronomeSubdivision))}
+            />
+          </View>
+        ) : (
+          <View style={s.grow} />
+        )}
+        <PracticeLineRule />
+        {/* Bars: − + right on the line, + quiet at four (founder, 2026-11-17). */}
+        <Stepper
+          glyphs="plusMinus"
+          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
+          canDecrement={barCount > 1}
+          canIncrement={barCount < MAX_PRACTICE_BARS}
+          decrementLabel={t("metronome.practice.removeBar")}
+          incrementLabel={t("metronome.practice.addBar")}
         />
-      ) : null}
+        <IconButton
+          icon="ellipsis-horizontal"
+          tone="strong"
+          size={20}
+          onPress={openMore}
+          accessibilityLabel={t("common.more")}
+        />
+      </PracticeLine>
 
       <View style={s.rows}>
         {practice.bars.map((bar, barIndex) => (
@@ -100,33 +177,6 @@ export function PracticePattern({
             onTapSub={(pulse, position) => onChange(withSubCycled(practice, barIndex, pulse, position))}
           />
         ))}
-      </View>
-
-      {/* One line under the rows: the bar count (a new bar appears just above it), then
-          Sound all / Silence all, two fixed keys. Wraps on a narrow phone. */}
-      <View style={s.foot}>
-        <Stepper
-          glyphs="plusMinus"
-          onStep={(direction) => onChange(direction > 0 ? withBarAdded(practice) : withBarRemoved(practice))}
-          canDecrement={barCount > 1}
-          canIncrement={barCount < MAX_PRACTICE_BARS}
-          decrementLabel={t("metronome.practice.removeBar")}
-          incrementLabel={t("metronome.practice.addBar")}
-        >
-          <Text style={s.barCount}>{t("metronome.practice.bars", { count: barCount })}</Text>
-        </Stepper>
-        <View style={s.footKeys}>
-          <InkKey
-            glyph={<Ionicons name="volume-medium-outline" size={17} color={inkKeyColor("idle")} />}
-            label={t("metronome.practice.soundAll")}
-            onPress={() => onChange(withAllSounding(practice, baseBeats))}
-          />
-          <InkKey
-            glyph={<Ionicons name="volume-mute-outline" size={17} color={inkKeyColor("idle")} />}
-            label={t("metronome.practice.silenceAll")}
-            onPress={() => onChange(withAllSilent(practice))}
-          />
-        </View>
       </View>
     </View>
   );
@@ -281,15 +331,28 @@ const SWELL = 1.38;
 
 const s = StyleSheet.create({
   wrap: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  barCount: {
-    minWidth: 52,
-    textAlign: "center",
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_500Medium",
-    color: colors.textStrong,
-    fontVariant: ["tabular-nums"],
+  // The practice line sits on one hairline; its tabs draw their rule onto it.
+  line: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+    gap: spacing.xs,
+  },
+  lineRule: {
+    width: StyleSheet.hairlineWidth,
+    height: 20,
+    backgroundColor: colors.borderMuted,
+    marginHorizontal: spacing.xs,
+  },
+  notes: {
+    flex: 1,
+  },
+  grow: {
+    flex: 1,
   },
   rows: {
     gap: 2,
@@ -418,17 +481,5 @@ const s = StyleSheet.create({
     width: 12,
     height: 6,
     backgroundColor: colors.textSecondary,
-  },
-  foot: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    rowGap: spacing.xs,
-  },
-  footKeys: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
   },
 });
