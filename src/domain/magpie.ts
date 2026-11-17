@@ -74,6 +74,8 @@ export function rangeHeaders(start: number, end: number): Record<string, string>
 async function probeTotalBytes(url: string): Promise<number | null> {
   // Headers only — the two-byte body is never read.
   const res = await safeFetch(url, { headers: rangeHeaders(0, 1) }, async (r) => r);
+  // An error page's length is not the book's.
+  if (!res.ok) return null;
   const contentRange = res.headers.get("content-range");
   if (contentRange) {
     const match = contentRange.match(/\/(\d+)\s*$/);
@@ -117,12 +119,34 @@ export function cleanPassage(raw: string): string {
     .trim();
 }
 
-/** Fetches a fresh page from a specific book. Throws MagpieFetchError. */
+/** Project Gutenberg's own mirror, same paths and Range support. gutenberg.org
+ *  went down for a day of maintenance (2026-11-17) and every English, Spanish,
+ *  German and Portuguese page failed; a draw that fails there tries here. */
+const GUTENBERG_HOST = "https://www.gutenberg.org/";
+const GUTENBERG_MIRROR_HOST = "https://gutenberg.pglaf.org/";
+
+export function gutenbergMirrorUrl(url: string): string | null {
+  return url.startsWith(GUTENBERG_HOST) ? GUTENBERG_MIRROR_HOST + url.slice(GUTENBERG_HOST.length) : null;
+}
+
+/** Fetches a fresh page from a specific book, from Gutenberg or, failing that,
+ *  its mirror. Throws MagpieFetchError. */
 export async function fetchPassage(book: MagpieBook): Promise<string> {
-  const size = await probeTotalBytes(book.textUrl);
+  try {
+    return await fetchPassageFrom(book.textUrl);
+  } catch (error) {
+    const mirror = gutenbergMirrorUrl(book.textUrl);
+    // A blank page is the book's, not the server's: the mirror holds the same text.
+    if (!mirror || (error instanceof MagpieFetchError && error.kind === "empty")) throw error;
+    return fetchPassageFrom(mirror);
+  }
+}
+
+async function fetchPassageFrom(textUrl: string): Promise<string> {
+  const size = await probeTotalBytes(textUrl);
   if (!size) throw new MagpieFetchError("unavailable", "That book wouldn't open.");
   const { start, end } = pickWindow(size);
-  const res = await safeFetch(book.textUrl, { headers: rangeHeaders(start, end) }, async (r) => ({
+  const res = await safeFetch(textUrl, { headers: rangeHeaders(start, end) }, async (r) => ({
     ok: r.ok,
     status: r.status,
     body: r.ok ? await r.text() : "",

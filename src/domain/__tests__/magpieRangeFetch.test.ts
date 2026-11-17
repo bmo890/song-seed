@@ -63,3 +63,26 @@ test("a server that ignores the range still yields one page, not the whole book"
   expect(page.length).toBeGreaterThan(0);
   expect(page.length).toBeLessThan(4000);
 });
+
+test("a page Gutenberg can't serve comes from its mirror", async () => {
+  // 2026-11-17: gutenberg.org answered every read with a 503 maintenance page.
+  const lines = Array.from({ length: 40 }, (_, i) => `line ${i} of the river and the lamps`).join("\n");
+  const urls: string[] = [];
+  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    urls.push(url);
+    if (url.startsWith("https://www.gutenberg.org/")) {
+      return response(503, "<html>Temporarily Down for Maintenance</html>", { "content-length": "725" });
+    }
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    if (headers.Range === "bytes=0-1") return response(206, "ab", { "content-range": "bytes 0-1/100000" });
+    return response(206, lines, {});
+  }) as unknown as typeof fetch;
+
+  const page = await fetchPassage(book);
+  expect(page).toContain("river");
+  expect(urls).toEqual([
+    "https://www.gutenberg.org/cache/epub/203/pg203.txt",
+    "https://gutenberg.pglaf.org/cache/epub/203/pg203.txt",
+    "https://gutenberg.pglaf.org/cache/epub/203/pg203.txt",
+  ]);
+});
