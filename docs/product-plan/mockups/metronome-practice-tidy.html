@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Practice Page, Tidied</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* SongNook tokens (src/design/tokens.ts). The app is light-only, so the mockup is too. */
+:root{--page:#FDFBF7;--ink:#1b1c1a;--strong:#524440;--sec:#84736f;--muted:#a89994;--pri:#B87D6B;--deep:#824F3F;--wash:#F2E4DF;--hair:#E8E4DF;--ring:#D7C2BD;--high:#EDE9E4;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#EFEBE6;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);padding:28px 16px 48px}
+h1{font:600 24px Lora,serif;text-align:center;margin:0 0 6px;text-wrap:balance}
+.lede{font-size:14px;color:var(--sec);text-align:center;margin:0 auto 28px;max-width:60ch;line-height:1.5}
+.wrap{display:flex;flex-wrap:wrap;gap:40px;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px}
+.cap{font:600 13px 'Plus Jakarta Sans';letter-spacing:1.2px;text-transform:uppercase;color:var(--sec)}
+.capsub{font-size:13px;color:var(--sec);margin-top:-8px;text-align:center;max-width:330px;line-height:1.45}
+/* A real 390 × 844 pt screen inside the bezel: if it fits here, it fits on the phone. */
+.ph{width:406px;height:860px;border-radius:52px;border:8px solid #2b2624;background:var(--page);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.status{height:47px;flex:none}
+.home{height:34px;flex:none}
+.hdr{display:flex;justify-content:space-between;align-items:center;height:52px;padding:0 18px;color:var(--strong);flex:none}
+.title{font:600 21px Lora,serif;color:var(--ink)}
+.body{flex:1;display:flex;flex-direction:column;padding:0 20px;min-height:0}
+.display{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:96px}
+.bpm{font:500 72px/1 Lora,serif;font-variant-numeric:tabular-nums}
+.sub{display:flex;gap:8px;align-items:baseline;margin-top:6px}
+.unit{font:600 10px 'Plus Jakarta Sans';letter-spacing:2px;color:var(--sec)}
+.mark{font:italic 400 15px Lora,serif;color:var(--sec)}
+.prow{border-top:.5px solid var(--hair);border-bottom:.5px solid var(--hair);display:flex;align-items:center;height:48px;gap:12px;font-size:15px;flex:none}
+.sw{width:42px;height:24px;border-radius:12px;background:var(--pri);position:relative}.sw::after{content:"";position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+/* One control line: the two modes as glyph tabs, a hairline, then what the mode needs. */
+.ctl{display:flex;align-items:center;height:46px;border-bottom:.5px solid var(--hair);flex:none;gap:2px}
+.gt{background:none;border:0;padding:0;height:46px;min-width:38px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;position:relative;font:500 18px 'Plus Jakarta Sans'}
+.gt.on{color:var(--ink)}
+.gt.on::after{content:"";position:absolute;left:8px;right:8px;bottom:-.5px;height:2px;background:var(--ink);border-radius:1px}
+.note{font:400 24px/1 system-ui,'Apple Symbols','Segoe UI Symbol',serif}
+.note sup{font-size:10px;font-family:'Plus Jakarta Sans';font-weight:600;margin-left:1px}
+.vr{width:.5px;height:20px;background:var(--ring);margin:0 8px}
+.grow{flex:1}
+.more{color:var(--strong)}
+.opts{display:flex;align-items:center;gap:12px;font-size:13px}
+.opt{background:none;border:0;padding:4px 0;font:500 13px 'Plus Jakarta Sans';color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.opt i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--ring);display:inline-block}
+.opt.on{color:var(--ink)}.opt.on i{background:var(--pri);border-color:var(--pri)}
+.rows{padding-top:6px;flex:none}
+.row{display:flex;align-items:center;height:44px;border-radius:8px;position:relative;margin-bottom:2px}
+.row.cur{background:var(--wash)}
+.num{width:30px;text-align:center;font:700 12px 'Plus Jakarta Sans';color:var(--sec);font-variant-numeric:tabular-nums}
+.cells{flex:1;display:flex;align-items:center;height:44px;position:relative;padding-right:4px}
+.staff{position:absolute;left:0;right:4px;top:22px;height:.5px;background:var(--hair)}
+.cell{flex:1;display:flex;align-items:center;height:44px}
+.hit{flex:1;display:flex;align-items:center;justify-content:center;height:44px;cursor:pointer;position:relative}
+.d{border-radius:50%;display:block;transition:transform .12s}
+.acc{width:18px;height:18px;background:var(--deep)}
+.clk{width:11px;height:11px;background:var(--strong)}
+.rst{width:11px;height:11px;border:1.5px solid var(--ring);background:var(--page)}
+.tk{width:3px;height:11px;border-radius:2px;background:var(--sec);display:block}
+.tk.a{width:3.5px;height:18px;background:var(--deep)}
+.tk.o{height:4px;background:var(--ring)}
+.fog{width:20px;height:20px;position:relative;display:block}
+.fog b{position:absolute;border-radius:50%;background:var(--ring);left:50%;top:50%;transform:translate(-50%,-50%)}
+/* The way to a new bar is where a bar would go: a quiet + in the number column. */
+.addrow{display:flex;align-items:center;height:34px}
+.add{width:30px;height:34px;background:none;border:0;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.addhint{font-size:12px;color:var(--muted)}
+.deck{flex:none;padding:10px 4px 6px}
+.tempo{display:flex;align-items:center;gap:14px;color:var(--strong);height:44px}
+.track{flex:1;height:4px;border-radius:2px;background:#e3d7d2;position:relative}
+.track b{display:block;width:32%;height:4px;border-radius:2px;background:var(--pri)}
+.track u{position:absolute;left:32%;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:#fff;border:.5px solid #d8ccc7}
+.trans{display:flex;align-items:center;justify-content:space-between;padding:6px 28px 0;font-size:14px;color:var(--strong)}
+.play{width:68px;height:68px;border-radius:50%;background:var(--deep);border:0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* The "…" popover: rows on paper, glyph + word. */
+.pop{position:absolute;right:16px;width:210px;background:var(--white);border-radius:12px;box-shadow:0 6px 24px rgba(43,38,36,.08);padding:4px 0;display:none;z-index:5}
+.pop.open{display:block}
+.pr{display:flex;align-items:center;gap:12px;padding:0 16px;height:44px;font-size:15px;color:var(--ink);cursor:pointer;background:none;border:0;width:100%;text-align:left;font-family:'Plus Jakarta Sans'}
+.pr+.pr{border-top:.5px solid var(--hair)}
+.pr svg{color:var(--strong)}
+.fit{font-size:12px;color:var(--sec);text-align:center}
+.fit b{color:var(--deep);font-weight:600}
+.notes{max-width:62ch;margin:40px auto 0;font-size:14px;line-height:1.6;color:var(--strong)}
+.notes h2{font:600 18px Lora,serif;color:var(--ink);margin:0 0 8px}
+.notes ul{padding-left:18px;margin:0}
+.notes li{margin-bottom:6px}
+button:focus-visible{outline:2px solid var(--pri);outline-offset:2px;border-radius:6px}
+svg{display:block}
+</style>
+</head>
+<body>
+<h1>The practice page, tidied</h1>
+<p class="lede">Real phone size (390 × 844 pt, the smaller iPhone). Both play. Tap the dots, the notes, the + and the "…". Four bars of eighths fit with no scrolling, and the tempo stays in view.</p>
+<div class="wrap" id="wrap"></div>
+
+<div class="notes">
+<h2>What changed</h2>
+<ul>
+<li><b>Display:</b> with Practice on, the four dots go (the bars show where you are). The number shrinks a little, and "BPM · Moderato" sits on one line beneath it.</li>
+<li><b>One control line:</b> Your pattern and Random become two icons (a pattern of dots, a shuffle). Sixteenths, triplets and so on become the Meter sheet's own note glyphs. That's two rows of words turned into one quiet row.</li>
+<li><b>Bars:</b> a quiet + sits where the next bar would appear. Removing a bar lives in "…".</li>
+<li><b>Sound all / Silence all:</b> both move into the one "…" button. You once found a single key that flips between the two confusing, so each keeps its own clear row in the menu.</li>
+<li><b>Random:</b> the same line carries the mode icons, then Few · Some · Many.</li>
+</ul>
+</div>
+
+<script>
+const I={
+ menu:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+ sliders:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="#FDFBF7"/><circle cx="15" cy="12" r="2" fill="#FDFBF7"/><circle cx="8" cy="17" r="2" fill="#FDFBF7"/></svg>',
+ repeat:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#524440" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V9a3 3 0 0 1 3-3h13l-3-3M20 13v2a3 3 0 0 1-3 3H4l3 3"/></svg>',
+ help:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a89994" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4"/><circle cx="12" cy="17" r=".6" fill="#a89994"/></svg>',
+ // Your pattern: a little score of dots — big, small, ring.
+ pattern:'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="3"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+ shuffle:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3.5c2 0 3.2 1 4.3 2.6l2.4 3.8c1.1 1.6 2.3 2.6 4.3 2.6H21M3 17h3.5c1.4 0 2.4-.5 3.3-1.4M14.2 8.4c.9-.9 1.9-1.4 3.3-1.4H21M18.5 4.5 21 7l-2.5 2.5M18.5 14.5 21 17l-2.5 2.5"/></svg>',
+ more:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
+ plus:'<svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>',
+ minus:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14"/></svg>',
+ plusB:'<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>',
+ vol:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
+ mute:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+ rmbar:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3.5" y="7" width="17" height="10" rx="2"/><path d="M9 12h6"/></svg>',
+ hand:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-8a1.5 1.5 0 0 1 3 0V12M14 5.5a1.5 1.5 0 0 1 3 0V12M17 7.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-2.7L4.3 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>',
+ grid:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/></svg>',
+ play:'<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.6A1 1 0 0 0 8 5.5z"/></svg>',
+ stop:'<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+};
+const NOTES=[[1,'♩','Beats'],[2,'♫','Eighths'],[3,'♪<sup>3</sup>','Triplets'],[4,'♬','Sixteenths']];
+const BPM=119,BEATS=4,SUB_ON=.18,SUB_ACC=.62;
+let ac=null;
+function audio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==='suspended')ac.resume()}
+function click(w,bright){if(!ac||w<=0)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=bright?1960:1560;g.gain.setValueAtTime(.12+w*.3,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.045);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+.05)}
+const beatTier=w=>w<=0?'rst':w>=.65?'acc':'clk';
+const subTier=w=>w<=0?'o':w>SUB_ON+.05?'a':'';
+const cycleBeat=w=>w>=.65?.44:w>0?0:1;
+const cycleSub=w=>w<=0?SUB_ON:w>SUB_ON+.05?0:SUB_ACC;
+
+function phone(mode0,cap,sub){
+  const col=document.createElement('div');col.className='col';
+  const s={mode:mode0,div:2,silence:'some',bars:[
+    {b:[.44,0,0,1],s:[[SUB_ACC,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON]]},
+    {b:[.44,0,0,1],s:[[SUB_ACC,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON]]},
+    {b:[.44,1,0,1],s:[[SUB_ACC,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON]]},
+    {b:[.44,1,0,1],s:[[SUB_ACC,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON],[SUB_ON,SUB_ON,SUB_ON]]}],
+    rnd:[],playing:false,pos:-1,timer:null,menu:false};
+  col.innerHTML=`<div class="cap">${cap}</div><div class="capsub">${sub}</div><div class="ph"></div><div class="fit"></div>`;
+  const ph=col.querySelector('.ph'),fit=col.querySelector('.fit');
+  const share={few:.15,some:.3,many:.5};
+  function rollBar(){return Array.from({length:BEATS},(_,i)=>(i===0&&s.silence!=='many')||Math.random()>=share[s.silence]?(i===0?1:.44):0)}
+  function ensureRnd(n){while(s.rnd.length<n)s.rnd.push(rollBar())}
+  function render(){
+    const steps=BEATS, abs=s.pos, curBar=abs<0?-1:Math.floor(abs/BEATS), curBeat=abs<0?-1:abs%BEATS;
+    const nb=s.mode==='pattern'?s.bars.length:4, pass=curBar<0?0:Math.floor(curBar/nb), barInPass=curBar<0?-1:curBar%nb;
+    let rows='';
+    if(s.mode==='pattern'){
+      rows=s.bars.map((bar,bi)=>`<div class="row${s.playing&&bi===barInPass?' cur':''}"><span class="num">${bi+1}</span><div class="cells"><span class="staff"></span>${bar.b.map((w,p)=>`<div class="cell"><span class="hit" data-b="${bi}" data-p="${p}"><span class="d ${beatTier(w)}"></span></span>${Array.from({length:s.div-1},(_,k)=>`<span class="hit" data-b="${bi}" data-p="${p}" data-k="${k}"><span class="tk ${subTier(bar.s[p][k])}"></span></span>`).join('')}</div>`).join('')}</div></div>`).join('');
+      if(s.bars.length<4)rows+=`<div class="addrow"><button class="add" aria-label="Add a bar">${I.plus}</button></div>`;
+    }else{
+      ensureRnd((pass+1)*4);
+      rows=[0,1,2,3].map(bi=>{const bar=s.rnd[pass*4+bi];return `<div class="row${s.playing&&bi===barInPass?' cur':''}"><span class="num">${bi+1}</span><div class="cells"><span class="staff"></span>${bar.map((w,p)=>{const heard=s.playing&&(bi<barInPass||(bi===barInPass&&p<=curBeat));return `<div class="cell"><span class="hit">${heard?`<span class="d ${beatTier(w)}"></span>`:'<span class="fog"><b style="width:20px;height:20px;opacity:.22"></b><b style="width:14px;height:14px;opacity:.32"></b><b style="width:8px;height:8px;opacity:.45"></b></span>'}</span></div>`}).join('')}</div></div>`}).join('');
+    }
+    const right=s.mode==='pattern'
+      ? NOTES.map(([d,g,l])=>`<button class="gt note${s.div===d?' on':''}" data-div="${d}" aria-label="${l}" title="${l}">${g}</button>`).join('')+`<span class="grow"></span><button class="gt more" aria-label="More">${I.more}</button>`
+      : `<span class="opts">${['few','some','many'].map(a=>`<button class="opt${s.silence===a?' on':''}" data-sil="${a}"><i></i>${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}</span>`;
+    ph.innerHTML=`<div class="status"></div>
+      <div class="hdr">${I.menu}<span class="title">Metronome</span>${I.sliders}</div>
+      <div class="body">
+        <div class="display"><div class="bpm">${BPM}</div><div class="sub"><span class="unit">BPM</span><span class="mark">Moderato</span></div></div>
+        <div class="prow">${I.repeat}<span style="flex:1">Practice pattern</span>${I.help}<span class="sw"></span></div>
+        <div class="ctl">
+          <button class="gt${s.mode==='pattern'?' on':''}" data-mode="pattern" aria-label="Your pattern" title="Your pattern">${I.pattern}</button>
+          <button class="gt${s.mode==='random'?' on':''}" data-mode="random" aria-label="Random" title="Random">${I.shuffle}</button>
+          <span class="vr"></span>${right}
+        </div>
+        <div class="rows">${rows}</div>
+        <div class="deck">
+          <div class="tempo">${I.minus}<div class="track"><b></b><u></u></div>${I.plusB}</div>
+          <div class="trans"><span style="display:flex;gap:6px;align-items:center">${I.hand}Tap</span><button class="play" aria-label="${s.playing?'Stop':'Play'}">${s.playing?I.stop:I.play}</button><span style="display:flex;gap:6px;align-items:center">${I.grid}4/4</span></div>
+        </div>
+      </div>
+      <div class="home"></div>
+      <div class="pop${s.menu?' open':''}" style="top:var(--poptop)">
+        <button class="pr" data-act="sound">${I.vol}Sound all</button>
+        <button class="pr" data-act="silence">${I.mute}Silence all</button>
+        <button class="pr" data-act="remove"${s.bars.length<2?' disabled style="opacity:.4"':''}>${I.rmbar}Remove a bar</button>
+      </div>`;
+    const ctl=ph.querySelector('.ctl');ph.style.setProperty('--poptop',(ctl.offsetTop+ctl.offsetHeight+4)+'px');
+    const body=ph.querySelector('.body'),over=body.scrollHeight>body.clientHeight+1;
+    fit.innerHTML=over?'<b>Scrolls</b>':'Fits on one screen, no scroll';
+    wire();
+  }
+  function wire(){
+    ph.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{s.mode=b.dataset.mode;s.menu=false;render()});
+    ph.querySelectorAll('[data-div]').forEach(b=>b.onclick=()=>{s.div=+b.dataset.div;render()});
+    ph.querySelectorAll('[data-sil]').forEach(b=>b.onclick=()=>{s.silence=b.dataset.sil;const keep=s.pos<0?0:Math.floor(s.pos/BEATS)+1;s.rnd=s.rnd.slice(0,keep);render()});
+    ph.querySelectorAll('.hit[data-b]').forEach(h=>h.onclick=()=>{const bar=s.bars[+h.dataset.b],p=+h.dataset.p;if(h.dataset.k!==undefined){const k=+h.dataset.k;bar.s[p][k]=cycleSub(bar.s[p][k])}else bar.b[p]=cycleBeat(bar.b[p]);render()});
+    const add=ph.querySelector('.add');if(add)add.onclick=()=>{const last=s.bars[s.bars.length-1];s.bars.push({b:[...last.b],s:last.s.map(r=>[...r])});render()};
+    const more=ph.querySelector('.more');if(more)more.onclick=()=>{s.menu=!s.menu;render()};
+    ph.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{const a=b.dataset.act;
+      if(a==='sound')s.bars.forEach(bar=>{bar.b=[1,.44,.72,.44];bar.s=bar.b.map(()=>[SUB_ON,SUB_ON,SUB_ON])});
+      if(a==='silence')s.bars.forEach(bar=>{bar.b=bar.b.map(()=>0);bar.s=bar.b.map(()=>[0,0,0])});
+      if(a==='remove'&&s.bars.length>1)s.bars.pop();
+      s.menu=false;render()});
+    ph.querySelector('.play').onclick=()=>{audio();s.playing=!s.playing;s.menu=false;
+      if(s.playing){s.pos=-1;s.rnd=[];tick();s.timer=setInterval(tick,60000/BPM/ (s.mode==='pattern'?1:1))}else{clearInterval(s.timer);s.pos=-1;render()}};
+  }
+  // One pulse per beat; sub-beats are scheduled inside it.
+  function tick(){
+    s.pos++;const beatMs=60000/BPM;
+    if(s.mode==='pattern'){
+      const n=s.pos%(s.bars.length*BEATS),bar=s.bars[Math.floor(n/BEATS)],p=n%BEATS,w=bar.b[p];
+      click(w,w>=.6);
+      for(let k=1;k<s.div;k++){const sw=bar.s[p][k-1];setTimeout(()=>click(sw,sw>=.6),beatMs*k/s.div)}
+    }else{
+      ensureRnd(Math.floor(s.pos/BEATS)+2);const w=s.rnd[Math.floor(s.pos/BEATS)][s.pos%BEATS];click(w,s.pos%BEATS===0);
+    }
+    render();
+  }
+  render();
+  return col;
+}
+const wrap=document.getElementById('wrap');
+wrap.appendChild(phone('pattern','Your pattern','Four bars of eighths, on one screen. "…" holds Sound all, Silence all, Remove a bar.'));
+wrap.appendChild(phone('random','Random','Same line: the two mode icons, then how much goes silent.'));
+</script>
+</body>
+</html>
