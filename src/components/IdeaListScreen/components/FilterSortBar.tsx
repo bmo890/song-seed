@@ -38,6 +38,8 @@ type FilterSortBarProps = {
   /** Mutual-exclusivity with the overflow menu (see FilterSortControls). */
   closeSignal?: number;
   onMenuOpen?: () => void;
+  /** The active-filter line; its Show all stands in for the small × clear. */
+  footer?: ReactNode;
 };
 
 function getFilterIcon(filter: "all" | "clips" | "projects" | "bookmarked") {
@@ -83,6 +85,7 @@ export function FilterSortBar({
   controlsOverride,
   closeSignal,
   onMenuOpen,
+  footer,
 }: FilterSortBarProps) {
   const { t } = useTranslation();
   const ideasFilter = useStore((s) => s.ideasFilter);
@@ -148,7 +151,7 @@ export function FilterSortBar({
       filter={{
         active: hasActiveFilters,
         valueIcon: getFilterIcon(ideasFilter),
-        onClear: clearFilters,
+        onClear: footer ? undefined : clearFilters,
         renderMenu: ({ close }) => (
           <>
             {/* One kind at a time is a single choice: ink tabs. Bookmarked
@@ -265,6 +268,7 @@ export function FilterSortBar({
       controlsOverride={controlsOverride}
       closeSignal={closeSignal}
       onMenuOpen={onMenuOpen}
+      footer={footer}
     />
   );
 }

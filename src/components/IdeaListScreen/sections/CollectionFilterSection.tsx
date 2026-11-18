@@ -88,6 +88,8 @@ export function CollectionFilterSection() {
       onShowAll={() => {
         if (screen.collectionId) store.showAllHidden(screen.collectionId);
       }}
+      filterSummary={screen.filterSummary}
+      onClearFilters={screen.clearFilters}
       filterSortCloseSignal={screen.filterSortCloseNonce}
       onFilterSortMenuOpen={screen.closeHeaderMenu}
     />

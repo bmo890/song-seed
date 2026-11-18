@@ -85,6 +85,17 @@ export function collectManagedLibraryFilePathsFromWorkspaces(workspaces: Workspa
     return paths;
 }
 
+/** The recordings a library file can be (2026-11-18): the integrity check and
+ *  orphan recovery count only these, so a clip's `.waveform` sidecar, which sits
+ *  beside its audio, is never reported as a lost recording. */
+const LIBRARY_AUDIO_EXTENSIONS = new Set(["m4a", "mp3", "wav", "aac", "ogg", "flac", "mp4"]);
+
+export function isLibraryAudioFile(uri: string): boolean {
+    const name = uri.split("/").pop() ?? "";
+    const dot = name.lastIndexOf(".");
+    return dot > 0 && LIBRARY_AUDIO_EXTENSIONS.has(name.slice(dot + 1).toLowerCase());
+}
+
 export async function listFilesRecursively(rootUri: string): Promise<string[]> {
     const rootInfo = await FileSystem.getInfoAsync(rootUri);
     if (!rootInfo.exists) return [];

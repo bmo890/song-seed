@@ -10,7 +10,7 @@ import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { createHiddenDayMatcher } from "../../../domain/hiddenDayGroups";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
-import { collectClipIdeaTagsInUse, ideaMatchesTagFilter } from "../../../domain/ideaTags";
+import { collectClipIdeaTagsInUse, ideaMatchesTagFilter, UNTAGGED_FILTER_KEY } from "../../../domain/ideaTags";
 import { computeIdeaSearchMeta } from "../ideaSearchMeta";
 import {
   goBackFromParentStack,
@@ -27,6 +27,7 @@ import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 import { useTranslation } from "react-i18next";
 import type { IdeaSort } from "../../../types";
+import { getTagLabel } from "../../IdeaDetailScreen/songClipControls";
 import { durations } from "../../../design/motion";
 
 export function useCollectionScreenModel() {
@@ -474,11 +475,70 @@ export function useCollectionScreenModel() {
 
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
   const visibleIdeasCount = listIdeas.filter((idea) => !hiddenIdeaIdsSet.has(idea.id)).length;
+
+  // The filter says so in words (founder, 2026-11-18: a sketches-only filter left
+  // on read as every clip gone). It is kept across collections and launches, so
+  // while any part is on the list wears a line naming it, with the count it
+  // leaves of the whole and a way back to everything.
+  const setIdeasFilter = useStore((s) => s.setIdeasFilter);
+  const setIdeasTagFilter = useStore((s) => s.setIdeasTagFilter);
+  const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
+  const filtersActive =
+    ideasFilter !== "all" || selectedProjectStages.length > 0 || lyricsFilterMode !== "all" || ideasTagFilter.length > 0;
+  const unfilteredIdeasCount = useMemo(
+    () =>
+      ideas.filter(
+        (idea) =>
+          !idea.isDraft &&
+          !(idea.id === recordingIdeaId && idea.clips.length === 0) &&
+          !hiddenIdeaIdsSet.has(idea.id)
+      ).length,
+    [ideas, recordingIdeaId, hiddenIdeaIdsSet]
+  );
+  const filterSummary = useMemo(() => {
+    if (!filtersActive) return null;
+    const parts: string[] = [];
+    if (ideasFilter === "clips") parts.push(t("filters.clips"));
+    else if (ideasFilter === "projects") parts.push(t("filters.songs"));
+    else if (ideasFilter === "bookmarked") parts.push(t("filters.bookmarked"));
+    if (selectedProjectStages.length > 0) parts.push(selectedProjectStages.map((stage) => t(`stages.${stage}`)).join(", "));
+    if (lyricsFilterMode !== "all") parts.push(t(lyricsFilterMode === "with" ? "filters.withLyrics" : "filters.withoutLyrics"));
+    if (ideasTagFilter.length > 0) {
+      parts.push(
+        ideasTagFilter
+          .map((key) =>
+            key === UNTAGGED_FILTER_KEY
+              ? t("filters.untagged")
+              : t(`clipTags.${key}`, { defaultValue: getTagLabel(key, undefined, globalCustomClipTags) })
+          )
+          .join(", ")
+      );
+    }
+    return { label: parts.join(" · "), shown: visibleIdeasCount, total: unfilteredIdeasCount };
+  }, [
+    filtersActive,
+    ideasFilter,
+    selectedProjectStages,
+    lyricsFilterMode,
+    ideasTagFilter,
+    globalCustomClipTags,
+    visibleIdeasCount,
+    unfilteredIdeasCount,
+    t,
+  ]);
+  const clearFilters = useCallback(() => {
+    setIdeasFilter("all");
+    setSelectedProjectStages([]);
+    setLyricsFilterMode("all");
+    setIdeasTagFilter([]);
+  }, [setIdeasFilter, setIdeasTagFilter]);
+
   const ideasHeaderMeta = [
     // Terminology (founder decision 2026-07-23): "idea" is the umbrella term for
     // collection list items — clips AND sketches with mixed media. "Clip" stays
-    // the object name for recorded fragments everywhere else.
-    t("common.ideaCount", { count: visibleIdeasCount }),
+    // the object name for recorded fragments everywhere else. A filter never
+    // shrinks the collection's own count; its line below the search says what shows.
+    t("common.ideaCount", { count: filtersActive ? unfilteredIdeasCount : visibleIdeasCount }),
     hasActivityRangeFilter ? t("common.activitySlice") : null,
   ].filter(Boolean).join("  •  ");
 
@@ -567,6 +627,8 @@ export function useCollectionScreenModel() {
     activeTimelineMetric,
     activeSortMetric,
     hasActivityRangeFilter,
+    filterSummary,
+    clearFilters,
     ideasHeaderMeta,
     duplicateWarningText,
     clipClipboard,

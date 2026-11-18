@@ -42,6 +42,8 @@ type FilterSortControlsProps = {
   /** Fired whenever a filter/sort popover opens — lets a parent close its own
    *  competing menu so only one is ever open. */
   onMenuOpen?: () => void;
+  /** A line under the row (the collection's active-filter line). */
+  footer?: ReactNode;
 };
 
 /**
@@ -58,6 +60,7 @@ export function FilterSortControls({
   controlsOverride,
   closeSignal,
   onMenuOpen,
+  footer,
 }: FilterSortControlsProps) {
   const { t } = useTranslation();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -141,6 +144,8 @@ export function FilterSortControls({
           </>
         )}
       </View>
+
+      {footer}
 
       {filter && filterMenuOpen ? (
         <Animated.View

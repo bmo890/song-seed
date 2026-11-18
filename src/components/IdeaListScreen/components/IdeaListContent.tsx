@@ -36,6 +36,8 @@ type IdeaListContentProps = {
   activeTimelineMetric: "created" | "updated" | null;
   activeSortMetric: IdeaSortMetric;
   lyricsFilterMode: "all" | "with" | "without";
+  filterActive?: boolean;
+  onClearFilters?: () => void;
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
@@ -77,6 +79,8 @@ function IdeaListContentInner(
     activeTimelineMetric,
     activeSortMetric,
     lyricsFilterMode,
+    filterActive,
+    onClearFilters,
     inlinePlayer,
     rowLayoutsRef,
     highlightMapRef,
@@ -268,6 +272,16 @@ function IdeaListContentInner(
               icon="search-outline"
               title={t("collection.noMatches")}
               body={t("collection.noMatchesBody")}
+              compact
+            />
+          ) : filterActive && onClearFilters ? (
+            // A filter that leaves nothing must never read as an empty collection.
+            <EmptyState
+              icon="funnel-outline"
+              title={t("collection.filterEmpty")}
+              body={t("collection.filterEmptyBody")}
+              actionLabel={t("collection.filterShowAll")}
+              onAction={onClearFilters}
               compact
             />
           ) : (

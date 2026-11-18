@@ -20,6 +20,7 @@ import { sanitizePersistedState, type PersistedAppStore } from "../state/useStor
 import {
     collectManagedAudioUrisFromWorkspaces,
     listFilesRecursively,
+    isLibraryAudioFile,
 } from "./managedMedia";
 
 /* ── Types ──────────────────────────────────────────────────────── */
@@ -257,13 +258,11 @@ export async function findOrphanedAudioFiles(
 
     const knownUris = collectManagedAudioUrisFromWorkspaces(workspaces);
 
-    const audioExtensions = new Set(["m4a", "mp3", "wav", "aac", "ogg", "flac", "mp4"]);
     const orphans: RecoveredClip[] = [];
 
     for (const fullUri of files) {
         const filename = fullUri.split("/").pop() || "";
-        const ext = filename.split(".").pop()?.toLowerCase();
-        if (!ext || !audioExtensions.has(ext)) continue;
+        if (!isLibraryAudioFile(fullUri)) continue;
 
         if (knownUris.has(fullUri)) continue;
 

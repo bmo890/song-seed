@@ -4,6 +4,7 @@ import type { Playlist, SongIdea, Workspace } from "../types";
 import { SONG_NOOK_AUDIO_DIR } from "./storagePaths";
 import {
     collectManagedAudioUrisFromWorkspaces,
+    isLibraryAudioFile,
     listFilesRecursively,
 } from "./managedMedia";
 
@@ -147,11 +148,14 @@ async function checkFiles(workspaces: Workspace[], issues: IntegrityIssue[]) {
     }
 
     // Orphan files: compare canonical full URIs recursively. Restores intentionally place
-    // media in token-scoped subdirectories, and basenames are not globally unique.
+    // media in token-scoped subdirectories, and basenames are not globally unique. Only
+    // recordings count, by the same rule Recover uses: every clip's `.waveform` sidecar
+    // lives in this folder too, and counting those reported a healthy library of 300
+    // clips as ~300 orphans while Recover found nothing (founder, 2026-11-18).
     try {
         const files = await listFilesRecursively(SONG_NOOK_AUDIO_DIR);
         for (const fileUri of files) {
-            if (!referenced.has(fileUri)) {
+            if (isLibraryAudioFile(fileUri) && !referenced.has(fileUri)) {
                 issues.push({ type: "orphan-file", path: fileUri });
             }
         }

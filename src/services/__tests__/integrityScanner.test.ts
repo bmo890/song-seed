@@ -156,6 +156,24 @@ describe("scanLibraryIntegrity", () => {
         });
         expect(report.issues).not.toContainEqual({ type: "orphan-file", path: restoredUri });
     });
+
+    it("never counts a clip's waveform sidecar as an orphaned recording", async () => {
+        // Founder, 2026-11-18: a healthy library reported ~300 orphans, one per
+        // clip's `.waveform` file, while Recover (audio only) found nothing.
+        const audio = "file:///doc/songnook/audio/clip-1.m4a";
+        const lost = "file:///doc/songnook/audio/lost.wav";
+        mockFiles.add(audio);
+        mockFiles.add(`${audio}.waveform`);
+        mockFiles.add(lost);
+        mockFiles.add(`${lost}.waveform`);
+        const ws = workspace([idea("idea-1", [clip("c1", { isPrimary: true, audioUri: audio })])]);
+
+        const report = await scanLibraryIntegrity([ws], []);
+
+        expect(report.issues.filter((issue) => issue.type === "orphan-file")).toEqual([
+            { type: "orphan-file", path: lost },
+        ]);
+    });
 });
 
 describe("summarizeIntegrityReport", () => {

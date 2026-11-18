@@ -69,6 +69,9 @@ export type CollectionListModel = {
   activeTimelineMetric: "created" | "updated" | null;
   activeSortMetric: IdeaSortMetric;
   lyricsFilterMode: "all" | "with" | "without";
+  /** A filter is on: an empty list says the filter hid it, not that it is gone. */
+  filterActive?: boolean;
+  onClearFilters?: () => void;
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
