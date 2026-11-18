@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   I18nManager,
   PanResponder,
@@ -96,6 +96,23 @@ function FeaturePane({
   const [sceneHeight, setSceneHeight] = useState(0);
   const room = windowHeight - FADE_HEIGHT - spacing.sm * 2;
   const scale = fit && room > 0 && sceneHeight > 0 ? Math.min(1, room / sceneHeight) : 1;
+  // The scene shows once it has measured, fitted and drawn: two frames after both
+  // heights are in. Shown at once, the practice scene drew at full size, then shrank,
+  // and its reel filled in a frame later (founder, 2026-11-18: "you can tell it's
+  // multiple components"). The pane's own fade covers the wait.
+  const measured = windowHeight > 0 && sceneHeight > 0;
+  const [sceneReady, setSceneReady] = useState(false);
+  useEffect(() => {
+    if (!measured || sceneReady) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setSceneReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [measured, sceneReady]);
   return (
     <View style={s.pane}>
       <View
@@ -114,7 +131,7 @@ function FeaturePane({
         >
           <View
             onLayout={(event) => setSceneHeight(event.nativeEvent.layout.height)}
-            style={scale < 1 ? [s.sceneFit, { transform: [{ scale }] }] : undefined}
+            style={[scale < 1 ? [s.sceneFit, { transform: [{ scale }] }] : null, sceneReady ? null : s.sceneWaiting]}
           >
             {scene}
           </View>
@@ -306,7 +323,17 @@ export function WelcomeFlow({ onDone, onRestore }: { onDone: () => void; onResto
       </View>
 
       <View style={s.paneArea} {...panResponder.panHandlers}>
-        <ReAnimated.View key={index} entering={collapseIn} exiting={collapseOut} style={s.paneFill}>
+        {/* The pane fades as one picture: on Android a fading view draws its cards'
+            shadows at full strength, a dark frame round every card for the length of
+            the fade (founder's recording, 2026-11-18). */}
+        <ReAnimated.View
+          key={index}
+          entering={collapseIn}
+          exiting={collapseOut}
+          style={s.paneFill}
+          needsOffscreenAlphaCompositing
+          renderToHardwareTextureAndroid
+        >
           {index === 0 ? (
             <CoverPane onRestore={onRestore} />
           ) : index === 1 ? (
@@ -446,6 +473,9 @@ const s = StyleSheet.create({
   // Shrinks from its top edge, so the scene keeps its place under the header.
   sceneFit: {
     transformOrigin: "top",
+  },
+  sceneWaiting: {
+    opacity: 0,
   },
   sceneFade: {
     position: "absolute",
