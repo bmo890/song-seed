@@ -203,3 +203,38 @@ export function randomCuratedBook(language: "en" | "es" | "de" | "pt" = "en"): M
   const shelf = CURATED_SHELVES[language];
   return toMagpieBook(shelf[Math.floor(Math.random() * shelf.length)]!);
 }
+
+/** Where a shelf stands (2026-11-18, founder: "shouldn't see the same ones over
+ *  and over"): the books handed out this round, and the last few handed out. */
+export type ShelfRotation = { round: string[]; recent: string[] };
+
+export const EMPTY_ROTATION: ShelfRotation = { round: [], recent: [] };
+
+/**
+ * The next book off a shelf, shuffle-bag style: every book once, in a random
+ * order, before any comes back; a new round starts clear of the last few, so a
+ * book never follows itself across the seam.
+ */
+export function nextShelfBook(
+  language: "en" | "es" | "de" | "pt",
+  rotation: ShelfRotation,
+  random: () => number = Math.random
+): { book: MagpieBook; rotation: ShelfRotation } {
+  const shelf = CURATED_SHELVES[language];
+  const ids = shelf.map((entry) => String(entry.id));
+  // The last few stay out even across a new round's first draws.
+  const guard = rotation.recent.slice(-Math.min(5, Math.floor(shelf.length / 3)));
+  // A book dropped from the shelf in an update no longer counts.
+  let round = rotation.round.filter((id) => ids.includes(id));
+  let eligible = shelf.filter((entry) => !round.includes(String(entry.id)) && !guard.includes(String(entry.id)));
+  if (eligible.length === 0) {
+    round = [];
+    eligible = shelf.filter((entry) => !guard.includes(String(entry.id)));
+  }
+  const entry = eligible[Math.floor(random() * eligible.length)]!;
+  const id = String(entry.id);
+  return {
+    book: toMagpieBook(entry),
+    rotation: { round: [...round, id], recent: [...rotation.recent.filter((r) => r !== id), id].slice(-8) },
+  };
+}

@@ -15,7 +15,6 @@ import { actionIcons } from "../../common/actionIcons";
 import {
   assembleDraft,
   deriveMagpieTitle,
-  drawPage,
   editFragmentText,
   MagpieFetchError,
   type MagpieFetchErrorKind,
@@ -31,6 +30,7 @@ import {
 import type { MagpieFragment, MagpieLanguage, MagpieStep } from "../../../types";
 import type { MagpieHeGenre } from "../../../config/magpieService";
 import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
+import { drawMagpiePage, warmMagpieStash } from "../../../services/magpieStash";
 import { restoreRemovedItem } from "../../../domain/undoPatch";
 import { useTranslation } from "react-i18next";
 
@@ -104,7 +104,7 @@ export function useMagpieScreenModel() {
           heGenres: overrides?.heGenres ?? heGenres,
           ...overrides,
         };
-        const { book, pageText } = await drawPage(effective, mode);
+        const { book, pageText } = await drawMagpiePage(effective, mode);
         if (seq !== requestSeq.current) return; // superseded by a newer draw
         apply({ book, pageText });
         setStatus({ loading: false, error: null });
@@ -127,6 +127,12 @@ export function useMagpieScreenModel() {
     autoLoadedRef.current = false;
     setStatus({ loading: false, error: null });
   }, [sparkId]);
+
+  // The pages kept ready for this spark's books start filling as it opens.
+  const sparkLanguage = spark?.language;
+  useEffect(() => {
+    if (sparkLanguage) warmMagpieStash({ language: sparkLanguage, book: null, heGenres });
+  }, [sparkLanguage, heGenres]);
 
   // First open (or a spark whose page never loaded): pull a page automatically.
   useEffect(() => {

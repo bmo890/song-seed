@@ -37,6 +37,7 @@ import { InkLink } from "../../common/InkLink";
 import { SparkFooter } from "../../common/SparkFrame";
 import { contentDirectionStyle, languageLabel, resolveContentDirection, UserText } from "../../../i18n";
 import { PopoverRadioRow } from "../../common/PopoverMenu";
+import { magpieCoverSources } from "../../../services/magpieStash";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -352,12 +353,20 @@ function initialsFor(name: string): string {
 
 function BookThumbnail({ book, small }: { book: MagpieBook | null; small?: boolean }) {
   const size = small ? styles.thumbSmall : styles.thumb;
-  // A cover that won't load (no scan for that id, offline) falls back to the
-  // initials tile rather than a blank grey square.
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  if (book?.thumbnailUrl && failedUrl !== book.thumbnailUrl) {
-    const uri = book.thumbnailUrl;
-    return <Image source={{ uri }} style={size} resizeMode="cover" onError={() => setFailedUrl(uri)} />;
+  // The cover saved on the phone first, then the library, then its mirror; one
+  // that won't load (no scan for that id, offline) falls back to the initials
+  // tile rather than a blank grey square.
+  const [failed, setFailed] = useState<readonly string[]>([]);
+  const uri = magpieCoverSources(book).find((source) => !failed.includes(source));
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={size}
+        resizeMode="cover"
+        onError={() => setFailed((list) => (list.includes(uri) ? list : [...list, uri]))}
+      />
+    );
   }
   const initials = initialsFor(book?.author || book?.title || "");
   return (

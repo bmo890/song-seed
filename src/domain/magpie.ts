@@ -89,13 +89,30 @@ async function probeTotalBytes(url: string): Promise<number | null> {
   return null;
 }
 
-/** Chooses a byte window in the middle band of a file of `size` bytes. */
-function pickWindow(size: number): { start: number; end: number } {
+/** Chooses a byte window in the middle band of a file of `size` bytes, clear of
+ *  the windows already shown from it (`seen`, their starts): a "New page" is a
+ *  page you haven't read (2026-11-18). When the band is read through, the window
+ *  farthest from every page shown. */
+export function pickWindow(
+  size: number,
+  seen: readonly number[] = [],
+  random: () => number = Math.random
+): { start: number; end: number } {
   if (size <= PAGE_BYTES) return { start: 0, end: Math.max(0, size - 1) };
   const lo = Math.floor(size * WINDOW_START_FRACTION);
   const hi = Math.max(lo + 1, Math.floor(size * WINDOW_END_FRACTION) - PAGE_BYTES);
-  const start = lo + Math.floor(Math.random() * (hi - lo));
-  return { start, end: start + PAGE_BYTES };
+  let best = lo;
+  let bestGap = -1;
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const start = lo + Math.floor(random() * (hi - lo));
+    const gap = seen.reduce((nearest, other) => Math.min(nearest, Math.abs(other - start)), Infinity);
+    if (gap >= PAGE_BYTES) return { start, end: start + PAGE_BYTES };
+    if (gap > bestGap) {
+      best = start;
+      bestGap = gap;
+    }
+  }
+  return { start: best, end: best + PAGE_BYTES };
 }
 
 const GUTENBERG_BOILERPLATE = /project gutenberg|gutenberg\.org|gutenberg-tm|\*\*\* ?(start|end) of/i;
@@ -132,20 +149,29 @@ export function gutenbergMirrorUrl(url: string): string | null {
 /** Fetches a fresh page from a specific book, from Gutenberg or, failing that,
  *  its mirror. Throws MagpieFetchError. */
 export async function fetchPassage(book: MagpieBook): Promise<string> {
+  return (await fetchBookWindow(book)).text;
+}
+
+/** A fresh page of a book away from the windows already shown (`seen`), with
+ *  where it starts so the next draw can stay clear of it. */
+export async function fetchBookWindow(
+  book: MagpieBook,
+  seen: readonly number[] = []
+): Promise<{ text: string; start: number }> {
   try {
-    return await fetchPassageFrom(book.textUrl);
+    return await fetchWindowFrom(book.textUrl, seen);
   } catch (error) {
     const mirror = gutenbergMirrorUrl(book.textUrl);
     // A blank page is the book's, not the server's: the mirror holds the same text.
     if (!mirror || (error instanceof MagpieFetchError && error.kind === "empty")) throw error;
-    return fetchPassageFrom(mirror);
+    return fetchWindowFrom(mirror, seen);
   }
 }
 
-async function fetchPassageFrom(textUrl: string): Promise<string> {
+async function fetchWindowFrom(textUrl: string, seen: readonly number[]): Promise<{ text: string; start: number }> {
   const size = await probeTotalBytes(textUrl);
   if (!size) throw new MagpieFetchError("unavailable", "That book wouldn't open.");
-  const { start, end } = pickWindow(size);
+  const { start, end } = pickWindow(size, seen);
   const res = await safeFetch(textUrl, { headers: rangeHeaders(start, end) }, async (r) => ({
     ok: r.ok,
     status: r.status,
@@ -160,10 +186,19 @@ async function fetchPassageFrom(textUrl: string): Promise<string> {
   const raw = res.status === 206 ? body : body.slice(start, end);
   const page = cleanPassage(raw);
   if (!page) throw new MagpieFetchError("empty", "That page came back blank.");
-  return page;
+  return { text: page, start };
 }
 
-export type MagpiePage = { book: MagpieBook; pageText: string };
+/** A drawn page; `start` is where a Gutenberg page's window began in its book. */
+export type MagpiePage = { book: MagpieBook; pageText: string; start?: number };
+
+/** How a draw stays fresh (services/magpieStash.ts): which book comes next off a
+ *  shelf, and the windows of a book already shown. Without them a draw is
+ *  plain random. */
+export type MagpieDrawMemory = {
+  nextBook?: (language: Exclude<MagpieLanguage, "he">) => MagpieBook;
+  seenWindows?: (book: MagpieBook) => readonly number[];
+};
 
 /** Draws the next page for a spark, dispatching by language, trimmed to one
  * page (`toOnePage`).
@@ -176,7 +211,8 @@ export type MagpiePage = { book: MagpieBook; pageText: string };
  *   so mode is irrelevant. */
 export async function drawPage(
   spark: Pick<MagpieSpark, "language" | "book"> & { heGenres?: MagpieHeGenre[] },
-  mode: "book" | "page"
+  mode: "book" | "page",
+  memory: MagpieDrawMemory = {}
 ): Promise<MagpiePage> {
   if (spark.language === "he") {
     const page = await fetchBenYehudaPage(spark.heGenres);
@@ -185,8 +221,11 @@ export async function drawPage(
   let book = spark.book;
   // A fresh book on an explicit reshuffle, when none exists yet, or when the
   // current book came from a different (Hebrew) source.
-  if (mode === "book" || !book || book.source === "benyehuda") book = randomCuratedBook(spark.language);
-  return { book, pageText: toOnePage(await fetchPassage(book)) };
+  if (mode === "book" || !book || book.source === "benyehuda") {
+    book = memory.nextBook ? memory.nextBook(spark.language) : randomCuratedBook(spark.language);
+  }
+  const { text, start } = await fetchBookWindow(book, memory.seenWindows?.(book) ?? []);
+  return { book, pageText: toOnePage(text), start };
 }
 
 // ── One page ─────────────────────────────────────────────────────────────────
