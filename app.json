@@ -3,7 +3,7 @@
     "name": "SongNook",
     "slug": "songnook",
     "owner": "bmostudio",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "scheme": "songnook",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
