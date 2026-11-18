@@ -38,17 +38,19 @@ export const styles = StyleSheet.create({
   tempoReadout: {
     alignItems: "center",
   },
-  // With Practice on (founder, 2026-11-17) the display steps back so the bars fit on one
-  // screen: no dots, the unit and the marking on one line; the tempo keeps its full size
-  // (the tools' own row made room for it).
+  // With Practice on the display steps back so four bars fit on one screen: no dots, and
+  // the tempo sized to the room (MetronomeScreenContent's practiceLine, 2026-11-18); the
+  // unit and the marking stay on lines of their own.
   displayCompact: {
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
+    gap: 0,
+    paddingVertical: 0,
   },
-  compactLine: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: spacing.sm,
+  readoutStack: {
+    alignItems: "center",
+    gap: 2,
+  },
+  pageContentPractice: {
+    paddingTop: spacing.xs,
   },
   bpmMarkingCompact: {
     fontSize: 15,

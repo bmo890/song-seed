@@ -125,8 +125,12 @@ export function MetronomeBeatBar({
     [dotAnims, hero]
   );
 
+  // A dot flashes for a beat, never for the place moving: Stop puts the place back on
+  // the one, and that used to flash it beside the last beat (2026-11-18, two dots lit).
+  const flashedTokenRef = useRef(pulseToken);
   useEffect(() => {
-    if (!active || pulseToken === 0) return;
+    if (!active || pulseToken === 0 || flashedTokenRef.current === pulseToken) return;
+    flashedTokenRef.current = pulseToken;
     const anim = dotAnims[liveBeat - 1];
     if (!anim || isSilentBeat(liveBeat)) return;
     anim.stopAnimation();
@@ -135,11 +139,13 @@ export function MetronomeBeatBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- isSilentBeat reads accentPattern
   }, [active, liveBeat, dotAnims, pulseToken]);
 
+  // Stopped, every dot settles back with a quick fade. Not stop + setValue(0): a native
+  // flash cut short reports its last value back after the reset, and the dot it was on
+  // stayed half lit (founder's Android, 2026-11-18). A new animation simply takes over.
   useEffect(() => {
     if (active) return;
     dotAnims.forEach((anim) => {
-      anim.stopAnimation();
-      anim.setValue(0);
+      Animated.timing(anim, { toValue: 0, duration: durations.fast, useNativeDriver: true }).start();
     });
   }, [active, dotAnims]);
 

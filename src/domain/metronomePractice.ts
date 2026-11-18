@@ -214,9 +214,10 @@ export const isRandomSilence = (value: unknown): value is RandomSilence =>
   RANDOM_SILENCES.includes(value as RandomSilence);
 
 /**
- * One bar of beats, each silenced at the share. The one keeps the feel's accent and every
- * other beat that sounds is a plain click: Random plays along a tempo map, where only the
- * one has the bright voice, so the page shows no accent it cannot sound (2026-11-17).
+ * One bar of beats, each silenced at the share. The one, when it sounds, is always an
+ * accent and every other beat that sounds is a plain click: Random keeps its accents to
+ * the one so the bar stays readable (founder, 2026-11-18; the map's voice agrees,
+ * 2026-11-17).
  */
 export function rollRandomBar(
   beatWeights: readonly number[],
@@ -226,17 +227,34 @@ export function rollRandomBar(
   const share = RANDOM_SILENCE_SHARE[silence];
   return beatWeights.map((weight, pulse) => {
     if (!((pulse === 0 && silence !== "many") || random() >= share)) return 0;
-    return pulse === 0 || weight <= 0 ? weight : METRONOME_PULSE_WEIGHTS.click;
+    if (pulse === 0) return Math.max(weight, METRONOME_PULSE_WEIGHTS.accent);
+    return weight <= 0 ? weight : METRONOME_PULSE_WEIGHTS.click;
   });
 }
 
+/**
+ * Bars for a run. `opensRun`: these are the run's first bars, and the first of them plays
+ * every beat of the feel (the one accented, the rest plain clicks) to set the meter
+ * before the silences start, whatever the amount (founder, 2026-11-18).
+ */
 export function rollRandomBars(
   beatWeights: readonly number[],
   silence: RandomSilence,
   count: number = MAX_PRACTICE_BARS,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  opts: { opensRun?: boolean } = {}
 ): number[][] {
-  return Array.from({ length: count }, () => rollRandomBar(beatWeights, silence, random));
+  const bars = Array.from({ length: count }, () => rollRandomBar(beatWeights, silence, random));
+  if (opts.opensRun && bars.length > 0) {
+    bars[0] = beatWeights.map((weight, pulse) =>
+      pulse === 0
+        ? Math.max(weight, METRONOME_PULSE_WEIGHTS.accent)
+        : weight <= 0
+          ? weight
+          : METRONOME_PULSE_WEIGHTS.click
+    );
+  }
+  return bars;
 }
 
 export function withSubdivision(practice: MetronomePractice, subdivision: MetronomeSubdivision): MetronomePractice {

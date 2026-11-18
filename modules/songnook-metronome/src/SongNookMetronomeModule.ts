@@ -56,6 +56,8 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
    *  (same meter, mid-run), the new loop rendered before the old stops. JS then skips its
    *  stop-and-restart (keepPlaceThroughTempoChange). */
   supportsTempoContinue?(): boolean;
+  /** Map runs buzz natively, skipping the map's silent beats (2026-11-18). */
+  supportsMapRestHaptics?(): boolean;
   /** Optional: start the click with the loop already `offsetMs` into the bar, so it
    *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
   startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;

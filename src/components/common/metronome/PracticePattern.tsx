@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { durations } from "../../../design/motion";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Press } from "../Press";
@@ -46,7 +47,7 @@ export function PracticeLine({ lead, children }: { lead: ReactNode; children?: R
   return (
     <View style={s.line}>
       {lead}
-      <View style={s.lineRule} />
+      {children ? <View style={s.lineRule} /> : null}
       {children}
     </View>
   );
@@ -200,9 +201,10 @@ function BarRow({
   useEffect(() => {
     if (!stepPulse) {
       // Stopped (or this bar no longer playing): every step rests at its size, never held
-      // mid-swell (2026-11-17: a stop left the beat it caught enlarged).
-      stepClock.stopAnimation();
-      stepClock.setValue(subdivision);
+      // mid-swell (2026-11-17: a stop left the beat it caught enlarged). Settled by a short
+      // animation, not stop + setValue: a native swell cut short reports its value back
+      // after a reset and held the dot half grown (Android, 2026-11-18).
+      Animated.timing(stepClock, { toValue: subdivision, duration: durations.fast, useNativeDriver: true }).start();
       return;
     }
     stepClock.stopAnimation();

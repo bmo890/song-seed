@@ -71,7 +71,7 @@ export function useMetronomeScreenModel() {
   // scheduled, so a bar is never changed once it can be heard.
   const barsAhead = Math.ceil(STREAM_SCHEDULE_PULSES / Math.max(1, ppbNow)) + 2;
   if (feelBeats && stream?.key !== streamKey) {
-    setStream({ key: streamKey, revision: 0, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS) });
+    setStream({ key: streamKey, revision: 0, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS, Math.random, { opensRun: true }) });
   }
   const liveStream = stream?.key === streamKey ? stream : null;
 
@@ -192,7 +192,7 @@ export function useMetronomeScreenModel() {
     if (!was || metronome.isRunning || !feelBeats) return;
     setStream((current) =>
       current
-        ? { ...current, revision: current.revision + 1, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS) }
+        ? { ...current, revision: current.revision + 1, bars: rollRandomBars(feelBeats, randomSilence, barsAhead + MAX_PRACTICE_BARS, Math.random, { opensRun: true }) }
         : current
     );
   }, [barsAhead, feelBeats, metronome.isRunning, randomSilence]);
@@ -208,7 +208,7 @@ export function useMetronomeScreenModel() {
         return {
           ...current,
           revision: current.revision + 1,
-          bars: [...current.bars.slice(0, keep), ...rollRandomBars(feelBeats, next, length - keep)],
+          bars: [...current.bars.slice(0, keep), ...rollRandomBars(feelBeats, next, length - keep, Math.random, { opensRun: keep === 0 })],
         };
       });
     },

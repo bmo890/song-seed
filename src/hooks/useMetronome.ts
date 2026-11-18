@@ -133,6 +133,7 @@ type MetronomeStartOptions = {
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
+
 export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null, stream = null }: UseMetronomeArgs = {}) {
   if (SongNookMetronomeModule) {
     return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse, practice, stream });
@@ -201,6 +202,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   // Binaries whose engines schedule haptics natively (no bridge at fire time). On older
   // binaries the JS event-driven fallback below keeps working.
   const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
+  // Random's map run buzzes natively on binaries that read its silent beats from the map
+  // (2026-11-18); older ones would buzz the silent beats, so JS keeps it there.
+  const nativeMapHaptics = nativeCuesSupported && !!SongNookMetronomeModule?.supportsMapRestHaptics?.();
   // Binaries whose engines render sub-clicks and the wood voice. Older ones ignore the
   // keys, so the controls are hidden there rather than lying.
   const supportsClickStyle = !!SongNookMetronomeModule?.supportsClickStyle?.();
@@ -291,6 +295,12 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     timer: ReturnType<typeof setTimeout> | null;
     active: boolean;
   }>({ token: 0, timer: null, active: false });
+  // When the visual pulse last flashed (epoch ms), by either clock. A re-anchor after a
+  // change (tempo, pattern) hands the pulse from the old scheduler to the beat events and
+  // back; this keeps a beat on the seam from flashing twice or not at all (2026-11-18,
+  // measured on the founder's Android: a flash dropped when the change met a beat).
+  const lastFlashAtRef = useRef(0);
+  const flashedRecently = (msPerPulse: number) => Date.now() - lastFlashAtRef.current < msPerPulse * 0.5;
 
   const stopVisualScheduler = useCallback(() => {
     const scheduler = visualSchedulerRef.current;
@@ -336,6 +346,28 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
     scheduler.active = true;
     let pulsesSinceAnchorRefresh = 0;
+    let flashesSinceStart = 0;
+
+    const flashGridPulse = (gridPulse: number, msPerPulse: number) => {
+      if (flashedRecently(msPerPulse)) return;
+      if (visualPulseRef.current && outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
+        lastFlashAtRef.current = Date.now();
+        setPulseIndex(gridPulse + runPulseOffsetRef.current);
+        setPulseToken((current) => current + 1);
+      }
+    };
+
+    // A beat that sounded while the anchor settled and that nothing flashed: flash it now,
+    // late by at most the settle, rather than skip it.
+    {
+      const msPerPulse = anchor.msPerPulse!;
+      const visualOffsetMs = routeLatencyProfileRef.current.visualLeadMs;
+      const lastPulse = Math.floor((Date.now() - anchor.anchorEpochMs! - visualOffsetMs) / msPerPulse);
+      const lastFireAt = anchor.anchorEpochMs! + lastPulse * msPerPulse + visualOffsetMs;
+      if (lastPulse >= 0 && Date.now() - lastFireAt < Math.min(160, msPerPulse * 0.4)) {
+        flashGridPulse(lastPulse, msPerPulse);
+      }
+    }
 
     const scheduleNext = () => {
       if (scheduler.token !== token) {
@@ -355,12 +387,13 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           if (scheduler.token !== token) {
             return;
           }
-          if (visualPulseRef.current && outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
-            setPulseIndex(gridPulse + runPulseOffsetRef.current);
-            setPulseToken((current) => current + 1);
-          }
+          flashGridPulse(gridPulse, msPerPulse);
           pulsesSinceAnchorRefresh += 1;
-          if (pulsesSinceAnchorRefresh >= (anchor!.pulsesPerBar ?? 4)) {
+          flashesSinceStart += 1;
+          // Every bar, and after each of the first beats too: the first anchor of a run is
+          // read while the audio is still starting, and its first bar flashed ~0.1 s late
+          // until the bar's refresh (measured on Android, 2026-11-18).
+          if (flashesSinceStart <= 2 || pulsesSinceAnchorRefresh >= (anchor!.pulsesPerBar ?? 4)) {
             pulsesSinceAnchorRefresh = 0;
             const refreshed = await fetchAnchor();
             if (scheduler.token !== token) {
@@ -458,7 +491,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     const activeOutputs = outputsRef.current;
     // The anchor-aligned scheduler owns the pulse when it's running; event-driven pulses
     // are the fallback for engines with no grid anchor.
-    if (visualPulseRef.current && activeOutputs.visual && !visualSchedulerRef.current.active) {
+    if (visualPulseRef.current && activeOutputs.visual && !visualSchedulerRef.current.active && !flashedRecently(getMetronomeBeatIntervalMs(bpmRef.current))) {
+      lastFlashAtRef.current = Date.now();
       setPulseToken((current) => current + 1);
     }
 
@@ -469,7 +503,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     // Engines with scheduled cues fire haptics natively (no bridge at fire time, signed
     // lead applied) — the JS fallback below is for older binaries, and for Random, whose
     // map run would buzz its silent beats natively (only step patterns skip them there).
-    if (nativeCuesSupported && !streamRef.current) {
+    if (nativeCuesSupported && (!streamRef.current || nativeMapHaptics)) {
       return;
     }
 
@@ -531,7 +565,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         // visual/haptic beat EVENTS so legacy consumers land with the audible click.
         outputLatencyMs: routeLatencyProfileRef.current.outputMs,
         // Scheduled-cue engines fire haptics themselves with the signed lead.
-        hapticEnabled: nativeCuesSupported && outputs.haptic && !streamOn,
+        hapticEnabled: nativeCuesSupported && outputs.haptic && (!streamOn || nativeMapHaptics),
         hapticStrength: clampMetronomeLevel(hapticLevel) / MAX_METRONOME_LEVEL,
         hapticOffsetMs: routeLatencyProfileRef.current.hapticLeadMs,
         // Audio-only ornaments (structural on the engine). Sent unconditionally: older
@@ -545,7 +579,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     // practiceStepsKey stands in for the steps array, so a re-render with the same
     // pattern never re-configures (and so never restarts) a running click.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey, streamOn]
+    [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, nativeMapHaptics, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey, streamOn]
   );
 
   const syncNativeConfig = useCallback(async ({ preparing = true }: { preparing?: boolean } = {}) => {
@@ -567,9 +601,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
 
   /**
    * (Re)start Random along its map. keepPlace: carry on from where the run had got to
-   * (a tempo change, a new silence amount), counted at the new tempo; else bar 1.
+   * (a tempo change, a new silence amount), counted at the new tempo; "grid": Random's
+   * bar 1 comes in on the beat the bar has reached (switched on while playing,
+   * 2026-11-18: it used to restart at once, a click off the grid); false: bar 1.
    */
-  const restream = useCallback(async (keepPlace: boolean): Promise<NativeMetronomeState | null> => {
+  const restream = useCallback(async (keepPlace: boolean | "grid"): Promise<NativeMetronomeState | null> => {
     const engine = SongNookMetronomeModule;
     const current = streamRef.current;
     if (!engine?.configureTempoMap || !engine.startAtPhase || !current) return null;
@@ -580,7 +616,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       const anchor = await engine.getGridAnchor().catch(() => null);
       if (anchor?.isRunning && !anchor.isCountIn && anchor.anchorEpochMs != null && anchor.msPerPulse != null) {
         readAt = Date.now();
-        heardPulses = runPulseOffsetRef.current + Math.max(0, (readAt - anchor.anchorEpochMs) / anchor.msPerPulse);
+        const sinceAnchor = Math.max(0, (readAt - anchor.anchorEpochMs) / anchor.msPerPulse);
+        heardPulses =
+          keepPlace === "grid"
+            ? sinceAnchor % Math.max(1, anchor.pulsesPerBar ?? meterPreset.pulsesPerBar)
+            : runPulseOffsetRef.current + sinceAnchor;
       }
     }
     const epoch = runEpochRef.current;
@@ -777,11 +817,19 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         const run = runStreamRef.current;
         const running = !!nativeStateRef.current?.isRunning && ownsActiveRunRef.current;
         if (running && streamRef.current && (!run || run.key !== streamRef.current.key || run.configKey !== streamConfigKey)) {
-          await restream(!!run && run.key === streamRef.current.key);
+          await restream(!run ? "grid" : run.key === streamRef.current.key);
           return;
         }
         const engine = SongNookMetronomeModule;
         if (engine && running && run && !streamRef.current) {
+          // Random off while playing: the pattern comes in on the beat the bar has reached.
+          const anchor = await engine.getGridAnchor?.().catch(() => null);
+          const readAt = Date.now();
+          const beatsIntoBar =
+            anchor?.isRunning && !anchor.isCountIn && anchor.anchorEpochMs != null && anchor.msPerPulse != null
+              ? (Math.max(0, (readAt - anchor.anchorEpochMs) / anchor.msPerPulse)) %
+                Math.max(1, anchor.pulsesPerBar ?? meterPreset.pulsesPerBar)
+              : 0;
           rephaseHoldUntilRef.current = Date.now() + 2000;
           stopVisualScheduler();
           try {
@@ -792,7 +840,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
             runPulseOffsetRef.current = 0;
             await syncNativeConfig({ preparing: false });
             if (runEpochRef.current !== epoch) return;
-            const state = await engine.start();
+            const offsetMs = beatsIntoBar * getMetronomeBeatIntervalMs(bpm);
+            const state =
+              offsetMs > 1 && engine.startAtPhaseSince
+                ? await engine.startAtPhaseSince(offsetMs, readAt)
+                : await engine.start();
             setNativeState(state);
             void startVisualScheduler();
           } finally {
@@ -895,7 +947,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       return;
     }
     setBeatCount(event.absolutePulse + runPulseOffsetRef.current + 1);
-    if (!visualSchedulerRef.current.active) {
+    // The index moves with the flash it belongs to: a beat the scheduler already flashed
+    // keeps its own (see lastFlashAtRef).
+    if (!visualSchedulerRef.current.active && !flashedRecently(getMetronomeBeatIntervalMs(bpmRef.current))) {
       setPulseIndex(event.absolutePulse + runPulseOffsetRef.current);
     }
     // The visual counts every beat, as the scheduled pulse does; a silent beat is silent
@@ -1025,12 +1079,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       runStreamRef.current = null;
       runPulseOffsetRef.current = 0;
       runEpochRef.current += 1;
-      setPulseIndex(0);
       const state = await SongNookMetronomeModule.stop();
       // Leave no installed map behind: the standalone metronome must never
       // accidentally start in map mode because a take's map was still loaded.
       await SongNookMetronomeModule.clearTempoMap?.().catch(() => {});
+      // The place goes back to the one in the same render as the stop, so no dot reads
+      // the one as live while the last beat still shows.
       setNativeState(state);
+      setPulseIndex(0);
       setBeatCount(0);
     } finally {
       await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});

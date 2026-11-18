@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { InkOption } from "../InkOption";
+import { SegmentedControl } from "../SegmentedControl";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { RANDOM_SILENCES, beatTier, type RandomSilence } from "../../../domain/metronomePractice";
@@ -41,20 +41,22 @@ export function RandomPattern({
   const { t } = useTranslation();
   return (
     <View style={s.wrap}>
-      <PracticeLine lead={lead}>
-        <View style={s.silenceLine}>
-        <Text style={s.silenceLabel}>{t("metronome.practice.silence")}</Text>
-        {RANDOM_SILENCES.map((amount) => (
-          <InkOption
-            key={amount}
-            label={t(SILENCE_LABEL_KEYS[amount])}
-            selected={silence === amount}
-            onPress={() => onChangeSilence(amount)}
-            accessibilityLabel={t("metronome.practice.silenceA11y", { amount: t(SILENCE_LABEL_KEYS[amount]) })}
+      <PracticeLine lead={lead} />
+      {/* How much goes silent, in words on a line of its own (founder, 2026-11-18: beside
+          the mode it ran off a phone's edge, and dot icons read as a pattern). */}
+      <View style={s.silenceLine}>
+        <Text style={s.silenceLabel} numberOfLines={1}>
+          {t("metronome.practice.silence")}
+        </Text>
+        <View style={s.silenceTabs}>
+          <SegmentedControl<RandomSilence>
+            bare
+            options={RANDOM_SILENCES.map((amount) => ({ key: amount, label: t(SILENCE_LABEL_KEYS[amount]) }))}
+            value={silence}
+            onChange={onChangeSilence}
           />
-        ))}
         </View>
-      </PracticeLine>
+      </View>
       <View style={s.rows}>
         {bars.map((beats, barIndex) => (
           <View
@@ -126,13 +128,18 @@ const s = StyleSheet.create({
     gap: spacing.xs,
   },
   silenceLine: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "center",
+    justifyContent: "space-between",
     columnGap: spacing.md,
+    minHeight: 40,
+  },
+  silenceTabs: {
+    flex: 1,
+    maxWidth: 220,
   },
   silenceLabel: {
+    flexShrink: 1,
     fontSize: 13,
     fontFamily: "PlusJakartaSans_500Medium",
     color: colors.textSecondary,

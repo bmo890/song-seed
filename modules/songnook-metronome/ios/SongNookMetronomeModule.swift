@@ -55,6 +55,11 @@ public class SongNookMetronomeModule: Module {
       true
     }
 
+    // Map runs buzz natively and skip the silent beats of the map (2026-11-18).
+    Function("supportsMapRestHaptics") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { (segments: [[String: Any]]) -> [String: Any] in
       return self.engine.serially { self.engine.configureTempoMap(segments) }
     }

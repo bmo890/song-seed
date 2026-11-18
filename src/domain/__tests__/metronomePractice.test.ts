@@ -100,4 +100,17 @@ describe("random practice", () => {
     expect(rollRandomBar([1, 0, 0.72, 0], "few", () => 0.99)).toEqual([1, 0, 0.44, 0]);
     expect(rollRandomBars(feel, "some", 4, () => 0.99)).toHaveLength(4);
   });
+
+  it("accents the one whenever it sounds, even on a feel with a light one", () => {
+    expect(rollRandomBar([0.5, 0.46, 0.72, 0.46], "few", () => 0.99)[0]).toBe(1);
+  });
+
+  it("opens a run on a full bar of the feel; after that the silences start", () => {
+    const allSilent = () => 0;
+    const bars = rollRandomBars(feel, "many", 3, allSilent, { opensRun: true });
+    expect(bars[0]).toEqual([1, 0.44, 0.44, 0.44]);
+    expect(bars[1]).toEqual([0, 0, 0, 0]);
+    expect(rollRandomBars([1, 0, 0.72, 0], "few", 1, allSilent, { opensRun: true })[0]).toEqual([1, 0, 0.44, 0]);
+    expect(rollRandomBars(feel, "many", 2, allSilent)[0][0]).toBe(0);
+  });
 });

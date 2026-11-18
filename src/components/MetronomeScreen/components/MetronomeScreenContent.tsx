@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,6 +31,16 @@ import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
 import { DisplayFlash } from "./DisplayFlash";
 import { useTranslation } from "react-i18next";
 
+/** The tempo's line height at full size and at its smallest with Practice on; Lora's
+ *  figures run 1.09 lines to the size (88 on 96). */
+const BPM_LINE_MAX = 96;
+const BPM_LINE_MIN = 52;
+const BPM_LINE_RATIO = 96 / 88;
+/** The display's own vertical padding with Practice on (displayCompact), both edges. */
+const DISPLAY_PAD = 0;
+/** One more bar of the pattern: a row and the gap above it. */
+const PRACTICE_ROW_PITCH = 44 + 2;
+
 type SheetKey = "meter" | "sound" | "help" | null;
 
 /**
@@ -47,6 +57,28 @@ export function MetronomeScreenContent() {
   const model = useMetronomeScreenModel();
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [displayBottom, setDisplayBottom] = useState(0);
+  // With Practice on the tempo takes the size that lets four bars fit the screen
+  // (founder, 2026-11-18: the fourth bar sat below the fold). Measured, not guessed: the
+  // room left over (or missing) on this phone, less what the bars not yet added will
+  // need, so adding a bar never resizes it.
+  const [fit, setFit] = useState({ viewport: 0, content: 0, display: 0, readout: 0 });
+  const [practiceLine, setPracticeLine] = useState(BPM_LINE_MAX);
+  const shownBars = model.practiceOn && model.randomAvailable && model.practiceMode === "random" ? 4 : model.practice?.bars.length ?? 1;
+  useEffect(() => {
+    if (!model.practiceOn) {
+      setPracticeLine(BPM_LINE_MAX);
+      return;
+    }
+    if (!fit.viewport || !fit.content || !fit.display || !fit.readout) return;
+    const overflow = Math.max(0, fit.content - fit.viewport);
+    const spare = Math.max(0, fit.display - fit.readout - DISPLAY_PAD);
+    const futureBars = Math.max(0, 4 - shownBars) * PRACTICE_ROW_PITCH;
+    setPracticeLine((line) => {
+      const next = Math.round(Math.min(BPM_LINE_MAX, Math.max(BPM_LINE_MIN, line + spare - overflow - futureBars)));
+      return Math.abs(next - line) >= 2 || overflow > 0 ? next : line;
+    });
+  }, [fit, model.practiceOn, shownBars]);
+  const practiceBpmStyle = { fontSize: Math.round(practiceLine / BPM_LINE_RATIO), lineHeight: practiceLine };
   const isRunning = model.isRunning;
   const random = model.practiceOn && model.randomAvailable && model.practiceMode === "random";
   // Your pattern · Random as two marks at the start of the practice line (founder,
@@ -95,7 +127,19 @@ export function MetronomeScreenContent() {
 
       {/* Look up, touch down (founder, 2026-11-16): the display above, the pattern in the
           middle, every control the hand works pinned in the deck at the foot. */}
-      <ScrollView contentContainerStyle={s.pageContent} showsVerticalScrollIndicator={false} bounces={false}>
+      <ScrollView
+        contentContainerStyle={[s.pageContent, model.practiceOn ? s.pageContentPractice : null]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        onLayout={(event) => {
+          const viewport = Math.round(event.nativeEvent.layout.height);
+          setFit((f) => (f.viewport === viewport ? f : { ...f, viewport }));
+        }}
+        onContentSizeChange={(_w, h) => {
+          const content = Math.round(h);
+          setFit((f) => (f.content === content ? f : { ...f, content }));
+        }}
+      >
         {/* The display takes whatever room the pattern leaves and sits centred in it, at full
             size open or closed (founder, 2026-11-16: no gap under the bars, no shrinking). */}
         {/* Edge to edge, title bar down to the display's foot: measured, since an absolute
@@ -112,6 +156,8 @@ export function MetronomeScreenContent() {
           onLayout={(event) => {
             const { y, height } = event.nativeEvent.layout;
             setDisplayBottom(Math.round(y + height));
+            const display = Math.round(height);
+            setFit((f) => (f.display === display ? f : { ...f, display }));
           }}
         >
           {/* The beat dots are the pulse: one place for where the beat is. They are the
@@ -133,13 +179,20 @@ export function MetronomeScreenContent() {
               sat apart, beside the marking, and read as unrelated); the marking is the
               musician's word for the tempo, a quiet line of its own. */}
           {model.practiceOn ? (
-            // The bars show the beat, so the dots step aside; the tempo keeps its size.
-            <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
-              <Text style={s.bpmValue}>{model.bpm}</Text>
-              <View style={s.compactLine}>
+            // The bars show the beat, so the dots step aside; the tempo reads as it always
+            // does (number, unit, marking beneath), sized to fit (practiceLine).
+            <View
+              style={s.readoutStack}
+              onLayout={(event) => {
+                const readout = Math.round(event.nativeEvent.layout.height);
+                setFit((f) => (f.readout === readout ? f : { ...f, readout }));
+              }}
+            >
+              <View style={s.tempoReadout} accessible accessibilityLabel={`${model.bpm} ${t("metronome.bpm")}`}>
+                <Text style={[s.bpmValue, practiceBpmStyle]}>{model.bpm}</Text>
                 <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
-                <Text style={[s.bpmMarking, s.bpmMarkingCompact]}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
               </View>
+              <Text style={[s.bpmMarking, s.bpmMarkingCompact]}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
             </View>
           ) : (
             <>

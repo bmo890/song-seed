@@ -560,6 +560,15 @@ final class SongNookMetronomeEngine {
       stopPlayer()
     }
 
+    // No beat before the first queues its buzz: aim it at the first pulse's onset.
+    if config.hapticEnabled {
+      let (_, _, firstAccent, _) = mapPulseMeta(gridPulse: firstRunGridPulse)
+      if firstAccent > 0 {
+        let untilMs = (mapFrame(ofGridPulse: firstRunGridPulse) - runStartGridFrame) / sampleRate * 1000
+        scheduleHaptic(afterMs: max(1, untilMs + Double(config.hapticOffsetMs)))
+      }
+    }
+
     startPolling()
     let state = getState()
     onStateChange(state)
@@ -935,7 +944,10 @@ final class SongNookMetronomeEngine {
     beatInBar = pulseBeatInBar
     barNumber = max(1, pulseBarNumber)
     let segment = gridPulse >= 0 ? mapSegment(forGridPulse: gridPulse) : mapSegments![0]
-    finishBeatEmission(accent: accent, beatIntervalMsForCues: segment.exactFramesPerPulse / sampleRate * 1000)
+    // The next pulse's accent comes from the map too, so a silent beat Random rolled is
+    // silent in the hand (2026-11-18: map runs left their buzz to JS, ~50 ms late).
+    let (_, _, nextAccent, _) = mapPulseMeta(gridPulse: gridPulse + 1)
+    finishBeatEmission(accent: accent, beatIntervalMsForCues: segment.exactFramesPerPulse / sampleRate * 1000, nextAccent: nextAccent)
   }
 
   private func finishBeatEmission(accent: Double, beatIntervalMsForCues: Double, nextAccent: Double = 1) {
