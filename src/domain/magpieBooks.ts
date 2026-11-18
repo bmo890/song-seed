@@ -134,7 +134,9 @@ const ENGLISH_SHELF: CuratedBook[] = [
 /** Works written in the language (no translations, so no translator's rights),
  *  authors dead before 1955. Each id checked 2026-11-09: the cache .txt answers a
  *  Range request with 206 and its header says the right language. These replace
- *  the whole-library draw, whose catalogue (gutendex.com) timed out for minutes. */
+ *  the whole-library draw, whose catalogue (gutendex.com) timed out for minutes.
+ *  Widened 2026-11-18 (founder: more books, fewer repeats): prose only, no plays,
+ *  poetry or translations, each checked on the gutenberg.pglaf.org mirror too. */
 const SPANISH_SHELF: CuratedBook[] = [
   { id: 2000, title: "Don Quijote", author: "Miguel de Cervantes" },
   { id: 49836, title: "Niebla", author: "Miguel de Unamuno" },
@@ -152,6 +154,24 @@ const SPANISH_SHELF: CuratedBook[] = [
   { id: 25777, title: "El idilio de un enfermo", author: "Armando Palacio Valdés" },
   { id: 21282, title: "Tradiciones peruanas", author: "Ricardo Palma" },
   { id: 47584, title: "Noli me tángere", author: "José Rizal" },
+  { id: 13507, title: "Cuentos de amor de locura y de muerte", author: "Horacio Quiroga" },
+  { id: 52597, title: "Insolación y Morriña", author: "Emilia Pardo Bazán" },
+  { id: 55882, title: "La dama joven", author: "Emilia Pardo Bazán" },
+  { id: 21831, title: "Misericordia", author: "Benito Pérez Galdós" },
+  { id: 16961, title: "Trafalgar", author: "Benito Pérez Galdós" },
+  { id: 25956, title: "La desheredada", author: "Benito Pérez Galdós" },
+  { id: 26655, title: "Tristán o el pesimismo", author: "Armando Palacio Valdés" },
+  { id: 23035, title: "Quilito", author: "Carlos María Ocantos" },
+  { id: 28281, title: "Cecilia Valdés", author: "Cirilo Villaverde" },
+  { id: 33267, title: "Facundo", author: "Domingo Faustino Sarmiento" },
+  { id: 32315, title: "El Buscón", author: "Francisco de Quevedo" },
+  { id: 49660, title: "La Alhambra: leyendas árabes", author: "Manuel Fernández y González" },
+  { id: 26771, title: "Thespis", author: "Carlos Octavio Bunge" },
+  { id: 78052, title: "Andanzas y visiones españolas", author: "Miguel de Unamuno" },
+  { id: 59852, title: "Del sentimiento trágico de la vida", author: "Miguel de Unamuno" },
+  { id: 28592, title: "El pecado y la noche", author: "Antonio de Hoyos y Vinent" },
+  { id: 52894, title: "Azul…", author: "Rubén Darío" },
+  { id: 19898, title: "La Edad de Oro", author: "José Martí" },
 ];
 
 const GERMAN_SHELF: CuratedBook[] = [
@@ -170,6 +190,24 @@ const GERMAN_SHELF: CuratedBook[] = [
   { id: 47406, title: "Aphorismen zur Lebensweisheit", author: "Arthur Schopenhauer" },
   { id: 24782, title: "Der Dunkelgraf", author: "Ludwig Bechstein" },
   { id: 50277, title: "Kleinstadtkinder", author: "Josephine Siebe" },
+  { id: 21989, title: "Ein Landarzt", author: "Franz Kafka" },
+  { id: 25791, title: "In der Strafkolonie", author: "Franz Kafka" },
+  { id: 23532, title: "Betrachtung", author: "Franz Kafka" },
+  { id: 76360, title: "Die Elixiere des Teufels", author: "E. T. A. Hoffmann" },
+  { id: 50285, title: "Dr. Mabuse, der Spieler", author: "Norbert Jacques" },
+  { id: 77073, title: "Die Flucht der Beate Hoyermann", author: "Thea von Harbou" },
+  { id: 78125, title: "Liebe ist ewig", author: "Wilhelm von Polenz" },
+  { id: 66452, title: "Die Liebe", author: "Hans Kaltneker" },
+  { id: 20944, title: "Nach Amerika!", author: "Friedrich Gerstäcker" },
+  { id: 50528, title: "Pitt und Fox", author: "Friedrich Huch" },
+  { id: 67217, title: "Gretchen Reinwalds letztes Schuljahr", author: "Agnes Sapper" },
+  { id: 51582, title: "Die Sternbuben in der Großstadt", author: "Josephine Siebe" },
+  { id: 7204, title: "Jenseits von Gut und Böse", author: "Friedrich Nietzsche" },
+  { id: 40739, title: "Die Traumdeutung", author: "Sigmund Freud" },
+  { id: 34222, title: "Das Unheimliche", author: "Sigmund Freud" },
+  { id: 21801, title: "Briefe an eine Freundin", author: "Wilhelm von Humboldt" },
+  { id: 78056, title: "Urwald", author: "Raoul Heinrich Francé" },
+  { id: 78026, title: "Skizzen einer Fußreise durch Oesterreich", author: "Josef Kyselak" },
 ];
 
 const PORTUGUESE_SHELF: CuratedBook[] = [
@@ -188,6 +226,30 @@ const PORTUGUESE_SHELF: CuratedBook[] = [
   { id: 69187, title: "O Cortiço", author: "Aluísio Azevedo" },
   { id: 24401, title: "Viagens na Minha Terra", author: "Almeida Garrett" },
   { id: 67535, title: "Triste Fim de Policarpo Quaresma", author: "Lima Barreto" },
+  { id: 23145, title: "A Ilustre Casa de Ramires", author: "Eça de Queirós" },
+  { id: 31971, title: "O Crime do Padre Amaro", author: "Eça de Queirós" },
+  { id: 42942, title: "O Primo Basílio", author: "Eça de Queirós" },
+  { id: 27637, title: "A Correspondência de Fradique Mendes", author: "Eça de Queirós" },
+  { id: 20574, title: "O Mistério da Estrada de Sintra", author: "Eça de Queirós" },
+  { id: 21406, title: "Novelas do Minho", author: "Camilo Castelo Branco" },
+  { id: 17927, title: "A Queda dum Anjo", author: "Camilo Castelo Branco" },
+  { id: 57001, title: "Papéis Avulsos", author: "Machado de Assis" },
+  { id: 53101, title: "A Mão e a Luva", author: "Machado de Assis" },
+  { id: 67162, title: "Helena", author: "Machado de Assis" },
+  { id: 56737, title: "Esaú e Jacó", author: "Machado de Assis" },
+  { id: 67780, title: "Iaiá Garcia", author: "Machado de Assis" },
+  { id: 67724, title: "O Guarani", author: "José de Alencar" },
+  { id: 44540, title: "Cinco Minutos", author: "José de Alencar" },
+  { id: 68541, title: "O Ateneu", author: "Raul Pompeia" },
+  { id: 74475, title: "A Escrava Isaura", author: "Bernardo Guimarães" },
+  { id: 16428, title: "Os Fidalgos da Casa Mourisca", author: "Júlio Dinis" },
+  { id: 29120, title: "A Morgadinha dos Canaviais", author: "Júlio Dinis" },
+  { id: 45966, title: "Eurico, o Presbítero", author: "Alexandre Herculano" },
+  { id: 20841, title: "Os Pobres", author: "Raul Brandão" },
+  { id: 39618, title: "Húmus", author: "Raul Brandão" },
+  { id: 25537, title: "Paisagens da China e do Japão", author: "Wenceslau de Moraes" },
+  { id: 2837, title: "Lendas do Sul", author: "João Simões Lopes Neto" },
+  { id: 69239, title: "Era uma vez…", author: "Júlia Lopes de Almeida" },
 ];
 
 /** Every Gutenberg language's hand-picked shelf (Hebrew draws from Ben-Yehuda). */
