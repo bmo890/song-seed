@@ -62,6 +62,7 @@ ANDROID_LIVE = "true"
 APPLE_TEAM_ID = "PMJJ7Q9UXD"
 ANDROID_CERT_FINGERPRINTS = "9D:9F:2E:57:BE:EB:B8:EB:62:4E:D8:70:6A:49:E8:FC:0A:9F:A2:F6:E4:15:DE:59:9C:1E:CC:70:1D:B1:C8:D8,4D:E8:1F:29:61:9E:88:2C:A1:9C:FA:61:0C:D9:7D:6B:66:35:92:50:17:EF:8B:02:16:59:DF:F7:F8:EF:B4:17"
 # Abuse-report mailbox the /report/:id funnel points at (not a secret).
+REVIEW_HE_TOKEN_SHA256 = "68b31a03e20b085731627c2189033d623dc35d976037c91b6ba118f97602b38e"   # the Hebrew review link's token, hashed (src/review)
 ABUSE_CONTACT_EMAIL = "bmostudio.dev@gmail.com"
 # Each feedback note is emailed here (founder, 2026-11-14), from a songnook.app
 # address, through Email Routing (free; enabled for songnook.app 2026-11-14, and

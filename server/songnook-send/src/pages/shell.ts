@@ -69,7 +69,7 @@ const HEBREW_FACES = [
   heFace("Plus Jakarta Sans", "heebo-hebrew-700", 700),
 ].join("\n");
 
-const FONT_FACES = `
+export const FONT_FACES = `
 @font-face{font-family:"Lora";src:url(/fonts/lora-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Lora";src:url(/fonts/lora-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
 @font-face{font-family:"Lora";src:url(/fonts/lora-latin-600-normal.woff2) format("woff2");font-weight:600;font-style:normal;font-display:swap}

@@ -51,6 +51,15 @@
         "docs/product-plan/mockups"
       ],
       "port": 8790
+    },
+    {
+      "name": "review-preview",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd server/songnook-send && node --experimental-strip-types scripts/review-preview.ts"
+      ],
+      "port": 8790
     }
   ]
 }

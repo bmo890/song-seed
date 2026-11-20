@@ -23,6 +23,8 @@ import { download } from "./routes/download";
 import { feedback } from "./routes/feedback";
 import { pairing } from "./routes/pairing";
 import { wellKnown } from "./routes/wellknown";
+import { review } from "./review/reviewRoutes";
+import { backupToR2 } from "./review/reviewLib";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -41,6 +43,9 @@ app.options("*", () =>
 app.route("/api", api);
 app.route("/api", pairing);
 app.route("/api", feedback);
+
+// ── The translation review (songnook.app/review/he/<link>) ──────────────────
+app.route("/review", review);
 
 // ── .well-known association files ────────────────────────────────────────────
 app.route("/.well-known", wellKnown);
@@ -175,6 +180,12 @@ export default {
       sweepExpired(env, Date.now()).then((r) =>
         console.log(`sweep: removed ${r.transfers} transfers, ${r.objects} objects, ${r.failed} failed`)
       )
+    );
+    // The translation review's nightly copy (review-backups/he/<day>.json in R2).
+    ctx.waitUntil(
+      backupToR2(env.DB, env.BUCKET, Date.now())
+        .then((n) => n && console.log(`review backup: ${n} lines`))
+        .catch((err) => console.warn("review backup failed", err))
     );
   },
 };

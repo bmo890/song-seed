@@ -27,6 +27,9 @@ export interface Env {
   RATE?: KVNamespace;
 
   // Public, non-secret vars (from wrangler.toml [vars]) — safe everywhere.
+  /** SHA-256 (hex) of the Hebrew review link's token (src/review): the token itself
+   *  lives only in the link. Unset = no review page. */
+  REVIEW_HE_TOKEN_SHA256?: string;
   PUBLIC_ORIGIN: string;
   MAX_TRANSFER_BYTES: string;
   MAX_ITEM_BYTES: string;
