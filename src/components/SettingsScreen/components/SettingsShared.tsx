@@ -9,6 +9,8 @@ import { Spinner } from "../../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { Switch } from "../../common/Switch";
 import { Press } from "../../common/Press";
+import { ProMarkText, useProLocked } from "../../common/ProMark";
+import type { ProFeature } from "../../../domain/entitlements";
 import { i18n } from "../../../i18n/instance";
 import { dirIcon } from "../../../design/directionalIcons";
 import type { Collection, Workspace } from "../../../types";
@@ -346,6 +348,7 @@ export function ToggleRow({
   value,
   onPress,
   flat = false,
+  pro,
 }: {
   title: string;
   subtitle?: string;
@@ -353,7 +356,12 @@ export function ToggleRow({
   onPress: () => void;
   /** Render without its own card fill, for use inside a SettingsGroup. */
   flat?: boolean;
+  /** The switch is a Pro door: the title wears the Pro mark for someone it would stop.
+   *  The caller gates the press (`ensurePro`). */
+  pro?: ProFeature;
 }) {
+  const proLocked = useProLocked(pro ?? "stereo-recording");
+  const marked = pro != null && proLocked;
   return (
     <Press
       // Haptics vocabulary: `light` — a small state flip (the switch turns).
@@ -364,7 +372,14 @@ export function ToggleRow({
       accessibilityState={{ checked: value }}
     >
       <View style={styles.settingsChoiceCopy}>
-        <Text style={styles.settingsChoiceTitle}>{title}</Text>
+        {marked ? (
+          <View style={settingsScreenStyles.choiceTitleWithMark}>
+            <Text style={styles.settingsChoiceTitle}>{title}</Text>
+            <ProMarkText />
+          </View>
+        ) : (
+          <Text style={styles.settingsChoiceTitle}>{title}</Text>
+        )}
         {subtitle ? <Text style={styles.settingsChoiceMeta}>{subtitle}</Text> : null}
       </View>
       {/* The canon switch (2026-10-20; was a hand-drawn pill). The row's own

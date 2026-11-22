@@ -638,6 +638,8 @@ export const es = {
   settingsRecording: {
     saving: "Guardado",
     nameEach: "Nombrar cada clip",
+    stereo: "Grabar en estéreo",
+    stereoHint: "Solo los micrófonos del teléfono. Ocupa el doble.",
     bluetooth: "Calibración Bluetooth",
     calibrations_one: "{{count}} calibración guardada.",
     calibrations_other: "{{count}} calibraciones guardadas.",
@@ -3649,7 +3651,7 @@ export const es = {
     renewNoteAndroid: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de Google Play.",
     usedTitle: "Usado en tu mes gratis",
     used: { workspaces: "Espacios de trabajo", wordFinder: "Buscador de palabras", lyricSpark: "Chispa de letras", practice: "Herramientas de práctica", stage: "Herramientas de escenario", send: "Enlaces de Send", layers: "Capas" },
-    also: "También con Pro: Exportar para DAW.",
+    also: "También con Pro: Exportar para DAW, grabación estéreo.",
     freeForGood: "Gratis para siempre: grabar, tu biblioteca, letras, acordes, copias de seguridad.",
     features: {
       "0": { title: "Escribe hasta salir del bloqueo", body: "Chispa de letras te da ejercicios de escritura para trabajar cuando te atascas. El Buscador de palabras encuentra rimas, sinónimos y más." },

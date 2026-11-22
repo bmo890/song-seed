@@ -46,6 +46,12 @@ export const settingsScreenStyles = StyleSheet.create({
     paddingHorizontal: 0,
     gap: 0,
   },
+  // A row's title with the Pro mark after it (ToggleRow `pro`).
+  choiceTitleWithMark: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+  },
   multiMenuBody: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

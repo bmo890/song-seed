@@ -268,6 +268,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         // on comes back to the lanes reel, with no switch left to find their way.
         classicReel: false,
         promptForClipName: state?.promptForClipName !== false,
+        recordInStereo: state?.recordInStereo === true,
         nameLanguage: NAME_IDEA_LANGUAGES.find((code) => code === state?.nameLanguage) ?? "auto",
         wordLanguage: sanitizeWordLanguagePref(state?.wordLanguage),
         // Default true whenever ANY persisted state exists — this sanitize only runs via

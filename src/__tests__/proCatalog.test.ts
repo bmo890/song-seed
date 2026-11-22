@@ -27,6 +27,7 @@ import {
 const EVERY_KEY: ProFeature[] = [
     "workspaces",
     "overdub-layers",
+    "stereo-recording",
     "full-editor",
     "practice-suite",
     "stage-tools",

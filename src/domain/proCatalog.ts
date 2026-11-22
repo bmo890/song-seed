@@ -26,6 +26,7 @@
 export type ProFeature =
     | "workspaces"
     | "overdub-layers"
+    | "stereo-recording"
     | "full-editor"
     | "practice-suite"
     | "stage-tools"
@@ -61,6 +62,10 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
         pro: true,
         freeLimit: 1, // The first layer is the taste that sells the rest.
         what: "Adding a layer beyond the free ones on a take. Existing layered takes play and open as before.",
+    },
+    "stereo-recording": {
+        pro: true, // Founder, 2026-11-22: "add stereo recording as a Pro setting, when applicable."
+        what: "Recording a take in stereo from the phone's own mics. Recording itself is never locked: without Pro a take records in mono, and stereo takes made in the free month stay stereo.",
     },
     "practice-suite": {
         pro: true,
@@ -182,4 +187,4 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
 ];
 
 /** The page's one quiet closing line (`pro.also`): Pro doors that are not a line of their own. */
-export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["daw-export"];
+export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["daw-export", "stereo-recording"];

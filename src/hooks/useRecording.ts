@@ -44,6 +44,9 @@ import {
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { effectiveRecordingInputId } from "../domain/recordingInput";
+import { downmixInterleaved } from "../domain/stereoDownmix";
+import { hasProAccess } from "../domain/entitlements";
+import { getStereoSupport, refreshStereoSupport } from "../services/stereoSupport";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { recordingBlockedBy, tellRecordingWaits } from "../services/libraryOperationGate";
 import { getRestoreRestartState } from "../state/restoreRuntime";
@@ -108,6 +111,17 @@ const LIVE_STREAM_INTERVAL_MS = 40;
 const ANALYSIS_SEGMENT_MS = 75;
 /** Below this the head trim is noise, not a count-in — skip the re-render. */
 const MIN_HEAD_TRIM_MS = 24;
+
+/** Ask the recorder for stereo: the writer's setting, with Pro access, on a phone that can.
+ *  The native recorder still decides per take (built-in mic only) and says so in the
+ *  stream (`songNookChannels`). */
+function wantsStereoTake(): boolean {
+  return (
+    useStore.getState().recordInStereo &&
+    hasProAccess("stereo-recording") &&
+    getStereoSupport() !== "no"
+  );
+}
 /** Ignore absurd trim values (a count-in head is at most a few bars). */
 const MAX_HEAD_TRIM_MS = 30_000;
 
@@ -360,6 +374,8 @@ export function useRecording(
   const recordingNotificationTitle = t("recordingErrors.notificationLiveTitle");
   async function claimRecordingAudioSession() {
     await activateRecordingAudioSession({ ownerId: RECORDING_AUDIO_SESSION_OWNER });
+    // iOS can see the mic's stereo patterns only now the session allows input.
+    refreshStereoSupport();
   }
 
   async function releaseRecordingAudioSession() {
@@ -619,7 +635,10 @@ export function useRecording(
       // (patched: AudioRecord.setPreferredDevice).
       deviceId: inputIdToRecordFrom() ?? undefined,
       sampleRate: CAPTURE_SAMPLE_RATE as SampleRate,
+      // The live stream's shape stays mono (the take session's clock); a stereo file is
+      // asked for separately and folded to mono on the stream (onAudioStream below).
       channels: CAPTURE_CHANNELS as 1,
+      stereo: wantsStereoTake(),
       // 16-bit PCM WAV, named (decision F): see RECORDING_FILE_FORMAT.
       ...RECORDING_FILE_FORMAT,
       interval: LIVE_STREAM_INTERVAL_MS,
@@ -668,7 +687,14 @@ export function useRecording(
           categoryOptions: ["MixWithOthers", "AllowBluetooth", "AllowBluetoothA2DP", "DefaultToSpeaker"] as const,
         },
       },
-      onAudioStream: async (event: any) => {
+      onAudioStream: async (rawEvent: any) => {
+        // A stereo take streams L R L R; the tape and the onset envelope count one
+        // channel's samples, so fold it here (domain/stereoDownmix.ts).
+        const streamChannels = (rawEvent as { songNookChannels?: unknown }).songNookChannels;
+        const event =
+          streamChannels === 2 && rawEvent?.data instanceof Float32Array
+            ? { ...rawEvent, data: downmixInterleaved(rawEvent.data, 2) }
+            : rawEvent;
         // Record-through: while the head is still pending (count-in / pre-roll), capture is
         // rolling but this audio will be trimmed off at save. Don't DRAW it on the live
         // tape — otherwise the tape shows a silent count-in lead that the saved (trimmed)

@@ -132,7 +132,16 @@ final class SongNookPitchShiftRenderer {
     let outputURL = buildOutputURL(fileName: outputFileName)
 
     let firstFile = try AVAudioFile(forReading: inputs[0].inputURL)
-    let renderFormat = firstFile.processingFormat
+    // The widest input sets the channel count (stereo takes, 2026-11-22): a stereo layer
+    // over an older mono take must not be folded to mono. Mono inputs reach the mixer
+    // centred, in both channels. The first input still sets the sample rate.
+    let widestChannels = try inputs.reduce(firstFile.processingFormat.channelCount) { widest, input in
+      max(widest, try AVAudioFile(forReading: input.inputURL).processingFormat.channelCount)
+    }
+    let renderFormat = widestChannels > firstFile.processingFormat.channelCount
+      ? (AVAudioFormat(standardFormatWithSampleRate: firstFile.processingFormat.sampleRate, channels: min(widestChannels, 2))
+          ?? firstFile.processingFormat)
+      : firstFile.processingFormat
     let outputFile = try AVAudioFile(forWriting: outputURL, settings: renderFormat.settings)
 
     let engine = AVAudioEngine()

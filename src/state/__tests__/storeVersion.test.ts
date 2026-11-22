@@ -33,7 +33,7 @@ describe("the library's data version", () => {
         // A persisted-shape change bumps STORE_VERSION (state/storeVersion.ts) and this
         // pin. Nested reshapes count too (13: hiddenDays as calendar days, automaticBackup,
         // recentlyDeleted — all unshipped).
-        expect(STORE_VERSION).toBe(15);
+        expect(STORE_VERSION).toBe(16);
         expect(Object.keys(buildPersistedAppStoreSnapshot(useStore.getState())).sort()).toEqual([
             "activeWorkspaceId", "activityEvents", "automaticBackup", "backupReminderFrequency", "backupReminderLastPromptedAt",
             "bluetoothMonitoringCalibrations", "classicReel", "collectionLastOpenedAt", "cutUpSparks",
@@ -44,7 +44,7 @@ describe("the library's data version", () => {
             "metronomeGroupingByMeterId", "metronomeHapticLevel", "metronomeMeterId", "metronomeOutputs",
             "metronomePractice", "metronomePracticeMode", "metronomePracticeOn", "metronomeRandomSilence", "metronomeScreenFlash", "metronomeSubdivision", "metronomeVisualDots", "nameLanguage", "notes", "playbackClickHaptic", "playbackClickLevel",
             "playlists", "preferredRecordingInputId", "primaryCollectionIdByWorkspace", "primaryFilter",
-            "primarySort", "primaryWorkspaceId", "promptForClipName", "recentlyDeleted", "reviewPromptShownAt", "seenHints",
+            "primarySort", "primaryWorkspaceId", "promptForClipName", "recentlyDeleted", "recordInStereo", "reviewPromptShownAt", "seenHints",
             "setlists", "songbooks", "wordLadders", "wordLanguage", "workspaceLastOpenedAt",
             "workspaceListOrder", "workspaceStartupPreference", "workspaces",
         ]);
@@ -67,7 +67,8 @@ describe("the library's data version", () => {
         expect(canMergeStoreVersion(13)).toBe(true);
         expect(canMergeStoreVersion(14)).toBe(true);
         expect(canMergeStoreVersion(15)).toBe(true);
-        expect(canMergeStoreVersion(16)).toBe(false);
+        expect(canMergeStoreVersion(16)).toBe(true);
+        expect(canMergeStoreVersion(17)).toBe(false);
         expect(canMergeStoreVersion(11)).toBe(false);
     });
 

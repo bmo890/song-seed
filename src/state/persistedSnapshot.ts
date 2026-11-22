@@ -54,6 +54,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         hapticsEnabled: state.hapticsEnabled,
         classicReel: state.classicReel,
         promptForClipName: state.promptForClipName,
+        recordInStereo: state.recordInStereo,
         nameLanguage: state.nameLanguage,
         wordLanguage: state.wordLanguage,
         hasSeenWelcome: state.hasSeenWelcome,

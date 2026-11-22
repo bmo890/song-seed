@@ -9,8 +9,9 @@
  * so the take stops cleanly BEFORE the disk is full on any build.
  */
 
-/** Stop under this much free space. A mono 44.1 kHz take writes ~88 KB/s, so one poll
- *  interval is ~1.3 MB; the margin leaves room for the save itself. */
+/** Stop under this much free space. A mono 44.1 kHz take writes ~88 KB/s (a stereo one
+ *  ~176 KB/s), so one poll interval is ~1.3 MB (~2.6 MB); the margin leaves room for the
+ *  save itself. */
 export const TAKE_STORAGE_FLOOR_BYTES = 24 * 1024 * 1024;
 export const TAKE_STORAGE_POLL_MS = 15_000;
 

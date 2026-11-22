@@ -637,6 +637,8 @@ export const pt = {
   settingsRecording: {
     saving: "Salvamento",
     nameEach: "Nomear cada clipe",
+    stereo: "Gravar em estéreo",
+    stereoHint: "Só os microfones do telefone. Ocupa o dobro.",
     bluetooth: "Calibração Bluetooth",
     calibrations_one: "{{count}} calibração salva.",
     calibrations_other: "{{count}} calibrações salvas.",
@@ -3650,7 +3652,7 @@ export const pt = {
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
     usedTitle: "Usado no seu mês grátis",
     used: { workspaces: "Espaços de trabalho", wordFinder: "Buscador de palavras", lyricSpark: "Faísca de letras", practice: "Ferramentas de prática", stage: "Ferramentas de palco", send: "Links do Send", layers: "Camadas" },
-    also: "Também com o Pro: Exportar para DAW.",
+    also: "Também com o Pro: Exportar para DAW, gravação estéreo.",
     freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {
       "0": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz exercícios de escrita para trabalhar quando você trava. O Buscador de palavras encontra rimas, sinônimos e mais." },

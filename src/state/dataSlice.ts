@@ -160,6 +160,9 @@ export type DataSlice = {
     classicReel: boolean;
     /** When true, saving a recording asks for a name; when false it auto-names from the suggestion. */
     promptForClipName: boolean;
+    /** Record takes in stereo from the phone's own mics (a Pro setting, 2026-11-22).
+     *  Honoured only with Pro access and where the mics allow it (services/stereoSupport.ts). */
+    recordInStereo: boolean;
     /** Language the sparkle "surprise me" name generator draws from. "auto" (the
      *  default) follows the UI language; a language code pins it once the user
      *  picks in Settings — so a Hebrew UI can still keep English working titles. */
@@ -287,6 +290,7 @@ export type DataSlice = {
     setHapticsEnabled: (value: boolean) => void;
     setClassicReel: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
+    setRecordInStereo: (value: boolean) => void;
     setNameLanguage: (value: "auto" | NameIdeaLanguage) => void;
     setWordLanguage: (value: WordLanguagePref) => void;
     setHasSeenWelcome: (value: boolean) => void;
@@ -1676,6 +1680,7 @@ export const createDataSlice: StateCreator<
     hapticsEnabled: true,
     classicReel: false,
     promptForClipName: true,
+    recordInStereo: false,
     nameLanguage: "auto",
     wordLanguage: "auto",
     hasSeenWelcome: false,
@@ -2007,6 +2012,7 @@ export const createDataSlice: StateCreator<
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setClassicReel: (value) => set({ classicReel: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
+    setRecordInStereo: (value) => set({ recordInStereo: value }),
     setNameLanguage: (value) =>
         set({ nameLanguage: NAME_IDEA_LANGUAGES.includes(value as NameIdeaLanguage) ? value : "auto" }),
     setWordLanguage: (value) => set({ wordLanguage: sanitizeWordLanguagePref(value) }),

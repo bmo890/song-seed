@@ -10,6 +10,8 @@ import android.os.HandlerThread
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.ChannelMixingAudioProcessor
+import androidx.media3.common.audio.ChannelMixingMatrix
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.audio.ToInt16PcmAudioProcessor
 import androidx.media3.common.util.UnstableApi
@@ -94,7 +96,11 @@ class SongNookPitchShiftRenderer(
 
     val outputFile = buildOutputFile(outputFileName)
     try {
-      return renderComposition(buildMixedComposition(inputs), outputFile)
+      // The widest input sets the channel count (stereo takes, 2026-11-22): media3's mixer
+      // follows the first sequence's format, so a stereo layer over an older mono take
+      // would be folded to mono. Every input is brought to stereo first instead.
+      val toStereo = inputs.any { audioChannelCount(it.inputUri) >= 2 }
+      return renderComposition(buildMixedComposition(inputs, toStereo), outputFile)
     } catch (throwable: Throwable) {
       if (outputFile.exists()) {
         outputFile.delete()
@@ -125,7 +131,7 @@ class SongNookPitchShiftRenderer(
       .build()
   }
 
-  private fun buildMixedComposition(inputs: List<MixedRenderInput>): Composition {
+  private fun buildMixedComposition(inputs: List<MixedRenderInput>, toStereo: Boolean): Composition {
     val sequences =
       inputs.map { input ->
         // Negative offset pulls the input EARLIER: clip its head by |offset| and start it
@@ -148,7 +154,7 @@ class SongNookPitchShiftRenderer(
             .setRemoveVideo(true)
             .setEffects(
               Effects(
-                buildMixAudioProcessors(input),
+                buildMixAudioProcessors(input, toStereo),
                 emptyList(),
               )
             )
@@ -191,11 +197,36 @@ class SongNookPitchShiftRenderer(
 
   /** One layer's level and tone (SoundChainAudioProcessor, the live chain's stage).
    *  No limiter here: the SUM is limited once, on the composition. */
-  private fun buildMixAudioProcessors(input: MixedRenderInput): List<AudioProcessor> =
-    listOf(
-      ToInt16PcmAudioProcessor(),
-      SoundChainAudioProcessor(gainDb = input.gainDb, tonePreset = input.tonePreset, limit = false),
-    )
+  private fun buildMixAudioProcessors(input: MixedRenderInput, toStereo: Boolean): List<AudioProcessor> {
+    val chain = mutableListOf<AudioProcessor>(ToInt16PcmAudioProcessor())
+    if (toStereo) {
+      // Mono reaches both sides at full level (centred, as the iOS mixer does); stereo passes.
+      chain += ChannelMixingAudioProcessor().apply {
+        putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(1, 2))
+        putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(2, 2))
+      }
+    }
+    chain += SoundChainAudioProcessor(gainDb = input.gainDb, tonePreset = input.tonePreset, limit = false)
+    return chain
+  }
+
+  /** The first audio track's channel count; 1 when it cannot be read. */
+  private fun audioChannelCount(inputUri: String): Int {
+    val extractor = MediaExtractor()
+    return try {
+      extractor.setDataSource(appContext, parseInputUri(inputUri), null)
+      (0 until extractor.trackCount)
+        .map { extractor.getTrackFormat(it) }
+        .firstOrNull { it.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
+        ?.takeIf { it.containsKey(MediaFormat.KEY_CHANNEL_COUNT) }
+        ?.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        ?: 1
+    } catch (_: Throwable) {
+      1
+    } finally {
+      extractor.release()
+    }
+  }
 
   /**
    * Render, then — when the audio was ENCODED (not copied) — write the encoder's priming

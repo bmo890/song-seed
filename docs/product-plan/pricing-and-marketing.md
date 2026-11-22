@@ -91,7 +91,8 @@ The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
   free); transpose, capo, making chart books and setlists (writing charts is free; a book
   that exists always opens in the stage reader); chart PDF; Export for DAW; the whole
   Word Finder; a word game beyond 1 try of each game (a spark left with nothing written
-  gives its try back); Send beyond 1 link per 30 days. Tempo detection (hidden) and
+  gives its try back); Send beyond 1 link per 30 days; recording in stereo from the
+  phone's own mics (2026-11-22; without Pro a take records mono). Tempo detection (hidden) and
   archive offload (unreachable) are gated in code but named on no list of Pro tools.
 - **Marked in the app:** every one of those doors wears the Pro mark for someone it
   would stop (`common/ProMark`, rule in CLAUDE.md).
@@ -376,3 +377,11 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   mark during the free month once past 2 (`ProMark markInFreeMonth`, the one exception to
   "the mark shows only to someone the gate stops"), and the Pro page's "Used in your free
   month" line leads with "Workspaces N" when more than 2 are kept. Five languages.
+- 2026-11-22 — Stereo recording is Pro (founder: "add stereo recording as a Pro setting, when
+  applicable"). Settings › Recording › "Record in stereo", with the Pro mark; shown only on a
+  phone whose own mics can do it (iPhone XS or later on iOS 14+; Android with two or more
+  built-in mics), and a take is stereo only from those mics (a headset, USB or Bluetooth
+  input stays mono). Recording itself stays free (promise 5): without Pro, or once the free
+  month ends, takes are mono; stereo takes already made stay stereo. Named on the Pro page's
+  "Also with Pro" line in all five languages (`pro.also`), which the catalog test requires.
+  Stereo files are twice the size (~10.6 MB a minute as WAV). Key: `stereo-recording`.

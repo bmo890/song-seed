@@ -47,6 +47,7 @@ export type PersistedAppStore = Pick<
     | "hapticsEnabled"
     | "classicReel"
     | "promptForClipName"
+    | "recordInStereo"
     | "nameLanguage"
     | "wordLanguage"
     | "hasSeenWelcome"

@@ -603,6 +603,8 @@ export const de = {
   settingsRecording: {
     saving: "Speichern",
     nameEach: "Jeden Clip benennen",
+    stereo: "In Stereo aufnehmen",
+    stereoHint: "Nur die Mikrofone des Telefons. Doppelter Speicherplatz.",
     bluetooth: "Bluetooth-Kalibrierung",
     calibrations_one: "{{count}} gespeicherte Kalibrierung.",
     calibrations_other: "{{count}} gespeicherte Kalibrierungen.",
@@ -3506,7 +3508,7 @@ export const de = {
     renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
     usedTitle: "In deinem Gratismonat genutzt",
     used: { workspaces: "Arbeitsbereiche", wordFinder: "Wortfinder", lyricSpark: "Textfunke", practice: "Übungswerkzeuge", stage: "Bühnenwerkzeuge", send: "Send-Links", layers: "Spuren" },
-    also: "Auch mit Pro: Für DAW exportieren.",
+    also: "Auch mit Pro: Für DAW exportieren, Stereoaufnahme.",
     freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
       "0": { title: "Schreib dich aus der Blockade", body: "Textfunke gibt dir Schreibübungen zum Durcharbeiten, wenn du feststeckst. Der Wortfinder findet Reime, Synonyme und mehr." },
