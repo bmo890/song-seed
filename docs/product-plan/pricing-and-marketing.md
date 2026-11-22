@@ -91,8 +91,7 @@ The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
   free); transpose, capo, making chart books and setlists (writing charts is free; a book
   that exists always opens in the stage reader); chart PDF; Export for DAW; the whole
   Word Finder; a word game beyond 1 try of each game (a spark left with nothing written
-  gives its try back); Send beyond 1 link per 30 days; recording in stereo from the
-  phone's own mics (2026-11-22; without Pro a take records mono). Tempo detection (hidden) and
+  gives its try back); Send beyond 1 link per 30 days. Tempo detection (hidden) and
   archive offload (unreachable) are gated in code but named on no list of Pro tools.
 - **Marked in the app:** every one of those doors wears the Pro mark for someone it
   would stop (`common/ProMark`, rule in CLAUDE.md).
@@ -389,3 +388,9 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   mark, beside the metronome) so each take can be stereo or mono; Settings' row became
   "Stereo by default", the key's starting state each time the recorder opens. Redo keeps
   the take's choice; Discard leaves the recorder, so the next open is the default again.
+- 2026-11-22 — Stereo recording made FREE the same day (founder: "I don't want to pro gate
+  this feature. As a strategy to undercut Tape It. Their main draw is paying for the
+  stereo"). `stereo-recording` is `pro: false`; the gate and Pro marks stay wired so
+  `pro: true` restores them. Removed from the Pro page's "Also with Pro" line (five
+  languages, back to "Export for DAW."). Free stereo and free lossless are now selling
+  points for the store listing and landing page (not yet written there).

@@ -64,8 +64,10 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
         what: "Adding a layer beyond the free ones on a take. Existing layered takes play and open as before.",
     },
     "stereo-recording": {
-        pro: true, // Founder, 2026-11-22: "add stereo recording as a Pro setting, when applicable."
-        what: "Recording a take in stereo from the phone's own mics. Recording itself is never locked: without Pro a take records in mono, and stereo takes made in the free month stay stereo.",
+        // Founder, 2026-11-22: built as Pro, then made free the same day to undercut Tape It,
+        // whose paid tier is mainly stereo. The gate and marks stay wired; `pro: true` restores them.
+        pro: false,
+        what: "Recording a take in stereo from the phone's own mics. Free for everyone.",
     },
     "practice-suite": {
         pro: true,
@@ -187,4 +189,4 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
 ];
 
 /** The page's one quiet closing line (`pro.also`): Pro doors that are not a line of their own. */
-export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["daw-export", "stereo-recording"];
+export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["daw-export"];
