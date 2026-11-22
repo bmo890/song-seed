@@ -396,7 +396,7 @@ index 12d30a2..1ad8772 100644
      }
  
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..f09ddc8 100644
+index 6f93aa4..31eab18 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -439,7 +439,7 @@ index 6f93aa4..f09ddc8 100644
                  
                  // Request audio focus AFTER config is parsed so strategy is correct
                  if (!requestAudioFocus()) {
-@@ -824,6 +838,34 @@ class AudioRecorderManager(
+@@ -824,6 +838,40 @@ class AudioRecorderManager(
      }
  
  
@@ -450,15 +450,21 @@ index 6f93aa4..f09ddc8 100644
 +     */
 +    private fun songNookResolveStereo(config: RecordingConfig): RecordingConfig {
 +        if (!config.stereo) return config
-+        val builtIn = config.deviceId?.toIntOrNull()?.let { id ->
++        val chosenIsBuiltIn = config.deviceId?.toIntOrNull()?.let { id ->
 +            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 +            audioManager?.getDevices(AudioManager.GET_DEVICES_INPUTS)?.firstOrNull { it.id == id }
 +                ?.let { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
 +                ?: false
-+        } ?: !songNookExternalInputConnected()
-+        val channels = if (builtIn && songNookStereoSupport(context) == "yes") 2 else 1
-+        LogUtils.d(CLASS_NAME, "SongNook stereo requested: recording $channels channel(s)")
-+        return config.copy(channels = channels)
++        } ?: true
++        // A headset or USB input on the phone at all: the phone's routing picks a mono mic
++        // (Samsung included), so the take is mono.
++        val stereo = chosenIsBuiltIn && !songNookExternalInputConnected() &&
++            songNookStereoSupport(context) == "yes"
++        LogUtils.d(CLASS_NAME, "SongNook stereo requested: recording ${if (stereo) 2 else 1} channel(s)")
++        // Stereo goes through the phone's own routing, never a pinned mic: binding a built-in
++        // mic by its device id gives one mic copied into both channels on Samsung phones
++        // (google/oboe#765). With no headset connected, routing lands on the built-in pair.
++        return if (stereo) config.copy(channels = 2, deviceId = null) else config.copy(channels = 1)
 +    }
 +
 +    /** With no input chosen, a wired or USB headset's mic takes over from the phone's own. */
@@ -474,7 +480,7 @@ index 6f93aa4..f09ddc8 100644
      private fun initializeAudioRecord(promise: Promise): Boolean {
          if (!permissionUtils.checkRecordingPermission(enableBackgroundAudio)) {
              promise.reject(
-@@ -854,6 +896,8 @@ class AudioRecorderManager(
+@@ -854,6 +902,8 @@ class AudioRecorderManager(
                      )
                      return false
                  }
@@ -483,7 +489,7 @@ index 6f93aa4..f09ddc8 100644
              }
              return true
  
-@@ -876,6 +920,37 @@ class AudioRecorderManager(
+@@ -876,6 +926,37 @@ class AudioRecorderManager(
          }
      }
  
@@ -521,7 +527,7 @@ index 6f93aa4..f09ddc8 100644
      private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
          try {
              streamUuid = java.util.UUID.randomUUID().toString()
-@@ -956,11 +1031,15 @@ class AudioRecorderManager(
+@@ -956,11 +1037,15 @@ class AudioRecorderManager(
              isPaused.set(false)
              _isRecording.set(true)
              isFirstChunk = true
@@ -537,7 +543,7 @@ index 6f93aa4..f09ddc8 100644
              recordingThread = Thread { recordingProcess() }.apply { start() }
              
              // Start service if keepAwake is true, but only if background audio is enabled (#288)
-@@ -981,6 +1060,14 @@ class AudioRecorderManager(
+@@ -981,6 +1066,14 @@ class AudioRecorderManager(
      fun stopRecording(promise: Promise) {
          val stopStartTime = System.currentTimeMillis()
          
@@ -552,7 +558,7 @@ index 6f93aa4..f09ddc8 100644
          synchronized(audioRecordLock) {
              if (!_isRecording.get()) {
                  LogUtils.e(CLASS_NAME, "Recording is not active")
-@@ -1258,6 +1345,43 @@ class AudioRecorderManager(
+@@ -1258,6 +1351,43 @@ class AudioRecorderManager(
          }
      }
  
@@ -596,7 +602,7 @@ index 6f93aa4..f09ddc8 100644
      fun pauseRecording(promise: Promise) {
          if (_isRecording.get() && !isPaused.get()) {
              audioRecord?.stop()
-@@ -1484,7 +1608,7 @@ class AudioRecorderManager(
+@@ -1484,7 +1614,7 @@ class AudioRecorderManager(
  
                  // Recording loop
                  var loopCount = 0
@@ -605,7 +611,7 @@ index 6f93aa4..f09ddc8 100644
                      loopCount++
                      if (loopCount % 100 == 0) {
                          LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData?.size() ?: 0}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
-@@ -1517,8 +1641,18 @@ class AudioRecorderManager(
+@@ -1517,8 +1647,18 @@ class AudioRecorderManager(
                      if (bytesRead > 0) {
                          // Only write to file if primary output is enabled
                          if (fos != null) {
@@ -626,7 +632,7 @@ index 6f93aa4..f09ddc8 100644
                          }
                          totalDataSize += bytesRead
                          
-@@ -1622,6 +1756,48 @@ class AudioRecorderManager(
+@@ -1622,6 +1762,48 @@ class AudioRecorderManager(
          }
      }
  
@@ -675,7 +681,7 @@ index 6f93aa4..f09ddc8 100644
      private fun emitAudioData(audioData: ByteArray, length: Int) {
          val isFloat32Stream = recordingConfig.streamFormat == "float32"
  
-@@ -1711,6 +1887,15 @@ class AudioRecorderManager(
+@@ -1711,6 +1893,15 @@ class AudioRecorderManager(
              )
          }
  
@@ -691,7 +697,7 @@ index 6f93aa4..f09ddc8 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1768,6 +1953,9 @@ class AudioRecorderManager(
+@@ -1768,6 +1959,9 @@ class AudioRecorderManager(
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
@@ -701,7 +707,7 @@ index 6f93aa4..f09ddc8 100644
                  
                  // Clean up accumulated audio data
                  accumulatedAudioData?.close()
-@@ -2129,6 +2317,7 @@ class AudioRecorderManager(
+@@ -2129,6 +2323,7 @@ class AudioRecorderManager(
  
              val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
              recordingConfig = tempRecordingConfig
@@ -709,7 +715,7 @@ index 6f93aa4..f09ddc8 100644
              
              // Store device-related settings
              selectedDeviceId = recordingConfig.deviceId
-@@ -2161,3 +2350,19 @@ class AudioRecorderManager(
+@@ -2161,3 +2356,19 @@ class AudioRecorderManager(
          }
      }
  }

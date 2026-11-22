@@ -390,7 +390,9 @@ export function useRecording(
 
   /** The writer's input, or the phone's mic under a wired headset (domain/recordingInput). */
   function inputIdToRecordFrom(): string | null {
-    return effectiveRecordingInputId(preferredInputId, audioDeviceManager.getRawDevices(), Platform.OS);
+    return effectiveRecordingInputId(preferredInputId, audioDeviceManager.getRawDevices(), Platform.OS, {
+      stereo: wantsStereoTake(take.facts.stereoForTake),
+    });
   }
 
   async function applyPreferredInput() {

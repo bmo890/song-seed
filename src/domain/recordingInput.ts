@@ -10,8 +10,21 @@ type InputLike = { id: string; type: string };
 export function effectiveRecordingInputId(
   preferredId: string | null,
   devices: readonly InputLike[],
-  platform: string
+  platform: string,
+  options: { stereo?: boolean } = {}
 ): string | null {
+  // A stereo take on Android leaves the phone's own mics to the phone's routing: pinning
+  // the built-in mic (here, or natively) gives one mic copied into both channels on
+  // Samsung phones (google/oboe#765). The native recorder makes a take with a headset or
+  // USB input on the phone mono, so this only frees the built-in pair.
+  if (
+    options.stereo &&
+    platform === "android" &&
+    !devices.some((device) => device.type === "wired_headset") &&
+    (!preferredId || devices.find((device) => device.id === preferredId)?.type === "builtin_mic")
+  ) {
+    return null;
+  }
   if (preferredId) return preferredId;
   if (platform !== "android") return null;
   if (!devices.some((device) => device.type === "wired_headset")) return null;
