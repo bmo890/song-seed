@@ -9,6 +9,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sin
@@ -28,6 +30,11 @@ import kotlin.math.sqrt
  *  - the limiter looks 5 ms ahead and attacks over 1 ms instead of slamming
  *    the gain per sample, so a hot take is held under the ceiling without the
  *    crackle an instant limiter adds.
+ *
+ * Even (2026-11-22) sits after the tone keys and before the limiter: a gentle
+ * compressor (soft knee at -26 dBFS, 3:1, 10 ms attack, 200 ms release, +5 dB
+ * make-up) on the louder channel, so a rehearsal's drums and a voice sit closer.
+ * iOS uses Apple's dynamics processor with matching settings (SongNookToneEQ).
  *
  * Tone stages mirror SongNookToneEQ on iOS: low-cut = first-order high-pass
  * 140 Hz, low-boost = low shelf +4 dB at 120 Hz, mid-boost = peak +4 dB at
@@ -59,6 +66,12 @@ class SoundChainAudioProcessor(
   private var lowBoostOn = false
   private var midBoostOn = false
   private var hiCutOn = false
+  private var evenOn = false
+
+  // ── Even (gentle compression) ─────────────────────────────────────────────
+  private var evenGainDb = 0.0
+  private var evenAttack = 1.0
+  private var evenRelease = 0.0
 
   // ── tone stage state (per channel) ─────────────────────────────────────────
   private var channelCount = 0
@@ -118,7 +131,6 @@ class SoundChainAudioProcessor(
 
     for (f in 0 until frameCount) {
       smoothedGain += (targetGain - smoothedGain) * gainCoefficient
-      var framePeak = 0.0
       for (c in 0 until channels) {
         var x = input.short.toDouble() / Short.MAX_VALUE.toDouble() * smoothedGain
         if (lowCutOn) {
@@ -131,8 +143,20 @@ class SoundChainAudioProcessor(
         if (midBoostOn) x = peak.run(c, x)
         if (hiCutOn) x = lowPass.run(c, x)
         frame[c] = x
-        framePeak = max(framePeak, abs(x))
       }
+
+      if (evenOn) {
+        var level = 0.0
+        for (c in 0 until channels) level = max(level, abs(frame[c]))
+        val levelDb = if (level > 1e-9) 20.0 * log10(level) else -180.0
+        val wantDb = evenReductionDb(levelDb)
+        evenGainDb += (wantDb - evenGainDb) * (if (wantDb < evenGainDb) evenAttack else evenRelease)
+        val evenGain = exp((evenGainDb + EVEN_MAKEUP_DB) * LN10_OVER_20)
+        for (c in 0 until channels) frame[c] *= evenGain
+      }
+
+      var framePeak = 0.0
+      for (c in 0 until channels) framePeak = max(framePeak, abs(frame[c]))
 
       if (!limit) {
         for (c in 0 until channels) output.putShort(toPcm(frame[c]))
@@ -178,6 +202,9 @@ class SoundChainAudioProcessor(
     val nextLowBoost = "low-boost" in flags
     val nextMidBoost = "mid-boost" in flags
     val nextHiCut = "hi-cut" in flags
+    val nextEven = "even" in flags
+    if (nextEven && !evenOn) evenGainDb = 0.0
+    evenOn = nextEven
     // A stage that just switched on starts from silence, not from stale state.
     if (nextLowCut && !lowCutOn) {
       lowCutPrevIn.fill(0.0)
@@ -222,6 +249,24 @@ class SoundChainAudioProcessor(
     envelope = 1.0
     attackCoefficient = 1.0 - exp(-1.0 / (sampleRate * ATTACK_SECONDS))
     releaseCoefficient = 1.0 - exp(-1.0 / (sampleRate * RELEASE_SECONDS))
+    evenGainDb = 0.0
+    evenAttack = 1.0 - exp(-1.0 / (sampleRate * EVEN_ATTACK_SECONDS))
+    evenRelease = 1.0 - exp(-1.0 / (sampleRate * EVEN_RELEASE_SECONDS))
+  }
+
+  /** Even's gain computer: how many dB to take off a frame at `levelDb` (≤ 0), with a
+   *  soft knee so the change from untouched to compressed is never heard as a step. */
+  private fun evenReductionDb(levelDb: Double): Double {
+    val over = levelDb - EVEN_THRESHOLD_DB
+    val out = when {
+      2.0 * over < -EVEN_KNEE_DB -> levelDb
+      2.0 * over > EVEN_KNEE_DB -> EVEN_THRESHOLD_DB + over / EVEN_RATIO
+      else -> {
+        val into = over + EVEN_KNEE_DB / 2.0
+        levelDb + (1.0 / EVEN_RATIO - 1.0) * into * into / (2.0 * EVEN_KNEE_DB)
+      }
+    }
+    return out - levelDb
   }
 
   /** Push this frame's needed gain and drop what has left the look-ahead window. */
@@ -330,5 +375,12 @@ class SoundChainAudioProcessor(
     private const val RELEASE_SECONDS = 0.15
     /** A level change glides over this, so a slider move never zippers. */
     private const val GAIN_SMOOTHING_SECONDS = 0.02
+    private const val EVEN_THRESHOLD_DB = -26.0
+    private const val EVEN_RATIO = 3.0
+    private const val EVEN_KNEE_DB = 6.0
+    private const val EVEN_ATTACK_SECONDS = 0.010
+    private const val EVEN_RELEASE_SECONDS = 0.200
+    private const val EVEN_MAKEUP_DB = 5.0
+    private val LN10_OVER_20 = ln(10.0) / 20.0
   }
 }

@@ -17,10 +17,11 @@ import { clampSoundLevelDb, formatToneFlags, type OverdubToneFlag } from "./over
  *   Hi cut   harshness (a large share above ~6 kHz while it plays: cymbals close to the
  *            phone) or hiss (the quiet parts are mostly high noise, loud enough to hear
  *            once the level comes up).
+ *   Even     gentle compression, for a rehearsal: the playing swings far between its
+ *            quiet and loud parts, or its peaks stand far above it (a drum kit against
+ *            a voice).
  *
- * Low boost and Mid boost are matters of taste, so Auto leaves them off. Gentle
- * compression (evening out a loud drum kit against a quiet voice) is the next step and
- * not part of this.
+ * Low boost and Mid boost are matters of taste, so Auto leaves them off.
  */
 export type AutoSound = { gainDb: number; tonePreset: string };
 
@@ -42,6 +43,13 @@ const HARSH_SHARE = 0.25;
 const HISS_SHARE = 0.5;
 /** Hiss this loud after the lift is heard. */
 const AUDIBLE_HISS_DB = -50;
+/** Even: the playing's loud parts (95th percentile) this far above its quiet ones
+ *  (10th), counting windows within RANGE_GATE_DB of the average (deeper than that is
+ *  the room between songs, not quiet playing)... */
+const WIDE_RANGE_DB = 15;
+const RANGE_GATE_DB = 18;
+/** ...or its peaks this far above its loudness (drums; a voice alone sits nearer 15). */
+const DRUM_CREST_DB = 20;
 
 const toDb = (linear: number) => 20 * Math.log10(Math.max(linear, 1e-9));
 const powerDb = (power: number) => 10 * Math.log10(Math.max(power, 1e-18));
@@ -82,6 +90,14 @@ export function decideAutoSound(analysis: NativeSoundAnalysis): AutoSound | null
     hiss = quietHighShare > HISS_SHARE && powerDb(quietPower) + gainDb > AUDIBLE_HISS_DB;
   }
   if (harsh || hiss) flags.push("hi-cut");
+
+  const ranged = sounding
+    .filter((i) => toDb(analysis.rms[i]) >= ungatedDb - RANGE_GATE_DB)
+    .map((i) => toDb(analysis.rms[i]))
+    .sort((a, b) => a - b);
+  const percentile = (p: number) => ranged[Math.min(ranged.length - 1, Math.floor(p * ranged.length))];
+  const wideRange = ranged.length >= 10 && percentile(0.95) - percentile(0.1) > WIDE_RANGE_DB;
+  if (wideRange || peakDb - loudnessDb > DRUM_CREST_DB) flags.push("even");
 
   return { gainDb, tonePreset: formatToneFlags(flags) };
 }

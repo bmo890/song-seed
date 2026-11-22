@@ -14,6 +14,7 @@ final class SongNookPitchShiftPracticeEngine {
   // The take's sound (Sound room, 2026-10-14): level on the EQ's global gain, the
   // tone keys as its bands, and a limiter after the lift so +12 dB never clips.
   private let eqNode = SongNookToneEQ.makeNode()
+  private let evenNode = SongNookToneEQ.makeEvenNode()
   private let limiterNode = SongNookToneEQ.makeLimiterNode()
   // The play-along click (PlayAlongClick.swift): its own player beside the song's, on
   // one submix ahead of time-pitch, so the two are pulled frame for frame.
@@ -57,11 +58,13 @@ final class SongNookPitchShiftPracticeEngine {
     engine.attach(streamMix)
     engine.attach(timePitchNode)
     engine.attach(eqNode)
+    engine.attach(evenNode)
     engine.attach(limiterNode)
     engine.connect(playerNode, to: streamMix, fromBus: 0, toBus: 0, format: nil)
     engine.connect(streamMix, to: timePitchNode, format: nil)
     engine.connect(timePitchNode, to: eqNode, format: nil)
-    engine.connect(eqNode, to: limiterNode, format: nil)
+    engine.connect(eqNode, to: evenNode, format: nil)
+    engine.connect(evenNode, to: limiterNode, format: nil)
     engine.connect(limiterNode, to: engine.mainMixerNode, format: nil)
     timePitchNode.overlap = SongNookTimePitch.overlap
     applyTimePitchSettings()
@@ -381,7 +384,7 @@ final class SongNookPitchShiftPracticeEngine {
     let renderedMs = pausedPositionMs + Double(playerTime.sampleTime) / playerTime.sampleRate * 1000
     let session = AVAudioSession.sharedInstance()
     // From the player's last render to the ear: time-pitch, the limiter, the route.
-    let pathSec = timePitchNode.latency + limiterNode.latency + session.outputLatency + session.ioBufferDuration
+    let pathSec = timePitchNode.latency + evenNode.latency + limiterNode.latency + session.outputLatency + session.ioBufferDuration
     let sinceRenderSec = AVAudioTime.seconds(forHostTime: mach_absolute_time()) - AVAudioTime.seconds(forHostTime: nodeTime.hostTime)
     let heardMs = renderedMs + (sinceRenderSec - pathSec) * 1000 * speed
     for inMs in hapticPlanner.due(heardMs: heardMs, speed: speed, plan: plan) {
@@ -401,6 +404,7 @@ final class SongNookPitchShiftPracticeEngine {
 
   private func applySoundSettings() {
     SongNookToneEQ.configure(eqNode, tonePreset: currentTonePreset)
+    SongNookToneEQ.configureEven(evenNode, tonePreset: currentTonePreset)
     eqNode.globalGain = Float(currentGainDb)
   }
 

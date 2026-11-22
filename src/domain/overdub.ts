@@ -74,7 +74,10 @@ export function buildCombinedClipTitle(_idea: SongIdea, clip: ClipVersion) {
 // "low-boost" joined on 2026-10-14 (the Sound room's fourth key, for thin phone
 // recordings); it and "low-cut" are one band's two directions, so they exclude
 // each other. The order here is the persisted encoding's order, kept stable.
-export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost"] as const;
+// "even" joined on 2026-11-22: gentle compression (Level's "Even" key, set by Auto on a
+// rehearsal). It rides the same encoding so archives and backups carry it untouched;
+// it is not a tone key, so the Tone group neither shows nor resets it.
+export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost", "even"] as const;
 export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
 /** The keys' order in the Sound room's two-by-two bank: the low band's two
  *  directions on the first row, mid and high beneath. */
@@ -86,6 +89,7 @@ const EXCLUSIVE_TONE_FLAGS: Record<OverdubToneFlag, OverdubToneFlag | null> = {
   "low-boost": "low-cut",
   "mid-boost": null,
   "hi-cut": null,
+  even: null,
 };
 
 /** True once any tone flag is on: the tab's dot and the group's reset key. */

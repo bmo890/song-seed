@@ -82,6 +82,19 @@ describe("Auto in the Sound drawer", () => {
     expect(decideAutoSound(take({ levelDb: -22, rumble: 0.3, high: 0.3 }))?.tonePreset).toBe("low-cut+hi-cut");
   });
 
+  it("evens out a rehearsal whose drum hits stand far above the playing", () => {
+    expect(decideAutoSound(take({ levelDb: -26, peakDb: -2 }))?.tonePreset).toBe("even");
+  });
+
+  it("evens out playing that swings between quiet verses and loud choruses", () => {
+    const quietLoud = take({ levelDb: -14, gapDb: -32 });
+    expect(decideAutoSound(quietLoud)?.tonePreset).toBe("even");
+  });
+
+  it("leaves a steady voice memo uncompressed", () => {
+    expect(decideAutoSound(take({ levelDb: -24, peakDb: -10 }))?.tonePreset).toBe("neutral");
+  });
+
   it("says nothing about a silent clip", () => {
     expect(decideAutoSound(take({ levelDb: -80 }))).toBeNull();
   });

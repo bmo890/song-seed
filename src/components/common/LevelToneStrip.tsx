@@ -9,7 +9,6 @@ import {
   SOUND_TONE_KEY_ORDER,
   clampSoundLevelDb,
   hasToneFlag,
-  isTonePresetNeutral,
   parseToneFlags,
   type OverdubToneFlag,
 } from "../../domain/overdub";
@@ -32,6 +31,7 @@ const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
   "low-boost": "player.lowBoost",
   "hi-cut": "player.hiCut",
   "mid-boost": "player.midBoost",
+  even: "player.even",
 };
 
 export type LevelToneStripProps = {
@@ -74,7 +74,10 @@ export function LevelToneStrip({
   const auto = useAutoSound({ gainDb, tonePreset, onCommitGain, onToggleToneFlag, audioUri: autoAudioUri });
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
-  const toneBent = !isTonePresetNeutral(tonePreset);
+  const evenOn = hasToneFlag(tonePreset, "even");
+  // The tone keys only: Even rides the same encoding but belongs to Level.
+  const toneFlagsOn = parseToneFlags(tonePreset).filter((flag) => flag !== "even");
+  const toneBent = toneFlagsOn.length > 0;
 
   return (
     <View style={[s.strip, style]} testID={testID}>
@@ -132,6 +135,16 @@ export function LevelToneStrip({
           accessibilityLabel={t("player.level")}
           testID={testID ? `${testID}-level` : undefined}
         />
+        {/* Even (2026-11-22): gentle compression, so the loud parts and the quiet
+            ones sit closer. Level's own switch, beside the slider it relates to. */}
+        <View style={s.options}>
+          <InkOption
+            label={t("player.even")}
+            selected={evenOn}
+            onPress={() => onToggleToneFlag("even")}
+            testID={testID ? `${testID}-even` : undefined}
+          />
+        </View>
       </View>
 
       <View style={s.group}>
@@ -141,7 +154,7 @@ export function LevelToneStrip({
             <ResetKey
               onPress={() => {
                 // Each lit option goes out; the toggle helper writes one flag at a time.
-                for (const flag of parseToneFlags(tonePreset)) onToggleToneFlag(flag);
+                for (const flag of toneFlagsOn) onToggleToneFlag(flag);
               }}
               accessibilityLabel={t("player.resetTone")}
             />

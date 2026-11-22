@@ -62,4 +62,24 @@ describe("the Sound strip's Auto", () => {
     expect(autoKey(r!).props.tone).toBe("idle");
     await act(async () => r!.unmount());
   });
+
+  it("keeps Even on its own key: the Tone reset leaves it alone", async () => {
+    let sound = { gainDb: 0, tonePreset: "" };
+    let r: Rendered | null = null;
+    await act(async () => {
+      r = TestRenderer.create(<Harness onState={(next) => (sound = next)} />);
+    });
+    const press = async (id: string) => {
+      const key = r!.root.findAll((n) => n.props.testID === id && typeof n.props.onPress === "function")[0];
+      await act(async () => key.props.onPress());
+    };
+    await press("strip-even");
+    expect(sound.tonePreset).toBe("mid-boost+even");
+    const toneReset = r!.root.findAll(
+      (n) => n.props.accessibilityLabel === "Reset tone" && typeof n.props.onPress === "function"
+    )[0];
+    await act(async () => toneReset.props.onPress());
+    expect(sound.tonePreset).toBe("even");
+    await act(async () => r!.unmount());
+  });
 });

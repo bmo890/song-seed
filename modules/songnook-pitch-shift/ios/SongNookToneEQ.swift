@@ -62,6 +62,37 @@ enum SongNookToneEQ {
     midBoost.bypass = !flags.contains("mid-boost")
   }
 
+  /// Even (2026-11-22): gentle compression after the tone keys and before the limiter,
+  /// so a rehearsal's drums and a voice sit closer. Apple's dynamics processor, set to
+  /// match Android's SoundChainAudioProcessor as near as its parameters allow:
+  /// threshold -26 dBFS, 10 ms attack, 200 ms release, +5 dB make-up, no expansion.
+  /// Bypassed unless the "even" flag is on.
+  static func makeEvenNode() -> AVAudioUnitEffect {
+    var description = AudioComponentDescription()
+    description.componentType = kAudioUnitType_Effect
+    description.componentSubType = kAudioUnitSubType_DynamicsProcessor
+    description.componentManufacturer = kAudioUnitManufacturer_Apple
+    description.componentFlags = 0
+    description.componentFlagsMask = 0
+    let node = AVAudioUnitEffect(audioComponentDescription: description)
+    let unit = node.audioUnit
+    let global = kAudioUnitScope_Global
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_Threshold, global, 0, -26, 0)
+    // HeadRoom is how far above the threshold the curve reaches full scale: 12 dB gives
+    // a gentle slope (Android's 3:1 with a 6 dB knee).
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_HeadRoom, global, 0, 12, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_ExpansionRatio, global, 0, 1, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_AttackTime, global, 0, 0.010, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_ReleaseTime, global, 0, 0.200, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_OutputGain, global, 0, 5, 0)
+    node.bypass = true
+    return node
+  }
+
+  static func configureEven(_ node: AVAudioUnitEffect, tonePreset: String) {
+    node.bypass = !tonePreset.split(separator: "+").contains("even")
+  }
+
   /// A peak limiter after the level lift, so +12 dB never crackles. Apple's own
   /// limiter unit: default attack/release, threshold just under full scale.
   static func makeLimiterNode() -> AVAudioUnitEffect {

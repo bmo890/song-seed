@@ -160,7 +160,17 @@ final class SongNookPitchShiftRenderer {
       engine.attach(playerNode)
       engine.attach(eqNode)
       engine.connect(playerNode, to: eqNode, format: audioFile.processingFormat)
-      engine.connect(eqNode, to: engine.mainMixerNode, format: audioFile.processingFormat)
+      // Even (gentle compression) sits after the tone, as in the live engine; only
+      // inputs that use it carry the node.
+      if input.tonePreset.split(separator: "+").contains("even") {
+        let evenNode = SongNookToneEQ.makeEvenNode()
+        SongNookToneEQ.configureEven(evenNode, tonePreset: input.tonePreset)
+        engine.attach(evenNode)
+        engine.connect(eqNode, to: evenNode, format: audioFile.processingFormat)
+        engine.connect(evenNode, to: engine.mainMixerNode, format: audioFile.processingFormat)
+      } else {
+        engine.connect(eqNode, to: engine.mainMixerNode, format: audioFile.processingFormat)
+      }
 
       let offsetFrames = AVAudioFramePosition((input.offsetMs / 1000.0) * renderFormat.sampleRate)
       if offsetFrames >= 0 {
