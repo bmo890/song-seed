@@ -378,6 +378,7 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
         tonePreset={selectedStem.tonePreset}
         onCommitGain={(db) => onAdjustStemGain(selectedStem.id, db - selectedStem.gainDb)}
         onToggleToneFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
+        autoAudioUri={selectedStem.audioUri ?? null}
       />
     </View>
   ) : null;

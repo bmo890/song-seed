@@ -162,6 +162,18 @@ export type NativeWaveformResult = {
   durationMs: number;
 };
 
+/** The Sound drawer's Auto measures a clip (SongNookSoundAnalysis.swift / .kt): per
+ *  window, the linear RMS of the whole mono signal, of its rumble band (below ~60 Hz)
+ *  and of its hiss band (above ~6 kHz); and the peak, 0..1. */
+export type NativeSoundAnalysisRequest = { inputUri: string };
+export type NativeSoundAnalysis = {
+  windowMs: number;
+  rms: number[];
+  sub: number[];
+  high: number[];
+  peak: number;
+};
+
 /** Cheap container-metadata duration probe: reads the declared duration WITHOUT
  *  decoding (Android MediaExtractor KEY_DURATION, iOS AVURLAsset.duration). */
 export type NativeAudioDurationRequest = {

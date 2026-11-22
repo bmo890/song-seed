@@ -1339,7 +1339,7 @@ export const es = {
     playFromA11y: "Reproducir desde {{title}}",
     unavailableA11y: "{{title}} (no disponible)",
   },
-  player: {
+  player: { auto: "Auto", autoA11y: "Nivel y tono automáticos", autoNothing: "No se oye nada", autoBalanced: "Ya está equilibrado", autoFailed: "No se pudo leer",
     playLayerA11y: "Reproducir la canción desde justo antes de esta capa",
     dragToMove: "Arrastra para mover",
     soloLayer: "Poner {{title}} en solo",

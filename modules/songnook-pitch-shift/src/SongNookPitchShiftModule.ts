@@ -20,6 +20,8 @@ import type {
   NativeTrimResult,
   NativeWaveformRequest,
   NativeWaveformResult,
+  NativeSoundAnalysis,
+  NativeSoundAnalysisRequest,
   SongNookPitchShiftModuleEvents,
 } from "./SongNookPitchShift.types";
 
@@ -51,6 +53,9 @@ declare class SongNookPitchShiftModule extends NativeModule<SongNookPitchShiftMo
   renderTrim?(request: NativeTrimRequest): Promise<NativeTrimResult>;
   decodeToWav?(request: NativeDecodeToWavRequest): Promise<NativeDecodeToWavResult>;
   computeWaveform?(request: NativeWaveformRequest): Promise<NativeWaveformResult>;
+  /** The Sound drawer's Auto: loudness, rumble and hiss of one clip. Optional —
+   *  feature-detect; absent on builds predating this native method. */
+  analyzeSound?(request: NativeSoundAnalysisRequest): Promise<NativeSoundAnalysis>;
   /** Cheap duration probe: reads container metadata only (no PCM decode). Optional —
    *  feature-detect before calling; absent on builds predating this native method. */
   getAudioDurationMs?(request: NativeAudioDurationRequest): Promise<NativeAudioDurationResult>;

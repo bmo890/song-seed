@@ -125,6 +125,13 @@ class SongNookPitchShiftModule : Module() {
       withContext(waveformDispatcher) { renderer.computeWaveform(request) }
     }
 
+    // The Sound drawer's Auto: loudness, rumble and hiss of one clip (SongNookSoundAnalysis.kt).
+    AsyncFunction("analyzeSound") Coroutine { request: Map<String, Any?> ->
+      withContext(waveformDispatcher) {
+        analyzeSound(appContext.reactContext ?: throw IllegalStateException("React context unavailable"), request)
+      }
+    }
+
     // Cheap container-metadata duration probe (no decode). Import uses it to fill
     // every clip's length at import time; feature-detected in JS.
     AsyncFunction("getAudioDurationMs") { request: Map<String, Any?> ->

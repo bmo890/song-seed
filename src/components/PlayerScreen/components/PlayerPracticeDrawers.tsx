@@ -185,6 +185,8 @@ type PlayerPracticeDrawersProps = {
   // The take's sound (Sound room, 2026-10-14): its root level and tone, saved on
   // the take as they are set. Null while no clip is loaded.
   sound: { gainDb: number; tonePreset: string } | null;
+  /** The take's own file, for the Sound strip's Auto. */
+  soundAudioUri?: string | null;
   /** The knob's value on release — absolute, in dB. */
   onCommitSoundLevel: (gainDb: number) => void;
   onToggleSoundTone: (flag: OverdubToneFlag) => void;
@@ -336,6 +338,7 @@ export function PlayerPracticeDrawers({
   sound,
   onCommitSoundLevel,
   onToggleSoundTone,
+  soundAudioUri = null,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
   // Step up reads in BPM only when the dial does, on a take that has a tempo.
@@ -1079,6 +1082,7 @@ export function PlayerPracticeDrawers({
             tonePreset={sound.tonePreset}
             onCommitGain={onCommitSoundLevel}
             onToggleToneFlag={onToggleSoundTone}
+            autoAudioUri={soundAudioUri}
             testID="sound-strip"
           />
         </>

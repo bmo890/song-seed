@@ -107,6 +107,11 @@ public class SongNookPitchShiftModule: Module {
       return try self.renderer.computeWaveform(request)
     }.runOnQueue(waveformQueue)
 
+    // The Sound drawer's Auto: loudness, rumble and hiss of one clip (SongNookSoundAnalysis.swift).
+    AsyncFunction("analyzeSound") { (request: [String: Any]) -> [String: Any] in
+      return try self.renderer.analyzeSound(request)
+    }.runOnQueue(waveformQueue)
+
     // Cheap container-metadata duration probe (no decode). Import uses it to fill
     // every clip's length at import time; feature-detected in JS.
     AsyncFunction("getAudioDurationMs") { (request: [String: Any]) -> [String: Any] in

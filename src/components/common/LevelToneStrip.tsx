@@ -18,6 +18,13 @@ import { InkOption } from "./InkOption";
 import { Slider } from "./Slider";
 import { Press } from "./Press";
 import { signedNumberText } from "../../i18n/direction";
+import { InkKey, inkKeyColor } from "./InkKey";
+import { Spinner } from "./Spinner";
+import { toast } from "./toastStore";
+import { haptic } from "../../design/haptics";
+import { formatToneFlags } from "../../domain/overdub";
+import type { AutoSound } from "../../domain/autoSound";
+import { isAutoSoundAvailable, suggestAutoSound } from "../../services/autoSound";
 
 /** i18n keys for the tone keys, by flag. */
 const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
@@ -33,6 +40,9 @@ export type LevelToneStripProps = {
   /** The knob's value on release — absolute, in dB. */
   onCommitGain: (gainDb: number) => void;
   onToggleToneFlag: (flag: OverdubToneFlag) => void;
+  /** The take's (or layer's) own file: offers Auto, which measures it and sets the
+   *  level and tone here (domain/autoSound.ts). Absent, no Auto key. */
+  autoAudioUri?: string | null;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -55,17 +65,45 @@ export function LevelToneStrip({
   tonePreset,
   onCommitGain,
   onToggleToneFlag,
+  autoAudioUri = null,
   style,
   testID,
 }: LevelToneStripProps) {
   const { t } = useTranslation();
   const [dragDb, setDragDb] = useState<number | null>(null);
+  const auto = useAutoSound({ gainDb, tonePreset, onCommitGain, onToggleToneFlag, audioUri: autoAudioUri });
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
   const toneBent = !isTonePresetNeutral(tonePreset);
 
   return (
     <View style={[s.strip, style]} testID={testID}>
+      {auto.offered ? (
+        <View style={s.autoRow}>
+          <InkKey
+            // Haptics vocabulary: light, a small state flip (Auto on or off).
+            haptic="light"
+            role="switch"
+            tone={auto.active ? "active" : "idle"}
+            glyph={
+              auto.busy ? (
+                <Spinner size="small" color={inkKeyColor("idle")} />
+              ) : (
+                <Ionicons
+                  name="color-wand-outline"
+                  size={18}
+                  color={inkKeyColor(auto.active ? "active" : "idle")}
+                />
+              )
+            }
+            label={t("player.auto")}
+            accessibilityLabel={t("player.autoA11y")}
+            disabled={auto.busy}
+            onPress={auto.toggle}
+            testID={testID ? `${testID}-auto` : undefined}
+          />
+        </View>
+      ) : null}
       <View style={s.group}>
         <View style={s.head}>
           <Text style={s.label}>{t("player.level")}</Text>
@@ -125,6 +163,72 @@ export function LevelToneStrip({
   );
 }
 
+/**
+ * Auto (2026-11-22): measure the file once, then set the level and the tone keys to what
+ * it heard, where they can be seen and bent. The key reads on while the controls still
+ * hold Auto's choice; tapped then, it puts back what was there before.
+ */
+function useAutoSound({
+  gainDb,
+  tonePreset,
+  onCommitGain,
+  onToggleToneFlag,
+  audioUri,
+}: {
+  gainDb: number;
+  tonePreset: string;
+  onCommitGain: (gainDb: number) => void;
+  onToggleToneFlag: (flag: OverdubToneFlag) => void;
+  audioUri: string | null;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [chosen, setChosen] = useState<{ auto: AutoSound; before: AutoSound; uri: string } | null>(null);
+  const canonicalTone = formatToneFlags(parseToneFlags(tonePreset));
+  const active =
+    !!chosen && chosen.uri === audioUri && chosen.auto.gainDb === gainDb && chosen.auto.tonePreset === canonicalTone;
+
+  function apply(target: AutoSound) {
+    if (target.gainDb !== gainDb) onCommitGain(target.gainDb);
+    const has = parseToneFlags(tonePreset);
+    const want = parseToneFlags(target.tonePreset);
+    // Out first, then in: lighting a flag can put out its opposite.
+    for (const flag of has) if (!want.includes(flag)) onToggleToneFlag(flag);
+    for (const flag of want) if (!has.includes(flag)) onToggleToneFlag(flag);
+  }
+
+  async function toggle() {
+    if (!audioUri || busy) return;
+    if (active && chosen) {
+      apply(chosen.before);
+      setChosen(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      const auto = await suggestAutoSound(audioUri);
+      if (!auto) {
+        toast(t("player.autoNothing"));
+        return;
+      }
+      const before = { gainDb, tonePreset: canonicalTone };
+      if (auto.gainDb === before.gainDb && auto.tonePreset === before.tonePreset) {
+        toast(t("player.autoBalanced"), "checkmark-outline");
+      }
+      apply(auto);
+      setChosen({ auto, before, uri: audioUri });
+    } catch {
+      // Haptics vocabulary: error, a failure the person meets.
+      haptic.error();
+      toast(t("player.autoFailed"), "alert-circle-outline");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return { offered: !!audioUri && isAutoSoundAvailable(), active, busy, toggle };
+}
+
 /** A group's reset: a bare refresh glyph, shown only once there is something to
  *  undo. Press owns the `tap`. */
 function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; accessibilityLabel: string }) {
@@ -145,6 +249,11 @@ function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; access
 const s = StyleSheet.create({
   strip: {
     gap: 16,
+  },
+  // Auto sets both groups below, so it sits above them.
+  autoRow: {
+    flexDirection: "row",
+    marginBottom: -8,
   },
   group: {
     gap: 8,

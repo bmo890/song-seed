@@ -894,7 +894,7 @@ export const en = {
     playFromA11y: "Play from {{title}}",
     unavailableA11y: "{{title}} (unavailable)",
   },
-  player: {
+  player: { auto: "Auto", autoA11y: "Auto level and tone", autoNothing: "Nothing to hear", autoBalanced: "Already balanced", autoFailed: "Couldn't read this clip",
     playLayerA11y: "Play the song from just before this layer", dragToMove: "Drag to move", soloLayer: "Solo {{title}}",
     defaultLayerName: "Layer {{number}}",
     resetAll: "Reset all",

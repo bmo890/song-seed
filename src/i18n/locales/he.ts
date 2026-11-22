@@ -933,7 +933,7 @@ export const he = {
     playFromA11y: "ניגון מ־{{title}}",
     unavailableA11y: "{{title}} (לא זמין)",
   },
-  player: {
+  player: { auto: "אוטומטי", autoA11y: "עוצמה וגוון אוטומטיים", autoNothing: "אין מה לשמוע", autoBalanced: "כבר מאוזן", autoFailed: "לא ניתן לקרוא את הקטע",
     playLayerA11y: "ניגון השיר מעט לפני השכבה הזו", dragToMove: "גררו כדי להזיז", soloLayer: "השמעת {{title}} לבד",
     defaultLayerName: "שכבה {{number}}",
     resetAll: "איפוס הכול",

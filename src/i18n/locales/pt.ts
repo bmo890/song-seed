@@ -1338,7 +1338,7 @@ export const pt = {
     playFromA11y: "Tocar a partir de {{title}}",
     unavailableA11y: "{{title}} (indisponível)",
   },
-  player: {
+  player: { auto: "Auto", autoA11y: "Nível e tom automáticos", autoNothing: "Nada para ouvir", autoBalanced: "Já está equilibrado", autoFailed: "Não deu para ler",
     playLayerA11y: "Tocar a música um pouco antes desta camada",
     dragToMove: "Arraste para mover",
     soloLayer: "Solo em {{title}}",

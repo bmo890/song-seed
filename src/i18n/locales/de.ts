@@ -1269,7 +1269,7 @@ export const de = {
     playFromA11y: "Ab {{title}} abspielen",
     unavailableA11y: "{{title}} (nicht verfügbar)",
   },
-  player: {
+  player: { auto: "Auto", autoA11y: "Pegel und Klang automatisch", autoNothing: "Nichts zu hören", autoBalanced: "Schon ausgewogen", autoFailed: "Clip nicht lesbar",
     playLayerA11y: "Song kurz vor dieser Spur abspielen",
     dragToMove: "Zum Verschieben ziehen",
     soloLayer: "{{title}} solo",

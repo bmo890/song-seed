@@ -2180,6 +2180,7 @@ function PlayerScreenInner({
               sound={data.overdubRootSettings}
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}
+              soundAudioUri={playerClip?.audioUri ?? null}
             />
           ) : (
             <PlayerSupportSections
