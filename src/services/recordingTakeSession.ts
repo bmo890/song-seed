@@ -13,6 +13,7 @@ import {
   type OnsetEnvelopeState,
 } from "../domain/onsetEnvelope";
 import type { TempoMap } from "../domain/tempoMap";
+import type { StereoMeter } from "../domain/stereoDownmix";
 import type { PracticeMarker, RecordingGrid } from "../types";
 
 /**
@@ -140,6 +141,9 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
     /** The recorder screen's Stereo key for this take (locked while it rolls); null
      *  before the screen has said, when the Settings default stands. */
     stereoForTake: null as boolean | null,
+    /** How different the take's two channels really are, while a stereo take rolls
+     *  (domain/stereoDownmix.ts). Null for a mono take. */
+    stereoMeter: null as StereoMeter | null,
     /** prepareRecording ran and the native recorder is armed but not started. */
     prepared: false,
     /** The next "recordingStopped" event is one we asked for, not an interruption. */
@@ -163,6 +167,7 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
   /** Everything a new take starts from. Called before every start/prepare. */
   function beginTake() {
     facts.recordingStartedAt = null;
+    facts.stereoMeter = null;
     facts.sessionPersisted = false;
     resetCaptureStart();
     headTrim.set({ pending: false, ms: 0 });

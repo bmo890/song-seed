@@ -1642,7 +1642,7 @@ export const pt = {
     zoomLayer: "Zoom nesta camada",
     fullClip: "Clipe inteiro",
   },
-  recording: { stereo: "Estéreo",
+  recording: { monoOnly: "Este telefone grava em mono", stereo: "Estéreo",
     changeEarlier: "Um compasso antes",
     changeLater: "Um compasso depois",
     refreshInputs: "Buscar entradas",

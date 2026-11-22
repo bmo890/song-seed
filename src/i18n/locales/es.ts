@@ -1643,7 +1643,7 @@ export const es = {
     zoomLayer: "Acercar a esta capa",
     fullClip: "Clip completo",
   },
-  recording: { stereo: "Estéreo",
+  recording: { monoOnly: "Este teléfono graba en mono", stereo: "Estéreo",
     changeEarlier: "Un compás antes",
     changeLater: "Un compás después",
     refreshInputs: "Buscar entradas",

@@ -1567,7 +1567,7 @@ export const de = {
     zoomLayer: "Auf diese Spur zoomen",
     fullClip: "Ganzer Clip",
   },
-  recording: { stereo: "Stereo",
+  recording: { monoOnly: "Dieses Telefon nimmt mono auf", stereo: "Stereo",
     changeEarlier: "Einen Takt früher",
     changeLater: "Einen Takt später",
     refreshInputs: "Eingänge suchen",

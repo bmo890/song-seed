@@ -44,9 +44,10 @@ import {
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { effectiveRecordingInputId } from "../domain/recordingInput";
-import { downmixInterleaved } from "../domain/stereoDownmix";
+import { createStereoMeter, downmixInterleaved, judgeStereo, meterStereo } from "../domain/stereoDownmix";
+import { toast } from "../components/common/toastStore";
 import { hasProAccess } from "../domain/entitlements";
-import { getStereoSupport, refreshStereoSupport } from "../services/stereoSupport";
+import { getStereoSupport, noteStereoTake, refreshStereoSupport } from "../services/stereoSupport";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { recordingBlockedBy, tellRecordingWaits } from "../services/libraryOperationGate";
 import { getRestoreRestartState } from "../state/restoreRuntime";
@@ -691,10 +692,13 @@ export function useRecording(
         // A stereo take streams L R L R; the tape and the onset envelope count one
         // channel's samples, so fold it here (domain/stereoDownmix.ts).
         const streamChannels = (rawEvent as { songNookChannels?: unknown }).songNookChannels;
-        const event =
-          streamChannels === 2 && rawEvent?.data instanceof Float32Array
-            ? { ...rawEvent, data: downmixInterleaved(rawEvent.data, 2) }
-            : rawEvent;
+        const stereoStream = streamChannels === 2 && rawEvent?.data instanceof Float32Array;
+        if (stereoStream) {
+          // Does this phone really give two different sides? (judged when the take ends)
+          take.facts.stereoMeter ??= createStereoMeter();
+          meterStereo(take.facts.stereoMeter, rawEvent.data);
+        }
+        const event = stereoStream ? { ...rawEvent, data: downmixInterleaved(rawEvent.data, 2) } : rawEvent;
         // Record-through: while the head is still pending (count-in / pre-roll), capture is
         // rolling but this audio will be trimmed off at save. Don't DRAW it on the live
         // tape — otherwise the tape shows a silent count-in lead that the saved (trimmed)
@@ -1126,6 +1130,16 @@ export function useRecording(
     }
   }
 
+  /** A stereo take has ended (saved or thrown away): what it showed about this phone.
+   *  The first take that finds the phone copies one mic into both sides (or leaves one
+   *  silent) hides the stereo switches here for good, and says so once. */
+  function settleStereoFinding() {
+    const meter = take.facts.stereoMeter;
+    take.facts.stereoMeter = null;
+    if (!meter) return;
+    if (noteStereoTake(judgeStereo(meter))) toast(t("recording.monoOnly"), "information-circle-outline");
+  }
+
   async function saveRecordingNow() {
     let managedAudioUriToCleanup: string | null = null;
     // The take's own file became the library's (moved, audit 03-6): it is never deleted
@@ -1135,6 +1149,7 @@ export function useRecording(
     try {
       take.facts.expectedStop = true;
       const recordingData = await timedStep("stopRecording", recorder.stopRecording(), { timeoutMs: 15_000 });
+      settleStereoFinding();
       take.facts.prepared = false;
       take.facts.recordingStartedAt = null;
       // Take the onset envelope before anything resets it — the head trim it has to be
@@ -1409,6 +1424,7 @@ export function useRecording(
         },
       });
       fileUri = recordingData?.fileUri;
+      settleStereoFinding();
     } catch (error) {
       take.facts.expectedStop = false;
       if (error instanceof StepTimeoutError) stopLateRecorder();
