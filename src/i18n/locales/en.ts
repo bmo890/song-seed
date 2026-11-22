@@ -569,7 +569,7 @@ export const en = {
   settingsRecording: {
     saving: "Saving",
     nameEach: "Name each clip",
-    stereo: "Record in stereo",
+    stereo: "Stereo by default",
     stereoHint: "The phone's own mics. Takes twice the space.",
     bluetooth: "Bluetooth calibration",
     calibrations_one: "{{count}} saved calibration.",
@@ -929,7 +929,7 @@ export const en = {
     jumpSection: "Jump to {{title}} at {{time}}", editStart: "Edit start ({{time}})", editEnd: "Edit end ({{time}})", editSectionDetails: "Edit {{title}} name and colour", jumpPin: "Jump to {{title}} at {{time}}", editTime: "Edit time ({{time}})", editPinDetails: "Edit {{title}} name and note", thisPin: "this pin", playFrom: "Play from {{name}}", pinAddedAt: "Pin added at {{time}}",clipNotes: "Clip notes", noNotesBody: "No notes yet.", saveOneClip: "Combine layers", lowCut: "Low cut", lowBoost: "Low boost", level: "Level", tone: "Tone", dB: "dB", resetLevel: "Reset level", resetTone: "Reset tone", combineTitle: "Combine layers", combineBody: "Mix every layer into one clip.", saveCopy: "New clip", saveCopyDesc: "This take keeps its layers.", replaceTake: "Replace take", replaceTakeDesc: "The layers can’t be edited afterward.", removeLayer: "Remove", updatingMix: "Updating layer mix", unmuteLayer: "Unmute this layer", muteLayer: "Mute this layer", layerOptions: "Layer options", restoreAlignment: "Restore the original alignment", layerName: "Layer name",
     renameLayerFailed: "Could not rename the layer.", rootGainFailed: "Couldn’t change the take’s level.", rootToneFailed: "Couldn’t change the take’s tone.", layerGainFailed: "Could not update the layer gain.", layerTimingFailed: "Could not adjust the layer timing.", layerMuteFailed: "Could not update the layer mute state.", layerToneFailed: "Could not update the layer tone.", removeLayerFailed: "Could not remove the layer.", analysisUnavailable: "Analysis isn’t available for this clip.", mutedShort: "muted", mergeLayers: "Merge layers", mergePick: "Pick the layers to merge", mergeCount_one: "Merge {{count}}", mergeCount_other: "Merge {{count}}", mergeName: "Name the merged layer", merging: "Merging…", mergedToast: "Layers merged", mergeFailed: "Couldn’t merge the layers", pickLayer: "Pick {{title}}", collapseLayers: "Collapse all", expandLayers: "Expand all", collapseLayer: "Collapse {{title}}", expandLayer: "Expand {{title}}", zoomShort: "Zoom", timing: "Timing", nudgeMs: "{{value}} ms", renameLayer: "Rename", removeLayerTitle: "Remove {{title}}?", removeLayerBody: "Its audio is deleted.", layerLimitTitle: "Eight layers", layerLimitBody: "Combine them to keep layering.", combine: "Combine", showLayers: "Show layers", hideLayers: "Hide layers", layerCountHeader: "Layers · {{count}}", showFullClip: "Show the full clip", zoomLayer: "Zoom to this layer", fullClip: "Full clip",
   },
-  recording: { changeEarlier: "One bar earlier", changeLater: "One bar later", refreshInputs: "Look for inputs", followsPhone: "follows your phone",
+  recording: { stereo: "Stereo", changeEarlier: "One bar earlier", changeLater: "One bar later", refreshInputs: "Look for inputs", followsPhone: "follows your phone",
     timeLeft: "{{time}} left",
     preRoll: "Pre-roll",
     stopListening: "Stop",

@@ -112,12 +112,12 @@ const ANALYSIS_SEGMENT_MS = 75;
 /** Below this the head trim is noise, not a count-in — skip the re-render. */
 const MIN_HEAD_TRIM_MS = 24;
 
-/** Ask the recorder for stereo: the writer's setting, with Pro access, on a phone that can.
- *  The native recorder still decides per take (built-in mic only) and says so in the
- *  stream (`songNookChannels`). */
-function wantsStereoTake(): boolean {
+/** Ask the recorder for stereo: the take's own choice (the recorder screen's Stereo key,
+ *  else the Settings default), with Pro access, on a phone that can. The native recorder
+ *  still decides per take (built-in mic only) and says so in the stream (`songNookChannels`). */
+function wantsStereoTake(forTake: boolean | null): boolean {
   return (
-    useStore.getState().recordInStereo &&
+    (forTake ?? useStore.getState().recordInStereo) &&
     hasProAccess("stereo-recording") &&
     getStereoSupport() !== "no"
   );
@@ -638,7 +638,7 @@ export function useRecording(
       // The live stream's shape stays mono (the take session's clock); a stereo file is
       // asked for separately and folded to mono on the stream (onAudioStream below).
       channels: CAPTURE_CHANNELS as 1,
-      stereo: wantsStereoTake(),
+      stereo: wantsStereoTake(take.facts.stereoForTake),
       // 16-bit PCM WAV, named (decision F): see RECORDING_FILE_FORMAT.
       ...RECORDING_FILE_FORMAT,
       interval: LIVE_STREAM_INTERVAL_MS,

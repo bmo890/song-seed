@@ -137,6 +137,9 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
     punchInMs: null as number | null,
     /** The take uses the metronome (the toggle is locked while it rolls). */
     metronomeEnabled: false,
+    /** The recorder screen's Stereo key for this take (locked while it rolls); null
+     *  before the screen has said, when the Settings default stands. */
+    stereoForTake: null as boolean | null,
     /** prepareRecording ran and the native recorder is armed but not started. */
     prepared: false,
     /** The next "recordingStopped" event is one we asked for, not an interruption. */

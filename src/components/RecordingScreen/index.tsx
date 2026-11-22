@@ -171,6 +171,7 @@ export function RecordingScreen() {
           countInBeatsPerBar={screen.metronome.meterPreset.pulsesPerBar}
           guideJoin={screen.guideJoinInfo}
           metronomeEnabled={screen.recordingMetronomeEnabled}
+          stereoKey={screen.stereoKey}
           liveTakeGrid={screen.liveTakeGrid}
           metronomeSummary={metronomeSummary}
           // Locked for the whole take, PAUSED INCLUDED. Changing tempo, meter or the click

@@ -597,7 +597,7 @@ export const he = {
   settingsRecording: {
     saving: "שמירה",
     nameEach: "לתת שם לכל קטע",
-    stereo: "הקלטה בסטריאו",
+    stereo: "סטריאו כברירת מחדל",
     stereoHint: "רק המיקרופונים של הטלפון. תופס כפול מקום.",
     bluetooth: "כיול Bluetooth",
     calibrations_one: "כיול אחד נשמר.",
@@ -968,7 +968,7 @@ export const he = {
     jumpSection: "דילוג אל {{title}} ב־{{time}}", editStart: "עריכת ההתחלה ({{time}})", editEnd: "עריכת הסיום ({{time}})", editSectionDetails: "עריכת השם והצבע של {{title}}", jumpPin: "דילוג אל {{title}} ב־{{time}}", editTime: "עריכת הזמן ({{time}})", editPinDetails: "עריכת השם וההערה של {{title}}", thisPin: "הסמן הזה", playFrom: "ניגון מ־{{name}}", pinAddedAt: "סמן נוסף ב־{{time}}",clipNotes: "הערות לקטע", noNotesBody: "עדיין אין הערות.", saveOneClip: "איחוד שכבות", lowCut: "חיתוך נמוכים", lowBoost: "הגברת נמוכים", level: "עוצמה", tone: "גוון", dB: "dB", resetLevel: "איפוס העוצמה", resetTone: "איפוס הגוון", combineTitle: "איחוד שכבות", combineBody: "מיקס של כל השכבות לקטע אחד.", saveCopy: "קטע חדש", saveCopyDesc: "הטייק הזה שומר על השכבות שלו.", replaceTake: "החלפת טייק", replaceTakeDesc: "אחר כך לא יהיה אפשר לערוך את השכבות.", removeLayer: "הסרה", updatingMix: "מעדכן את מיקס השכבות", unmuteLayer: "ביטול השתקת השכבה", muteLayer: "השתקת השכבה", layerOptions: "אפשרויות השכבה", restoreAlignment: "שחזור היישור המקורי", layerName: "שם השכבה",
     renameLayerFailed: "לא ניתן לשנות את שם השכבה.", rootGainFailed: "לא ניתן לשנות את עוצמת הטייק.", rootToneFailed: "לא ניתן לשנות את הגוון של הטייק.", layerGainFailed: "לא ניתן לעדכן את עוצמת השכבה.", layerTimingFailed: "לא ניתן להתאים את תזמון השכבה.", layerMuteFailed: "לא ניתן לעדכן את השתקת השכבה.", layerToneFailed: "לא ניתן לעדכן את גוון השכבה.", removeLayerFailed: "לא ניתן להסיר את השכבה.", analysisUnavailable: "הניתוח אינו זמין לקטע הזה.", mutedShort: "מושתקת", mergeLayers: "מיזוג שכבות", mergePick: "בחרו את השכבות למיזוג", mergeCount_one: "מיזוג {{count}}", mergeCount_two: "מיזוג {{count}}", mergeCount_other: "מיזוג {{count}}", mergeName: "שם לשכבה הממוזגת", merging: "ממזג…", mergedToast: "השכבות מוזגו", mergeFailed: "לא ניתן למזג את השכבות", pickLayer: "בחירת {{title}}", collapseLayers: "צמצום הכול", expandLayers: "הרחבת הכול", collapseLayer: "צמצום {{title}}", expandLayer: "הרחבת {{title}}", zoomShort: "הגדלה", timing: "תזמון", nudgeMs: "{{value}} מ״ש", renameLayer: "שינוי שם", removeLayerTitle: "להסיר את {{title}}?", removeLayerBody: "השמע שלה יימחק.", layerLimitTitle: "שמונה שכבות", layerLimitBody: "אחדו אותן כדי להמשיך להוסיף שכבות.", combine: "איחוד", showLayers: "הצגת השכבות", hideLayers: "הסתרת השכבות", layerCountHeader: "שכבות · {{count}}", showFullClip: "הצגת הקטע המלא", zoomLayer: "התמקדות בשכבה הזו", fullClip: "הקטע המלא",
   },
-  recording: { changeEarlier: "תיבה אחת מוקדם יותר", changeLater: "תיבה אחת מאוחר יותר", refreshInputs: "חיפוש התקני קלט", followsPhone: "לפי הטלפון",
+  recording: { stereo: "סטריאו", changeEarlier: "תיבה אחת מוקדם יותר", changeLater: "תיבה אחת מאוחר יותר", refreshInputs: "חיפוש התקני קלט", followsPhone: "לפי הטלפון",
     timeLeft: "נותרו {{time}}",
     preRoll: "הקדמה",
     stopListening: "עצירה",

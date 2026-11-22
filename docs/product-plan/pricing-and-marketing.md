@@ -385,3 +385,7 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   month ends, takes are mono; stereo takes already made stay stereo. Named on the Pro page's
   "Also with Pro" line in all five languages (`pro.also`), which the catalog test requires.
   Stereo files are twice the size (~10.6 MB a minute as WAV). Key: `stereo-recording`.
+  Same day (founder): the recorder screen carries a Stereo key (an InkKey with the Pro
+  mark, beside the metronome) so each take can be stereo or mono; Settings' row became
+  "Stereo by default", the key's starting state each time the recorder opens. Redo keeps
+  the take's choice; Discard leaves the recorder, so the next open is the default again.

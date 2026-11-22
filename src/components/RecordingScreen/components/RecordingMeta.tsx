@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import type { TempoMap } from "../../../domain/tempoMap";
 import { fmtDuration } from "../../../utils";
@@ -8,11 +8,15 @@ import { haptic } from "../../../design/haptics";
 import { LiveTapeVisualizer } from "../../visualizers/LiveTapeVisualizer";
 import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../services/recordingTakeSession";
 import { MetronomeIcon } from "../../common/MetronomeIcon";
-import { radii, colors, shadows } from "../../../design/tokens";
+import { radii, colors, shadows, spacing } from "../../../design/tokens";
 import { Press } from "../../common/Press";
 import { useTranslation } from "react-i18next";
 import { PIN_ICON, PIN_ICON_OUTLINE } from "../../../design/markIcons";
 import { hexToRgba } from "../../../domain/playerSections";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+
+/** The take's Stereo key (2026-11-22): on/off for this take, locked while it rolls. */
+export type StereoKeyState = { on: boolean; locked: boolean; pro: boolean; onToggle: () => void };
 
 type Props = {
     ideaTitle: string;
@@ -51,6 +55,8 @@ type Props = {
     } | null;
     onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
+    /** Stereo for this take; null where the phone's mics can't do it. */
+    stereoKey?: StereoKeyState | null;
     /** Pins dropped so far in this take (capture ms), drawn on the tape, and the
      *  one-tap drop. Absent on screens that can't pin (an overdub guide). */
     livePins?: { atMs: number }[];
@@ -87,6 +93,7 @@ export function RecordingMeta({
     liveTakeGrid = null,
     onToggleMetronome,
     onOpenMetronome,
+    stereoKey = null,
     livePins,
     onAddPin,
     guideJoin = null,
@@ -216,6 +223,36 @@ export function RecordingMeta({
         </View>
     ) : null;
 
+    // Stereo sits before the metronome: a choice about the take's sound, then its click.
+    // An InkKey (canon for a toggle beside other controls); it carries the Pro mark.
+    const stereoInk = stereoKey ? (
+        <InkKey
+            // Haptics vocabulary: light, a small state flip.
+            haptic="light"
+            role="switch"
+            tone={stereoKey.on ? "active" : "off"}
+            glyph={
+                <MaterialCommunityIcons
+                    name="speaker-multiple"
+                    size={18}
+                    color={inkKeyColor(stereoKey.on ? "active" : "off")}
+                />
+            }
+            label={t("recording.stereo")}
+            pro={stereoKey.pro}
+            disabled={stereoKey.locked}
+            onPress={stereoKey.onToggle}
+            testID="recording-stereo-key"
+        />
+    ) : null;
+    const takeKeys =
+        stereoInk || metronomeChip ? (
+            <View style={metaStyles.takeKeys}>
+                {stereoInk}
+                {metronomeChip}
+            </View>
+        ) : null;
+
     return (
         <View style={[styles.recordingMetaSection, fill ? styles.recordingMetaSectionFill : null]}>
             {ideaTitle ? <Text style={styles.recordingIdeaLabel}>{ideaTitle}</Text> : null}
@@ -232,7 +269,7 @@ export function RecordingMeta({
                     </View>
                     {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                     <View style={metaStyles.compactSpacer} />
-                    {metronomeChip}
+                    {takeKeys}
                 </View>
             ) : (
                 <>
@@ -275,7 +312,7 @@ export function RecordingMeta({
                             <Text style={styles.recordingStatusText}>{statusLabel}</Text>
                             {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                         </View>
-                        {metronomeChip}
+                        {takeKeys}
                     </View>
                 </>
             )}
@@ -414,6 +451,11 @@ const metaStyles = StyleSheet.create({
         fontSize: 11,
         color: colors.primaryDeep,
         fontVariant: ["tabular-nums"],
+    },
+    takeKeys: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.lg,
     },
     metroGroup: {
         flexDirection: "row",

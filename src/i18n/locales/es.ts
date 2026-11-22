@@ -638,7 +638,7 @@ export const es = {
   settingsRecording: {
     saving: "Guardado",
     nameEach: "Nombrar cada clip",
-    stereo: "Grabar en estéreo",
+    stereo: "Estéreo por defecto",
     stereoHint: "Solo los micrófonos del teléfono. Ocupa el doble.",
     bluetooth: "Calibración Bluetooth",
     calibrations_one: "{{count}} calibración guardada.",
@@ -1643,7 +1643,7 @@ export const es = {
     zoomLayer: "Acercar a esta capa",
     fullClip: "Clip completo",
   },
-  recording: {
+  recording: { stereo: "Estéreo",
     changeEarlier: "Un compás antes",
     changeLater: "Un compás después",
     refreshInputs: "Buscar entradas",

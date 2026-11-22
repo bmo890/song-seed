@@ -603,7 +603,7 @@ export const de = {
   settingsRecording: {
     saving: "Speichern",
     nameEach: "Jeden Clip benennen",
-    stereo: "In Stereo aufnehmen",
+    stereo: "Standardmäßig Stereo",
     stereoHint: "Nur die Mikrofone des Telefons. Doppelter Speicherplatz.",
     bluetooth: "Bluetooth-Kalibrierung",
     calibrations_one: "{{count}} gespeicherte Kalibrierung.",
@@ -1567,7 +1567,7 @@ export const de = {
     zoomLayer: "Auf diese Spur zoomen",
     fullClip: "Ganzer Clip",
   },
-  recording: {
+  recording: { stereo: "Stereo",
     changeEarlier: "Einen Takt früher",
     changeLater: "Einen Takt später",
     refreshInputs: "Eingänge suchen",

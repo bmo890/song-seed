@@ -7,6 +7,7 @@ import { looksMachineNamed } from "../../../domain/titleNaming";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide, type GuideCue } from "./RecordingOverdubGuide";
+import type { StereoKeyState } from "./RecordingMeta";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
@@ -42,6 +43,7 @@ type RecordingBodyProps = {
   metronomeToggleDisabled?: boolean;
   liveTakeGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
   onToggleMetronome?: () => void;
+  stereoKey?: StereoKeyState | null;
   onOpenMetronome: () => void;
   /** Pins dropped so far in this take (capture ms) and the one-tap drop. */
   livePins?: { atMs: number }[];
@@ -83,6 +85,7 @@ export function RecordingBody({
   metronomeToggleDisabled,
   liveTakeGrid,
   onToggleMetronome,
+  stereoKey = null,
   onOpenMetronome,
   livePins,
   onAddPin,
@@ -174,6 +177,7 @@ export function RecordingBody({
           metronomeToggleDisabled={metronomeToggleDisabled}
           liveTakeGrid={liveTakeGrid}
           onToggleMetronome={onToggleMetronome}
+          stereoKey={stereoKey}
           onOpenMetronome={onOpenMetronome}
           livePins={livePins}
           onAddPin={onAddPin}

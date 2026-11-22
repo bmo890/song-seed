@@ -29,6 +29,10 @@ import { settleWithin } from "../../../services/settleWithin";
 import SongNookMetronomeModule from "../../../../modules/songnook-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
+import { useHasProAccess } from "../../../domain/entitlements";
+import { useProLocked } from "../../common/ProMark";
+import { openProUpsell } from "../../common/proUpsell";
+import { useStereoSupport } from "../../../services/stereoSupport";
 import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, PracticeMarker, RecordingGrid } from "../../../types";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
@@ -303,6 +307,19 @@ export function useRecordingScreenModel() {
     takeHoldsRecorder() ? takeSession.facts.metronomeEnabled : false
   );
   takeSession.facts.metronomeEnabled = recordingMetronomeEnabled;
+  // Stereo for this take (founder, 2026-11-22): starts from the Settings default each
+  // time the recorder opens, can be flipped before a take, holds through a Redo (the
+  // screen stays), and a Discard leaves the screen, so the next open is the default again.
+  // Reopened mid-take, it shows what the take is using (locked while it rolls).
+  const [stereoForTake, setStereoForTake] = useState(() =>
+    takeHoldsRecorder()
+      ? takeSession.facts.stereoForTake ?? useStore.getState().recordInStereo
+      : useStore.getState().recordInStereo
+  );
+  takeSession.facts.stereoForTake = stereoForTake;
+  const stereoAllowed = useHasProAccess("stereo-recording");
+  const stereoProLocked = useProLocked("stereo-recording");
+  const stereoSupport = useStereoSupport();
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
   const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{
@@ -664,6 +681,24 @@ export function useRecordingScreenModel() {
 
   const metronomeLockedForTake =
     isArmingRecording || recording.isRecording || recording.isPaused;
+  /** The Stereo key, or null where the phone's mics can't do stereo. Without Pro it reads
+   *  off and opens the Pro page. */
+  const stereoKey =
+    stereoSupport === "no"
+      ? null
+      : {
+          on: stereoForTake && stereoAllowed,
+          locked: metronomeLockedForTake,
+          pro: stereoProLocked,
+          onToggle: () => {
+            if (metronomeLockedForTake) return;
+            if (!stereoAllowed) {
+              openProUpsell("stereo-recording");
+              return;
+            }
+            setStereoForTake((current) => !current);
+          },
+        };
   const guideMixDurationMs =
     Math.round((guideMixStatus.duration ?? 0) * 1000) ||
     (recordingOverdubClip ? getClipPlaybackDurationMs(recordingOverdubClip) ?? 0 : 0);
@@ -1493,6 +1528,17 @@ export function useRecordingScreenModel() {
   useEffect(() => {
     if (recording.isRecording) endRecordTrace("rec");
   }, [recording.isRecording]);
+  // A take flipped to stereo or mono needs a recorder prepared that way (iOS prepares
+  // ahead; Android reads the choice at the tap).
+  const prewarmedStereoRef = useRef(stereoForTake);
+  useEffect(() => {
+    if (prewarmedStereoRef.current === stereoForTake) return;
+    prewarmedStereoRef.current = stereoForTake;
+    if (Platform.OS !== "ios" || !prewarmLiveRef.current) return;
+    const current = recordingRef.current;
+    if (current.isRecording || current.isPaused) return;
+    void current.releasePrewarm().then(prewarmIfIdle);
+  }, [stereoForTake, prewarmIfIdle]);
   // A different input needs a recorder prepared on it.
   const prewarmedInputRef = useRef(preferredRecordingInputId);
   useEffect(() => {
@@ -2852,6 +2898,7 @@ export function useRecordingScreenModel() {
     recording,
     recordingControlsDisabled,
     metronomeLockedForTake,
+    stereoKey,
     recordingPlaceholderTitle,
     quickNameModalVisible,
     quickNameDraft,

@@ -36,6 +36,7 @@ export function InkKey({
   role = "button",
   opens = false,
   pro = false,
+  disabled = false,
   style,
   accessibilityLabel,
   testID,
@@ -51,6 +52,8 @@ export function InkKey({
   /** The key opens the Pro page for this person: the Pro mark follows its word
    *  (the caller asks `useProLocked`, so mark and gate agree). */
   pro?: boolean;
+  /** Holds its state but takes no press (a per-take choice while the take rolls). */
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -61,6 +64,7 @@ export function InkKey({
       haptic={haptic}
       style={[s.key, style]}
       onPress={onPress}
+      disabled={disabled}
       hitSlop={6}
       accessibilityRole={role}
       accessibilityState={role === "switch" ? { checked: tone === "active" } : { selected: tone === "active" }}
