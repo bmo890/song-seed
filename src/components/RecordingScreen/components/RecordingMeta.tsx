@@ -230,11 +230,12 @@ export function RecordingMeta({
             // Haptics vocabulary: light, a small state flip.
             haptic="light"
             role="switch"
+            size="small"
             tone={stereoKey.on ? "active" : "off"}
             glyph={
                 <MaterialCommunityIcons
                     name="speaker-multiple"
-                    size={18}
+                    size={16}
                     color={inkKeyColor(stereoKey.on ? "active" : "off")}
                 />
             }
@@ -455,7 +456,7 @@ const metaStyles = StyleSheet.create({
     takeKeys: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.lg,
+        gap: spacing.md,
     },
     metroGroup: {
         flexDirection: "row",

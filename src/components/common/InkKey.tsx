@@ -37,6 +37,7 @@ export function InkKey({
   opens = false,
   pro = false,
   disabled = false,
+  size = "regular",
   style,
   accessibilityLabel,
   testID,
@@ -54,6 +55,9 @@ export function InkKey({
   pro?: boolean;
   /** Holds its state but takes no press (a per-take choice while the take rolls). */
   disabled?: boolean;
+  /** "small" (2026-11-22): the recorder's Ready row, beside the metronome's quiet chip,
+   *  where a full-size key out-shouts the controls around it. Same anatomy, smaller. */
+  size?: "regular" | "small";
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -62,7 +66,7 @@ export function InkKey({
     <Press
       feel="glyph"
       haptic={haptic}
-      style={[s.key, style]}
+      style={[s.key, size === "small" ? s.keySmall : null, style]}
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
@@ -72,7 +76,14 @@ export function InkKey({
       testID={testID}
     >
       {glyph}
-      <Text style={[s.label, tone === "active" ? s.labelActive : null, { color: inkKeyColor(tone) }]}>
+      <Text
+        style={[
+          s.label,
+          size === "small" ? s.labelSmall : null,
+          tone === "active" ? s.labelActive : null,
+          { color: inkKeyColor(tone) },
+        ]}
+      >
         {label}
       </Text>
       {pro ? <ProMarkText /> : null}
@@ -91,6 +102,13 @@ const s = StyleSheet.create({
   label: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
+  },
+  keySmall: {
+    gap: 5,
+    minHeight: 30,
+  },
+  labelSmall: {
+    fontSize: 12,
   },
   labelActive: {
     fontFamily: "PlusJakartaSans_600SemiBold",

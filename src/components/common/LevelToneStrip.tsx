@@ -308,12 +308,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Five keys in three columns: the high band's pair sits under the low band's.
+  // Two columns, low to high: each band's cut and boost side by side.
   toneRow: {
     flexDirection: "row",
   },
   toneCell: {
-    width: "33.333%",
+    width: "50%",
   },
   options: {
     flexDirection: "row",

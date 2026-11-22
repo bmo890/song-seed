@@ -85,10 +85,11 @@ export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
 /** The keys' order in the Sound room's two-by-two bank: the low band's two
  *  directions on the first row, mid and high beneath. */
 export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-boost", "hi-cut", "hi-boost"];
-/** The tone keys as the drawer lays them out (2026-11-22): the low band and the mid on
- *  the first line, the high band's two directions beneath, in the same columns. */
+/** The tone keys as the drawer lays them out (2026-11-22): low to high, a band's two
+ *  directions side by side in two columns (three were too tight for German's labels). */
 export const SOUND_TONE_KEY_ROWS: readonly (readonly OverdubToneFlag[])[] = [
-  ["low-cut", "low-boost", "mid-boost"],
+  ["low-cut", "low-boost"],
+  ["mid-boost"],
   ["hi-cut", "hi-boost"],
 ];
 
