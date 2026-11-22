@@ -11,6 +11,7 @@ import AudioToolbox
 ///   low-boost = low shelf +4 dB at 120 Hz
 ///   mid-boost = peak +4 dB at 1.8 kHz
 ///   hi-cut    = low-pass 7.2 kHz
+///   hi-boost  = high shelf +4 dB at 8 kHz (2026-11-22)
 /// The time-pitch unit's quality (2026-10-21). `overlap` is how many grains
 /// overlap per output sample, 3…32, default 8: more means fewer of the
 /// scratchy artifacts a shift adds, for more CPU. One stereo stream at 24 is
@@ -21,7 +22,7 @@ enum SongNookTimePitch {
 }
 
 enum SongNookToneEQ {
-  static let bandCount = 4
+  static let bandCount = 5
 
   static func makeNode() -> AVAudioUnitEQ {
     let node = AVAudioUnitEQ(numberOfBands: bandCount)
@@ -60,6 +61,13 @@ enum SongNookToneEQ {
     midBoost.bandwidth = 1.0
     midBoost.gain = 4
     midBoost.bypass = !flags.contains("mid-boost")
+
+    let hiBoost = eqNode.bands[4]
+    hiBoost.filterType = .highShelf
+    hiBoost.frequency = 8000
+    hiBoost.bandwidth = 0.8
+    hiBoost.gain = 4
+    hiBoost.bypass = !flags.contains("hi-boost")
   }
 
   /// Even (2026-11-22): gentle compression after the tone keys and before the limiter,

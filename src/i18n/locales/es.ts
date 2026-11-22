@@ -1422,7 +1422,7 @@ export const es = {
     chartBars_many: "{{count}} compases",
     solo: "Solo",
     mute: "Silencio",
-    hiCut: "Corte de agudos",
+    hiCut: "Corte de agudos", hiBoost: "Realce de agudos",
     midBoost: "Realce de medios",
     editLyrics: "Editar letra",
     editChart: "Editar cifrado",

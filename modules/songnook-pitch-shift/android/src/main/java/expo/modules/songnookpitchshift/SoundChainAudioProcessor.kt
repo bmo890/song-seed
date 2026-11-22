@@ -38,7 +38,8 @@ import kotlin.math.sqrt
  *
  * Tone stages mirror SongNookToneEQ on iOS: low-cut = first-order high-pass
  * 140 Hz, low-boost = low shelf +4 dB at 120 Hz, mid-boost = peak +4 dB at
- * 1.8 kHz (Q 1), hi-cut = low-pass 7.2 kHz. Coefficients follow the RBJ Audio
+ * 1.8 kHz (Q 1), hi-cut = low-pass 7.2 kHz, hi-boost = high shelf +4 dB at 8 kHz
+ * (2026-11-22). Coefficients follow the RBJ Audio
  * EQ Cookbook and the real sample rate.
  */
 @UnstableApi
@@ -66,6 +67,7 @@ class SoundChainAudioProcessor(
   private var lowBoostOn = false
   private var midBoostOn = false
   private var hiCutOn = false
+  private var hiBoostOn = false
   private var evenOn = false
 
   // ── Even (gentle compression) ─────────────────────────────────────────────
@@ -81,6 +83,7 @@ class SoundChainAudioProcessor(
   private val lowShelf = Biquad()
   private val peak = Biquad()
   private val lowPass = Biquad()
+  private val highShelf = Biquad()
 
   // ── limiter ────────────────────────────────────────────────────────────────
   private var lookaheadFrames = 0
@@ -142,6 +145,7 @@ class SoundChainAudioProcessor(
         if (lowBoostOn) x = lowShelf.run(c, x)
         if (midBoostOn) x = peak.run(c, x)
         if (hiCutOn) x = lowPass.run(c, x)
+        if (hiBoostOn) x = highShelf.run(c, x)
         frame[c] = x
       }
 
@@ -202,6 +206,9 @@ class SoundChainAudioProcessor(
     val nextLowBoost = "low-boost" in flags
     val nextMidBoost = "mid-boost" in flags
     val nextHiCut = "hi-cut" in flags
+    val nextHiBoost = "hi-boost" in flags
+    if (nextHiBoost && !hiBoostOn) highShelf.clear()
+    hiBoostOn = nextHiBoost
     val nextEven = "even" in flags
     if (nextEven && !evenOn) evenGainDb = 0.0
     evenOn = nextEven
@@ -236,6 +243,7 @@ class SoundChainAudioProcessor(
     lowShelf.lowShelf(sampleRate, 120.0, 4.0, 0.707, channels)
     peak.peaking(sampleRate, 1800.0, 4.0, 1.0, channels)
     lowPass.lowPass(sampleRate, 7200.0, 0.707, channels)
+    highShelf.highShelf(sampleRate, 8000.0, 4.0, 0.707, channels)
 
     lookaheadFrames = max(1, (sampleRate * LOOKAHEAD_SECONDS).toInt())
     delay = Array(channels) { DoubleArray(lookaheadFrames) }
@@ -346,6 +354,21 @@ class SoundChainAudioProcessor(
       b2 = (1.0 - alpha * amp) / a0
       a1 = (-2.0 * cosOmega) / a0
       a2 = (1.0 - alpha / amp) / a0
+    }
+
+    fun highShelf(sampleRate: Double, frequencyHz: Double, gainDb: Double, q: Double, channels: Int) {
+      state(channels)
+      val omega = 2.0 * PI * frequencyHz / sampleRate
+      val cosOmega = cos(omega)
+      val alpha = sin(omega) / (2.0 * q)
+      val amp = 10.0.pow(gainDb / 40.0)
+      val sqrtTerm = 2.0 * sqrt(amp) * alpha
+      val a0 = (amp + 1.0) - (amp - 1.0) * cosOmega + sqrtTerm
+      b0 = (amp * ((amp + 1.0) + (amp - 1.0) * cosOmega + sqrtTerm)) / a0
+      b1 = (-2.0 * amp * ((amp - 1.0) + (amp + 1.0) * cosOmega)) / a0
+      b2 = (amp * ((amp + 1.0) + (amp - 1.0) * cosOmega - sqrtTerm)) / a0
+      a1 = (2.0 * ((amp - 1.0) - (amp + 1.0) * cosOmega)) / a0
+      a2 = ((amp + 1.0) - (amp - 1.0) * cosOmega - sqrtTerm) / a0
     }
 
     fun lowShelf(sampleRate: Double, frequencyHz: Double, gainDb: Double, q: Double, channels: Int) {

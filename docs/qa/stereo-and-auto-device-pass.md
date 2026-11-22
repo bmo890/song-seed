@@ -27,7 +27,8 @@ Nothing here was compiled before this pass; a build error is the first thing to 
 | 3 | Phone on a table, tapping it | Low cut on. |
 | 4 | Already well-levelled take | "Already balanced". |
 | 5 | Tap Auto again | Previous level and tone come back. |
-| 6 | Even on vs off, live and after Combine | Loud and quiet parts closer; no pumping, no crackle. Same on iPhone and Android. |
+| 6 | A dull take (phone in a pocket) | Hi boost on; lighting Hi boost puts out Hi cut. |
+| 7 | Even on vs off, live and after Combine | Loud and quiet parts closer; no pumping, no crackle. Same on iPhone and Android. |
 
 Tune by ear: target level (-18 dBFS), the rumble/harsh/hiss shares, Even's range (15 dB)
 and crest (20 dB) triggers live in `src/domain/autoSound.ts`; Even's settings in

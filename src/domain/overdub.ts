@@ -77,19 +77,29 @@ export function buildCombinedClipTitle(_idea: SongIdea, clip: ClipVersion) {
 // "even" joined on 2026-11-22: gentle compression (Level's "Even" key, set by Auto on a
 // rehearsal). It rides the same encoding so archives and backups carry it untouched;
 // it is not a tone key, so the Tone group neither shows nor resets it.
-export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost", "even"] as const;
+// "hi-boost" joined the same day (founder: "yes add high boost"): a gentle lift of the top
+// for a dull take (a phone in a pocket, across the room). It and "hi-cut" are the high
+// band's two directions, so they exclude each other, as the low band's do.
+export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost", "even", "hi-boost"] as const;
 export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
 /** The keys' order in the Sound room's two-by-two bank: the low band's two
  *  directions on the first row, mid and high beneath. */
-export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-boost", "hi-cut"];
+export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-boost", "hi-cut", "hi-boost"];
+/** The tone keys as the drawer lays them out (2026-11-22): the low band and the mid on
+ *  the first line, the high band's two directions beneath, in the same columns. */
+export const SOUND_TONE_KEY_ROWS: readonly (readonly OverdubToneFlag[])[] = [
+  ["low-cut", "low-boost", "mid-boost"],
+  ["hi-cut", "hi-boost"],
+];
 
 /** Flags that cannot both be on: the same band pulled two ways. */
 const EXCLUSIVE_TONE_FLAGS: Record<OverdubToneFlag, OverdubToneFlag | null> = {
   "low-cut": "low-boost",
   "low-boost": "low-cut",
   "mid-boost": null,
-  "hi-cut": null,
+  "hi-cut": "hi-boost",
   even: null,
+  "hi-boost": "hi-cut",
 };
 
 /** True once any tone flag is on: the tab's dot and the group's reset key. */

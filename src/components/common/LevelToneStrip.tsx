@@ -6,7 +6,7 @@ import {
   SOUND_LEVEL_DETENT_DB,
   SOUND_LEVEL_MAX_DB,
   SOUND_LEVEL_MIN_DB,
-  SOUND_TONE_KEY_ORDER,
+  SOUND_TONE_KEY_ROWS,
   clampSoundLevelDb,
   hasToneFlag,
   parseToneFlags,
@@ -30,6 +30,7 @@ const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
   "low-cut": "player.lowCut",
   "low-boost": "player.lowBoost",
   "hi-cut": "player.hiCut",
+  "hi-boost": "player.hiBoost",
   "mid-boost": "player.midBoost",
   even: "player.even",
 };
@@ -160,17 +161,20 @@ export function LevelToneStrip({
             />
           ) : null}
         </View>
-        <View style={s.options}>
-          {SOUND_TONE_KEY_ORDER.map((flag) => (
-            <InkOption
-              key={flag}
-              label={t(TONE_FLAG_LABEL_KEYS[flag])}
-              selected={hasToneFlag(tonePreset, flag)}
-              onPress={() => onToggleToneFlag(flag)}
-              testID={testID ? `${testID}-${flag}` : undefined}
-            />
-          ))}
-        </View>
+        {SOUND_TONE_KEY_ROWS.map((row, rowIndex) => (
+          <View key={rowIndex} style={s.toneRow}>
+            {row.map((flag) => (
+              <View key={flag} style={s.toneCell}>
+                <InkOption
+                  label={t(TONE_FLAG_LABEL_KEYS[flag])}
+                  selected={hasToneFlag(tonePreset, flag)}
+                  onPress={() => onToggleToneFlag(flag)}
+                  testID={testID ? `${testID}-${flag}` : undefined}
+                />
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -304,7 +308,13 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Four on one line: spread across the row, never wrapping one alone.
+  // Five keys in three columns: the high band's pair sits under the low band's.
+  toneRow: {
+    flexDirection: "row",
+  },
+  toneCell: {
+    width: "33.333%",
+  },
   options: {
     flexDirection: "row",
     justifyContent: "space-between",

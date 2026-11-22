@@ -17,6 +17,8 @@ import { clampSoundLevelDb, formatToneFlags, type OverdubToneFlag } from "./over
  *   Hi cut   harshness (a large share above ~6 kHz while it plays: cymbals close to the
  *            phone) or hiss (the quiet parts are mostly high noise, loud enough to hear
  *            once the level comes up).
+ *   Hi boost a dull take: almost nothing above ~6 kHz while it plays, and no hiss to
+ *            lift with it (a phone in a pocket, across the room, behind an instrument).
  *   Even     gentle compression, for a rehearsal: the playing swings far between its
  *            quiet and loud parts, or its peaks stand far above it (a drum kit against
  *            a voice).
@@ -43,6 +45,8 @@ const HARSH_SHARE = 0.25;
 const HISS_SHARE = 0.5;
 /** Hiss this loud after the lift is heard. */
 const AUDIBLE_HISS_DB = -50;
+/** Under this share of the playing's power above ~6 kHz, a take sounds dull. */
+const DULL_SHARE = 0.004;
 /** Even: the playing's loud parts (95th percentile) this far above its quiet ones
  *  (10th), counting windows within RANGE_GATE_DB of the average (deeper than that is
  *  the room between songs, not quiet playing)... */
@@ -90,6 +94,7 @@ export function decideAutoSound(analysis: NativeSoundAnalysis): AutoSound | null
     hiss = quietHighShare > HISS_SHARE && powerDb(quietPower) + gainDb > AUDIBLE_HISS_DB;
   }
   if (harsh || hiss) flags.push("hi-cut");
+  else if (meanPower(playing, analysis.high) / playingPower < DULL_SHARE) flags.push("hi-boost");
 
   const ranged = sounding
     .filter((i) => toDb(analysis.rms[i]) >= ungatedDb - RANGE_GATE_DB)

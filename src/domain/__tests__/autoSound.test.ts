@@ -1,4 +1,5 @@
 import { decideAutoSound } from "../autoSound";
+import { toggleToneFlag } from "../overdub";
 
 const db = (value: number) => Math.pow(10, value / 20);
 
@@ -95,7 +96,24 @@ describe("Auto in the Sound drawer", () => {
     expect(decideAutoSound(take({ levelDb: -24, peakDb: -10 }))?.tonePreset).toBe("neutral");
   });
 
+  it("brightens a dull take (a phone in a pocket) that has no hiss to lift", () => {
+    expect(decideAutoSound(take({ levelDb: -24, high: 0.001 }))?.tonePreset).toBe("hi-boost");
+  });
+
+  it("never brightens and darkens at once", () => {
+    // Dull while playing, but the gaps are hiss: Hi cut wins.
+    expect(decideAutoSound(take({ levelDb: -30, high: 0.001, gapDb: -50, gapHigh: 0.8 }))?.tonePreset).toBe("hi-cut");
+  });
+
   it("says nothing about a silent clip", () => {
     expect(decideAutoSound(take({ levelDb: -80 }))).toBeNull();
+  });
+});
+
+
+describe("the high band's two directions", () => {
+  it("lighting Hi boost puts out Hi cut, and the other way round", () => {
+    expect(toggleToneFlag("low-cut+hi-cut", "hi-boost")).toBe("low-cut+hi-boost");
+    expect(toggleToneFlag("hi-boost+even", "hi-cut")).toBe("hi-cut+even");
   });
 });

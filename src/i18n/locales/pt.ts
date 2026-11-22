@@ -1421,7 +1421,7 @@ export const pt = {
     chartBars_many: "{{count}} compassos",
     solo: "Solo",
     mute: "Mudo",
-    hiCut: "Corte de agudos",
+    hiCut: "Corte de agudos", hiBoost: "Realce de agudos",
     midBoost: "Realce de médios",
     editLyrics: "Editar letra",
     editChart: "Editar cifra",

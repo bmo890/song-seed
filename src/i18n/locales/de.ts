@@ -1351,7 +1351,7 @@ export const de = {
     chartBars_other: "{{count}} Takte",
     solo: "Solo",
     mute: "Stumm",
-    hiCut: "Höhen senken",
+    hiCut: "Höhen senken", hiBoost: "Höhen anheben",
     midBoost: "Mitten anheben",
     editLyrics: "Text bearbeiten",
     editChart: "Akkordblatt bearbeiten",
