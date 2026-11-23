@@ -42,7 +42,7 @@ final class SongNookPitchShiftPracticeEngine {
   private var isPlaying = false
   private var didJustFinish = false
   private var playbackSessionId = UUID()
-  private var tickTimer: Timer?
+  private var tickTimer: DispatchSourceTimer?
 
   init(
     onStateChange: @escaping ([String: Any]) -> Void,
@@ -72,7 +72,7 @@ final class SongNookPitchShiftPracticeEngine {
   }
 
   deinit {
-    tickTimer?.invalidate()
+    tickTimer?.cancel()
     hapticTimer?.cancel()
     clickPlayer.stop()
     playerNode.stop()
@@ -535,19 +535,33 @@ final class SongNookPitchShiftPracticeEngine {
     return Int((durationSeconds * 1000.0).rounded())
   }
 
+  /// The position report, ten times a second while playing. A dispatch timer on the main
+  /// queue (2026-11-23): this is called from the module's background queue, where a
+  /// `Timer.scheduledTimer` joins that thread's run loop (which never runs) and the main
+  /// run loop then refuses it, so it never fired. The engine reported its position once
+  /// at play and went silent; the muted twin was pulled back to that stale position every
+  /// two seconds (a playhead stuck at 00:00 on a take started with a sound or pitch
+  /// change), and the editor's pitch preview had no moving clock at all.
   private func startTimer() {
     stopTimer()
-    tickTimer = Timer.scheduledTimer(withTimeInterval: pitchShiftTickInterval, repeats: true) { [weak self] _ in
-      guard let self else {
+    let timer = DispatchSource.makeTimerSource(queue: .main)
+    timer.schedule(
+      deadline: .now() + pitchShiftTickInterval,
+      repeating: pitchShiftTickInterval,
+      leeway: .milliseconds(10)
+    )
+    timer.setEventHandler { [weak self] in
+      guard let self, self.isPlaying else {
         return
       }
       self.onStateChange(self.getState())
     }
-    RunLoop.main.add(tickTimer!, forMode: .common)
+    tickTimer = timer
+    timer.resume()
   }
 
   private func stopTimer() {
-    tickTimer?.invalidate()
+    tickTimer?.cancel()
     tickTimer = nil
   }
 }

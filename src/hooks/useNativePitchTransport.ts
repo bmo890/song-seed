@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 import SongNookPitchShiftModule, {
   type NativePitchShiftCapabilities,
   type NativePitchShiftPlaybackState,
@@ -24,6 +25,10 @@ import {
 
 /** How long after a pause the engine's "ended" report is taken as the pause's echo. */
 const PAUSE_ECHO_MS = 2000;
+/** An engine that says it is playing reports every 100 ms; silent this long, it is one
+ *  whose timer never fires, and its position is carried forward this often instead. */
+const ENGINE_QUIET_MS = 350;
+const ENGINE_CARRY_MS = 120;
 /** After we command the twin, its own reports are ours settling, not a person
  *  pressing a lock-screen button: the mirror leaves them alone this long. */
 const TWIN_GRACE_MS = 900;
@@ -697,17 +702,22 @@ export function useNativePitchTransport({
     if (source.inSync === false || !previous || previous.playing !== source.isPlaying) return;
     if (now - twinLastCommandAtRef.current < TWIN_SETTLE_MS * 2) return;
     const engine = nativeStateRef.current;
+    // Where the engine IS, not where it last said it was (2026-11-23): its report carried
+    // forward at its rate. An iPhone binary whose position timer never fires reports once
+    // at play; judged against that stale number the twin was "drifting" within two
+    // seconds and was pulled back to it, over and over: a playhead stuck at the start.
+    const engineMs = estimateEnginePositionMs();
     const move = classifyTwinMove({
       previousMs: previous.positionMs,
       previousAt: previous.at,
       positionMs: source.positionMs,
       at: now,
       rate: source.isPlaying ? engine.playbackRate || 1 : 0,
-      engineMs: engine.currentTimeMs,
+      engineMs,
     });
     if (move === "none") return;
     if (move === "drift") {
-      void twinSeek(engine.currentTimeMs).catch(() => {});
+      void twinSeek(engineMs).catch(() => {});
       return;
     }
     const nativeModule = SongNookPitchShiftModule;
@@ -890,6 +900,24 @@ export function useNativePitchTransport({
   const prepareForRelease = useCallback(() => {
     shouldResumeOnReleaseRef.current = false;
   }, []);
+
+  // An iPhone binary built before 2026-11-23 reports its position once at play and then
+  // goes quiet (its position timer never fires: see startTimer in the Swift engine), so
+  // the clock, the reel and the dock sat at the start while the take played. While such
+  // an engine says it is playing and has said nothing for a moment, its last report is
+  // carried forward at its rate and published as if it had reported. A fixed binary
+  // reports ten times a second and never reaches this. iOS only: Android's engine is
+  // silent while it LOADS, and carrying that forward would run the clock ahead of it.
+  useEffect(() => {
+    if (Platform.OS !== "ios" || !isNativeTransportActive) return;
+    const timer = setInterval(() => {
+      const raw = rawNativeRef.current;
+      if (!raw.isPlaying || raw.didJustFinish || !raw.isLoaded) return;
+      if (Date.now() - nativeReportAtRef.current < ENGINE_QUIET_MS) return;
+      receiveNativeStateRef.current({ ...raw, currentTimeMs: Math.round(estimateEnginePositionMs()) });
+    }, ENGINE_CARRY_MS);
+    return () => clearInterval(timer);
+  }, [estimateEnginePositionMs, isNativeTransportActive]);
 
   const effectivePositionMs = isNativeTransportActive ? nativeState.currentTimeMs : source.positionMs;
   const effectiveDurationMs = isNativeTransportActive
