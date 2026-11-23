@@ -179,6 +179,9 @@ Apple appends the same subscription paragraph as before (below, per language in
 - **Apple subtitle = Play short description:** `A quiet corner for your songs` (29)
 - **Apple promotional text:** `New: record in stereo with your phone's own mics, and fix how a clip sounds in one tap.` (founder kept; what's new, changes without review)
 - **Keywords, screenshots, songnook.app:** not yet redone to the new story.
+- **1.0.3 store builds, 2026-11-23 (from 5f46924d, runtime 1.0.3):** iOS build 35 (.ipa on
+  EAS, not uploaded to App Store Connect), Android versionCode 22 (.aab on EAS, founder uploads
+  by hand). Builds 34 / 21 failed (audio-studio patch, fixed in 5f46924d). Not submitted.
 
 ```
 SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
