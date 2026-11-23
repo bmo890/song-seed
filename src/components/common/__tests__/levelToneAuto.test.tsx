@@ -104,7 +104,11 @@ describe("the Sound strip's Auto", () => {
       r!.root.findAll((n) => n.props.testID === id && typeof n.props.onPress === "function")[0];
     const press = async (id: string) => act(async () => key(id).props.onPress());
     // The harness starts with Mid boost lit.
-    expect(key("strip-mid-boost").props.accessibilityState).toEqual({ checked: true });
+    const lit = (id: string) =>
+      r!.root.findAll((n) => n.props.testID === id && n.props.accessibilityState !== undefined)[0].props
+        .accessibilityState;
+    expect(lit("strip-mid-boost")).toEqual({ checked: true });
+    expect(lit("strip-mid-cut")).toEqual({ checked: false });
     await press("strip-mid-cut");
     expect(sound.tonePreset).toBe("mid-cut");
     await press("strip-hi-boost");
