@@ -30,6 +30,10 @@ const VERDICT_KEY = "songnook.stereoVerdict";
 const OFFERED_KEY = "songnook.stereoOffered";
 type DeviceVerdict = "verified" | "doubted" | "fake" | null;
 
+/** Said once, the first time Stereo is switched on: a stereo take needs twice the space. */
+const SPACE_TOLD_KEY = "songnook.stereoSpaceTold";
+let spaceTold: boolean | null = null;
+
 let offered: StereoSupport = "unknown";
 let deviceVerdict: DeviceVerdict = null;
 let verdictLoaded = false;
@@ -57,6 +61,11 @@ function loadVerdictOnce() {
         deviceVerdict = raw;
         publish();
       }
+    })
+    .catch(() => {});
+  void AsyncStorage.getItem(SPACE_TOLD_KEY)
+    .then((raw) => {
+      if (spaceTold == null) spaceTold = raw === "yes";
     })
     .catch(() => {});
   void AsyncStorage.getItem(OFFERED_KEY)
@@ -89,6 +98,25 @@ export function refreshStereoSupport(): StereoSupport {
   }
   return current();
 }
+
+/**
+ * Stereo was just switched on at the recorder: is this the time to say what it costs?
+ * True once per install (founder, 2026-11-23: "where should we warn/inform the user that
+ * stereo file will take more memory?": where it is chosen, once, quietly). While the
+ * stored answer is still being read it stays quiet rather than risk saying it twice.
+ */
+export function shouldTellStereoSpace(): boolean {
+  loadVerdictOnce();
+  if (spaceTold !== false) return false;
+  spaceTold = true;
+  void AsyncStorage.setItem(SPACE_TOLD_KEY, "yes").catch(() => {});
+  return true;
+}
+
+/** Where the phone's two mics sit at its ends (Android: one at the top, one at the
+ *  bottom), stereo is widest with the phone on its side. An iPhone builds its own
+ *  left and right for a phone held upright, so it needs no such advice. */
+export const STEREO_WIDEST_SIDEWAYS = Platform.OS === "android";
 
 function keepVerdict(next: Exclude<DeviceVerdict, null>) {
   deviceVerdict = next;
@@ -126,6 +154,7 @@ export function resetStereoVerdictForTests() {
   verdictLoaded = true;
   offered = "unknown";
   lastPublished = current();
+  spaceTold = null;
 }
 
 export function getStereoSupport(): StereoSupport {

@@ -11,7 +11,7 @@ import { WORD_TOOL_LANGUAGES } from "../../../domain/wordLanguage";
 import { haptic } from "../../../design/haptics";
 import { useHasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
-import { useStereoSupport } from "../../../services/stereoSupport";
+import { STEREO_WIDEST_SIDEWAYS, useStereoSupport } from "../../../services/stereoSupport";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -122,7 +122,7 @@ export function SettingsGeneralView() {
               flat
               pro="stereo-recording"
               title={t("settingsRecording.stereo")}
-              subtitle={t("settingsRecording.stereoHint")}
+              subtitle={t(STEREO_WIDEST_SIDEWAYS ? "settingsRecording.stereoHintSideways" : "settingsRecording.stereoHint")}
               // Without Pro the takes are mono whatever was chosen, so the switch says so.
               value={recordInStereo && stereoAllowed}
               onPress={() => {

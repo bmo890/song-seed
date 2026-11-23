@@ -23,6 +23,20 @@ Nothing here was compiled before this pass; a build error is the first thing to 
 | 14 | Stereo take with the metronome and a count-in; a stereo layer over a guide | Still stereo; the grid and the layer's timing are as on a mono take. |
 | 15 | Android: one stereo take with a finger over one mic | Nothing changes (one doubtful take is not a verdict); the next clean take is stereo. |
 
+### Which way round (Android, each phone we can reach)
+
+Android does not promise which mic is left and which is right, or that it follows how the
+phone is held. One stereo take, phone upright: tap the TOP edge three times, wait, tap the
+BOTTOM edge three times. Pull the file (`adb exec-out run-as com.bmostudio.songnook.dev cat
+files/songnook/audio/<clip>.wav`) and read which channel each group is louder in. That says
+which way to lay the phone sideways for left to be left. Not yet done on any phone.
+
+| # | Do | Expect |
+|---|---|---|
+| 16 | Recorder › "?" | A Stereo row; on Android it says sideways sounds widest. |
+| 17 | Switch Stereo on for the first time on this install | Toast "Stereo takes twice the space", once, never again. |
+| 18 | Android: Settings › Recording | The stereo hint mentions sideways. |
+
 ## Auto and Even (player › Sound drawer, and a layer's sheet)
 
 | # | Recording | Expect from Auto |

@@ -32,7 +32,7 @@ import { useStore } from "../../../state/useStore";
 import { useHasProAccess } from "../../../domain/entitlements";
 import { useProLocked } from "../../common/ProMark";
 import { openProUpsell } from "../../common/proUpsell";
-import { useStereoSupport } from "../../../services/stereoSupport";
+import { shouldTellStereoSpace, useStereoSupport } from "../../../services/stereoSupport";
 import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, PracticeMarker, RecordingGrid } from "../../../types";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
@@ -695,6 +695,10 @@ export function useRecordingScreenModel() {
             if (!stereoAllowed) {
               openProUpsell("stereo-recording");
               return;
+            }
+            // The first time it is ever switched on, say what it costs (toast, once).
+            if (!stereoForTake && shouldTellStereoSpace()) {
+              toast(t("recording.stereoSpaceNote"), "information-circle-outline");
             }
             setStereoForTake((current) => !current);
           },

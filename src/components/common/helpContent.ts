@@ -1,6 +1,7 @@
 import type { HelpItem } from "./HelpSheet";
 import { i18n } from "../../i18n/instance";
 import { canSealParcels } from "../../services/sendSeal";
+import { STEREO_WIDEST_SIDEWAYS, getStereoSupport } from "../../services/stereoSupport";
 
 /**
  * Help-sheet copy for the audio flows, kept as data so every sheet renders
@@ -33,6 +34,16 @@ export const RECORDING_HELP: HelpContent = {
       item("timer-outline", "recording.countIn"),
       item("musical-notes-outline", "recording.click"),
       item("phone-portrait-outline", "recording.keepsGoing"),
+      // Only where the phone can: the same answer the Stereo key goes by.
+      ...(getStereoSupport() === "no"
+        ? []
+        : [
+            {
+              icon: "radio-outline" as const,
+              label: t("recording.stereoLabel"),
+              description: t(STEREO_WIDEST_SIDEWAYS ? "recording.stereoSidewaysBody" : "recording.stereoBody"),
+            },
+          ]),
     ];
   },
 };
