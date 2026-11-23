@@ -39,6 +39,7 @@ import { LoopMoveHandle } from "../common/LoopMoveHandle";
 import { SpanInspector, spanNeighbors } from "../common/SpanInspector";
 import { getVisibleTimelineRange } from "../PlayerScreen/helpers";
 import { EditorSaveSheet } from "./components/EditorSaveSheet";
+import { LevelToneStrip } from "../common/LevelToneStrip";
 import { AppAlert } from "../common/AppAlert";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
@@ -68,6 +69,12 @@ const editorLocalStyles = StyleSheet.create({
     partsWrap: {
         paddingHorizontal: 16,
     },
+    // The EQ tab: the player's strip, in the transform section's gutters.
+    eqSection: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 4,
+    },
     /** The canon transport sits directly under the tape, at the dock's compact
      *  size — the tape's own control, not a second headline. */
     transportRow: {
@@ -90,12 +97,10 @@ export function EditorScreen() {
     // One row of tabs (2026-10-16, founder picked A): keep and remove are the
     // trim's two tools, speed & pitch the third, all said in one place.
     // The Speed & pitch tab is the editor's one Pro door (domain/proCatalog.ts).
+    // EQ (2026-11-23, founder: "a user will probably come across the eq changes either
+    // from the player or from the edit page"): the player's own level and tone controls,
+    // free there and free here, baked by the same save as speed and pitch.
     const transformLocked = useProLocked("full-editor");
-    const editorTabs = useMemo(() => [
-        { key: "keep" as const, label: t("editor.keepTab") },
-        { key: "remove" as const, label: t("editor.removeTab") },
-        { key: "transform" as const, label: t("editor.transform"), pro: transformLocked },
-    ], [t, transformLocked]);
     const navigation = useNavigation();
     const route = useRoute<Props["route"]>();
     const isFocused = useIsFocused();
@@ -105,7 +110,7 @@ export function EditorScreen() {
     const [analysisData, setAnalysisData] = useState<AudioAnalysis | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
-    const [editorMode, setEditorMode] = useState<"trim" | "transform">("trim");
+    const [editorMode, setEditorMode] = useState<"trim" | "transform" | "eq">("trim");
     const [helpVisible, setHelpVisible] = useState(false);
     /** Reel magnification, reported by the reel — it scales the inspector's nudge step
      *  and decides whether snapping lands on bars or beats. */
@@ -162,6 +167,17 @@ export function EditorScreen() {
     const { status } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
     const statusTimeMs = typeof status.currentTime === "number" ? Math.round(status.currentTime * 1000) : null;
     const transformState = useEditorTransformState();
+    const editorSound = useMemo(
+        () => ({ gainDb: transformState.gainDb, tonePreset: transformState.tonePreset }),
+        [transformState.gainDb, transformState.tonePreset]
+    );
+    // A dot on a tab: something in there will be baked by the save.
+    const editorTabs = useMemo(() => [
+        { key: "keep" as const, label: t("editor.keepTab") },
+        { key: "remove" as const, label: t("editor.removeTab") },
+        { key: "transform" as const, label: t("editor.transform"), pro: transformLocked, dot: transformState.hasSpeedOrPitch },
+        { key: "eq" as const, label: t("player.eqTab"), dot: transformState.hasSound },
+    ], [t, transformLocked, transformState.hasSpeedOrPitch, transformState.hasSound]);
     useEffect(() => {
         activatePlaybackAudioSession().catch((error) => {
             console.warn("Editor audio mode setup failed", error);
@@ -204,6 +220,7 @@ export function EditorScreen() {
         audioUri,
         playbackRate: transformState.playbackRate,
         pitchShiftSemitones: transformState.pitchShiftSemitones,
+        sound: editorSound,
         sourcePositionMs: statusTimeMs ?? currentTime,
         sourceDurationMs: analysisData?.durationMs ?? durationHintMs ?? 0,
         sourceIsPlaying: !!status.playing,
@@ -353,7 +370,7 @@ export function EditorScreen() {
 
         // A baked speed change stretches the timebase, so it owes the same honesty the
         // trim path gives: say what the musician's click will be worth afterwards.
-        if (editorMode === "transform") {
+        if (editorMode !== "trim") {
             if (!transformState.hasActiveTransforms) return null;
             const { gridOutcome } = remapClipForRate(
                 sourceClip,
@@ -441,6 +458,9 @@ export function EditorScreen() {
         gridPolicy: keepToGrid ? "preserve" : "free",
         transformPitchShiftSemitones: transformState.pitchShiftSemitones,
         transformPlaybackRate: transformState.playbackRate,
+        transformSound: editorSound,
+        hasSpeedOrPitch: transformState.hasSpeedOrPitch,
+        hasSound: transformState.hasSound,
         hasActiveTransforms: transformState.hasActiveTransforms,
         playheadTimeMs,
         player: {
@@ -592,7 +612,7 @@ export function EditorScreen() {
                 footer={
                     analysisData ? (
                         <EditorFooterSection
-                            editorMode={editorMode}
+                            editorMode={editorMode === "trim" ? "trim" : "transform"}
                             intent={editMode}
                             keepCount={keepRegions.length}
                             removeCount={removeRegions.length}
@@ -626,11 +646,15 @@ export function EditorScreen() {
                         <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
                             <SegmentedControl
                                 options={editorTabs}
-                                value={editorMode === "transform" ? "transform" : editMode}
+                                value={editorMode === "trim" ? editMode : editorMode}
                                 onChange={(key) => {
                                     if (key === "transform") {
                                         if (!ensurePro("full-editor")) return;
                                         setEditorMode("transform");
+                                        return;
+                                    }
+                                    if (key === "eq") {
+                                        setEditorMode("eq");
                                         return;
                                     }
                                     setEditorMode("trim");
@@ -843,6 +867,17 @@ export function EditorScreen() {
 
                                 <View style={{ height: 24 }} />
                             </>
+                        ) : editorMode === "eq" ? (
+                            <View style={editorLocalStyles.eqSection}>
+                                <LevelToneStrip
+                                    gainDb={transformState.gainDb}
+                                    tonePreset={transformState.tonePreset}
+                                    onCommitGain={transformState.setGainDb}
+                                    onToggleToneFlag={transformState.toggleToneFlag}
+                                    autoAudioUri={audioUri ?? null}
+                                    testID="editor-eq"
+                                />
+                            </View>
                         ) : (
                             <EditorTransformSection
                                 playbackRate={transformState.playbackRate}
@@ -872,9 +907,16 @@ export function EditorScreen() {
                 }
                 summaryLine={
                     exportFlow.transformExportModalVisible
-                        ? `${transformState.playbackRate.toFixed(2)}x · ${signedNumberText(
-                              `${transformState.pitchShiftSemitones > 0 ? "+" : ""}${transformState.pitchShiftSemitones}`
-                          )} ${t("player.semitones")}`
+                        ? [
+                              transformState.hasSpeedOrPitch
+                                  ? `${transformState.playbackRate.toFixed(2)}x · ${signedNumberText(
+                                        `${transformState.pitchShiftSemitones > 0 ? "+" : ""}${transformState.pitchShiftSemitones}`
+                                    )} ${t("player.semitones")}`
+                                  : null,
+                              transformState.hasSound ? t("player.eqTab") : null,
+                          ]
+                              .filter(Boolean)
+                              .join(" · ")
                         : undefined
                 }
                 sourceTitle={sourceClip?.title ?? ""}

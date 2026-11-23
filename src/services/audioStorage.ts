@@ -594,7 +594,7 @@ const IMPORT_RENDER_TOLERANCE_MS = 250;
  * render came out shorter than the original (never keep a truncated import). Throws
  * when the render itself fails.
  */
-async function renderImportToM4a(sourceUri: string, targetId: string): Promise<string | null> {
+export async function renderImportToM4a(sourceUri: string, targetId: string): Promise<string | null> {
     const native = SongNookPitchShiftModule;
     const durationMs = await getNativeAudioDurationMs(sourceUri).catch(() => undefined);
     if (!native?.renderTrim || !durationMs) return null;

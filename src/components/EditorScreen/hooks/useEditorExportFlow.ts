@@ -5,8 +5,8 @@ import { StackActions } from "@react-navigation/native";
 import { type AudioAnalysis } from "@siteed/audio-studio";
 import { trimAudioRanges } from "../../../services/audioTrim";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
-import { importAudioAsset } from "../../../services/audioStorage";
-import { renderPitchShiftedFile } from "../../../services/pitchShift";
+import { importAudioAsset, renderImportToM4a } from "../../../services/audioStorage";
+import { renderMixedFile, renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
 import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, EditRegion, SongIdea } from "../../../types";
@@ -47,13 +47,24 @@ type MinimalPlayer = {
  * an unmanaged (and on iOS, purgeable temporary) path.
  */
 async function importRenderedFileToManaged(renderedUri: string) {
-  const baseName = renderedUri.split("/").pop() || "edit.wav";
-  const imported = await importAudioAsset({ uri: renderedUri, name: baseName }, buildClipId(), {
+  const targetId = buildClipId();
+  // The iPhone's speed, pitch and EQ renders are uncompressed 32-bit float WAV, ten times
+  // an imported clip's size: make them M4A by the same whole-file pass a trim takes
+  // (2026-11-23). If that fails or comes up short, the WAV is kept.
+  let sourceUri = renderedUri;
+  if (/\.wav(\?|$)/i.test(renderedUri)) {
+    const compressed = await renderImportToM4a(renderedUri, targetId).catch(() => null);
+    if (compressed) sourceUri = compressed;
+  }
+  const baseName = sourceUri.split("/").pop() || "edit.wav";
+  const imported = await importAudioAsset({ uri: sourceUri, name: baseName }, targetId, {
     // The save spinner is on screen: decode now, even against dock playback.
     decodeMode: "interactive",
   });
-  if (imported.audioUri !== renderedUri) {
-    await FileSystem.deleteAsync(renderedUri, { idempotent: true }).catch(() => {});
+  for (const temp of new Set([renderedUri, sourceUri])) {
+    if (imported.audioUri !== temp) {
+      await FileSystem.deleteAsync(temp, { idempotent: true }).catch(() => {});
+    }
   }
   return imported;
 }
@@ -80,6 +91,10 @@ type UseEditorExportFlowArgs = {
   gridPolicy?: GridPolicy;
   transformPitchShiftSemitones: number;
   transformPlaybackRate: number;
+  /** The EQ tab's level and tone, baked after any speed and pitch change. */
+  transformSound: { gainDb: number; tonePreset: string };
+  hasSpeedOrPitch: boolean;
+  hasSound: boolean;
   hasActiveTransforms: boolean;
   playheadTimeMs: number;
   player: MinimalPlayer;
@@ -106,6 +121,9 @@ export function useEditorExportFlow({
   gridPolicy = "preserve",
   transformPitchShiftSemitones,
   transformPlaybackRate,
+  transformSound,
+  hasSpeedOrPitch,
+  hasSound,
   hasActiveTransforms,
   playheadTimeMs,
   player,
@@ -547,13 +565,37 @@ export function useEditorExportFlow({
         playbackRate: transformPlaybackRate,
       });
       const title = transformNameDraft.trim() || suggestedExportTitle;
-      const result = await renderPitchShiftedFile({
-        inputUri: audioUri,
-        semitones: transformPitchShiftSemitones,
-        playbackRate: transformPlaybackRate,
-        outputFileName: title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
-      });
-      const metadata = await importRenderedFileToManaged(result.outputUri);
+      const outputFileName = title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined;
+      // Speed and pitch first (when set), then the level and tone over the result: the
+      // order the live preview plays them in.
+      let renderedUri: string | null = null;
+      if (hasSpeedOrPitch) {
+        const shifted = await renderPitchShiftedFile({
+          inputUri: audioUri,
+          semitones: transformPitchShiftSemitones,
+          playbackRate: transformPlaybackRate,
+          outputFileName,
+        });
+        renderedUri = shifted.outputUri;
+      }
+      if (hasSound) {
+        const shiftedUri = renderedUri;
+        const tuned = await renderMixedFile({
+          inputs: [
+            {
+              inputUri: shiftedUri ?? audioUri,
+              gainDb: transformSound.gainDb,
+              offsetMs: 0,
+              tonePreset: transformSound.tonePreset,
+            },
+          ],
+          outputFileName: `${outputFileName ?? "edit"}-eq-${Date.now()}`,
+        });
+        if (shiftedUri) await FileSystem.deleteAsync(shiftedUri, { idempotent: true }).catch(() => {});
+        renderedUri = tuned.outputUri;
+      }
+      if (!renderedUri) return;
+      const metadata = await importRenderedFileToManaged(renderedUri);
       importedAudioUris.push(metadata.audioUri);
       void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
       // A rate change stretches the timeline: every pin, section and tempo scales with it.

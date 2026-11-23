@@ -63,7 +63,7 @@ import {
     toggleToneFlag,
     type OverdubToneFlag,
 } from "../domain/overdub";
-import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
+import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata, MANAGED_WAVEFORM_PEAK_COUNT, renderImportToM4a } from "../services/audioStorage";
 import { renderMixedFile } from "../services/pitchShift";
 import {
     clearPendingWorkspaceArchiveOperation,
@@ -301,6 +301,40 @@ async function buildImportedClipOverdubMix(
  * level and tone, imported as a managed file. (Found 2026-11-23: Save's first build
  * copied the untouched recording.)
  */
+/**
+ * A render kept as a clip (Save, Combine). The iPhone's renderer writes uncompressed
+ * 32-bit float WAV, ten times the size of an imported clip (measured 2026-11-23: 0.66 MB
+ * became 6.8 MB), so it is made an M4A first, by the same whole-file pass every edited
+ * clip already takes (the trim render: stereo and length kept, measured to the sample).
+ * Android's renders are M4A already. If the pass fails or comes up short, the WAV is
+ * kept: a save is never lost to its compression.
+ */
+async function importRenderAsClip(renderedUri: string, targetId: string) {
+    let sourceUri = renderedUri;
+    let compressedUri: string | null = null;
+    if (/\.wav(\?|$)/i.test(renderedUri)) {
+        compressedUri = await renderImportToM4a(renderedUri, targetId).catch((error) => {
+            console.warn("[Save] M4A pass failed; keeping the WAV render.", error);
+            return null;
+        });
+        if (compressedUri) sourceUri = compressedUri;
+    }
+    try {
+        return await importAudioAsset(
+            {
+                uri: sourceUri,
+                name: sourceUri.split("/").pop() ?? `${targetId}.m4a`,
+                mimeType: compressedUri ? "audio/mp4" : /\.wav(\?|$)/i.test(sourceUri) ? "audio/wav" : "audio/mp4",
+            },
+            targetId,
+            // The writer is waiting on it.
+            { decodeMode: "interactive" }
+        );
+    } finally {
+        if (compressedUri) await FileSystem.deleteAsync(compressedUri, { idempotent: true }).catch(() => {});
+    }
+}
+
 async function importClipSoundRender(clip: ClipVersion, clipId: string, label: string) {
     const inputs = buildClipOverdubMixInputs(clip);
     if (inputs.length === 0) {
@@ -311,16 +345,7 @@ async function importClipSoundRender(clip: ClipVersion, clipId: string, label: s
         outputFileName: `${clipId}-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     });
     try {
-        return await importAudioAsset(
-            {
-                uri: rendered.outputUri,
-                name: rendered.outputUri.split("/").pop() ?? `${clipId}-${label}.m4a`,
-                mimeType: "audio/mp4",
-            },
-            `${clipId}-${label}-${Date.now()}`,
-            // The writer is waiting on it.
-            { decodeMode: "interactive" }
-        );
+        return await importRenderAsClip(rendered.outputUri, `${clipId}-${label}-${Date.now()}`);
     } finally {
         await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
     }
@@ -2026,16 +2051,7 @@ export const appActions = {
         // With layers the rendered mix is the sound. Without, there is no mix (the take's
         // level and tone are live only), so it is rendered for this.
         const imported = match.clip.overdub?.stems?.length
-            ? await importAudioAsset(
-                  {
-                      uri: playbackUri,
-                      name: playbackUri.split("/").pop() ?? `${clipId}-mix.m4a`,
-                      mimeType: "audio/mp4",
-                  },
-                  `${clipId}-flattened-${Date.now()}`,
-                  // User-blocking flow (editor's "save combined and continue").
-                  { decodeMode: "interactive" }
-              )
+            ? await importRenderAsClip(playbackUri, `${clipId}-flattened-${Date.now()}`)
             : await importClipSoundRender(match.clip, clipId, "flattened");
 
         const now = Date.now();

@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
+import { isTonePresetNeutral } from "../../../domain/overdub";
 import {
   useNativePitchTransport,
   type NativeTransportSource,
@@ -10,6 +11,8 @@ type Args = {
   audioUri?: string | null;
   playbackRate: number;
   pitchShiftSemitones: number;
+  /** The EQ tab's level and tone, heard through the engine while they are bent. */
+  sound?: { gainDb: number; tonePreset: string };
   sourcePositionMs: number;
   sourceDurationMs: number;
   sourceIsPlaying: boolean;
@@ -30,6 +33,7 @@ export function useEditorPreviewTransport({
   audioUri,
   playbackRate,
   pitchShiftSemitones,
+  sound,
   sourcePositionMs,
   sourceDurationMs,
   sourceIsPlaying,
@@ -39,6 +43,7 @@ export function useEditorPreviewTransport({
   setSourcePlaybackRate,
 }: Args) {
   const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
+  const soundBent = !!sound && (sound.gainDb !== 0 || !isTonePresetNeutral(sound.tonePreset));
 
   const source = useMemo<NativeTransportSource>(
     () => ({
@@ -66,11 +71,12 @@ export function useEditorPreviewTransport({
 
   const core = useNativePitchTransport({
     ownerLabel: "editor-screen",
-    wantsNative: isFocused && clamped !== 0,
+    wantsNative: isFocused && (clamped !== 0 || soundBent),
     selectSupported: (caps) => caps.supportsEditorPreview,
     source,
     playbackRate,
     pitchShiftSemitones,
+    sound,
     restartAtEndOnPlay: true,
   });
 
@@ -84,10 +90,10 @@ export function useEditorPreviewTransport({
   // the editor or when the user dials in a pitch again, so pitch preview doesn't
   // stay permanently "unavailable" for the rest of the session.
   useEffect(() => {
-    if ((!isFocused || clamped !== 0) && core.nativeTransportDisabled) {
+    if ((!isFocused || clamped !== 0 || soundBent) && core.nativeTransportDisabled) {
       core.clearDisabled();
     }
-  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused]);
+  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused, soundBent]);
 
   return useMemo(
     () => ({
