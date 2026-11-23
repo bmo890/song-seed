@@ -70,6 +70,10 @@ export type LevelToneStripProps = {
   onSave?: (() => void) | null;
   /** The save is running. */
   saving?: boolean;
+  /** Whose sound this is, for the help's words: a clip's (kept as it is set; Save bakes
+   *  it), a layer's (kept with the layer; Combine bakes it), or the editor's draft
+   *  (nothing changes until the editor's own save). */
+  subject?: "clip" | "layer" | "draft";
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -101,6 +105,7 @@ export function LevelToneStrip({
   autoAudioUri = null,
   onSave = null,
   saving = false,
+  subject = "clip",
   style,
   testID,
 }: LevelToneStripProps) {
@@ -176,7 +181,13 @@ export function LevelToneStrip({
       <HelpSheet
         visible={helpOpen}
         onClose={() => setHelpOpen(false)}
-        thesis={t("player.soundHelpThesis")}
+        thesis={t(
+          subject === "layer"
+            ? "player.soundHelpThesisLayer"
+            : subject === "draft"
+              ? "player.soundHelpThesisDraft"
+              : "player.soundHelpThesis"
+        )}
         items={[
           ...(auto.offered
             ? [{ icon: "color-wand-outline" as const, label: t("player.autoFix"), description: t("player.soundHelpAuto") }]
@@ -185,7 +196,13 @@ export function LevelToneStrip({
             ? [{ icon: "swap-vertical-outline" as const, label: t("player.evenOut"), description: t("player.soundHelpEven") }]
             : []),
           { icon: "options-outline", label: t("player.tone"), description: t("player.soundHelpTone") },
-          { icon: "checkmark-circle-outline", label: t("player.soundHelpSavedLabel"), description: t("player.soundHelpSaved") },
+          subject === "draft"
+            ? { icon: "save-outline", label: t("editor.saveCopy"), description: t("player.soundHelpDraft") }
+            : {
+                icon: "checkmark-circle-outline",
+                label: t("player.soundHelpSavedLabel"),
+                description: t(subject === "layer" ? "player.soundHelpSavedLayer" : "player.soundHelpSaved"),
+              },
         ]}
       />
 

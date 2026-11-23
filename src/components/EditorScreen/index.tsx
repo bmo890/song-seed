@@ -69,11 +69,16 @@ const editorLocalStyles = StyleSheet.create({
     partsWrap: {
         paddingHorizontal: 16,
     },
-    // The EQ tab: the player's strip, in the transform section's gutters.
+    // The EQ tab: the player's strip, in the transform section's gutters. Drawn a little
+    // tighter than in the player, so the whole mixer sits above the save key without a
+    // scroll on a standard phone.
     eqSection: {
         paddingHorizontal: 16,
-        paddingTop: 12,
+        paddingTop: 0,
         paddingBottom: 4,
+    },
+    eqStrip: {
+        gap: 6,
     },
     /** The canon transport sits directly under the tape, at the dock's compact
      *  size — the tape's own control, not a second headline. */
@@ -875,6 +880,8 @@ export function EditorScreen() {
                                     onCommitGain={transformState.setGainDb}
                                     onToggleToneFlag={transformState.toggleToneFlag}
                                     autoAudioUri={audioUri ?? null}
+                                    subject="draft"
+                                    style={editorLocalStyles.eqStrip}
                                     testID="editor-eq"
                                 />
                             </View>

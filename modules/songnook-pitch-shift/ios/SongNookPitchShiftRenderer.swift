@@ -352,10 +352,16 @@ final class SongNookPitchShiftRenderer {
   private func buildOutputURL(fileName: String?) -> URL {
     let safeName = sanitizeFileName(fileName)
     let finalName = safeName.hasSuffix(".wav") ? safeName : "\(safeName).wav"
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
+    let url = Self.renderDirectory.appendingPathComponent(finalName)
     try? FileManager.default.removeItem(at: url)
     return url
   }
+
+  /// Where renders are written: Caches, not tmp (2026-11-23). The app's file API may move
+  /// and delete in Caches but not in tmp, and every render is handed to it to be moved
+  /// into the library and cleaned up: from tmp the move was refused (a trimmed take's
+  /// save failed on every iPhone) and the leftovers could never be deleted.
+  static let renderDirectory: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
 
   private func sanitizeFileName(_ value: String?) -> String {
     let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -592,7 +598,7 @@ final class SongNookPitchShiftRenderer {
   private func buildExportOutputURL(fileName: String?) -> URL {
     let safeName = sanitizeFileName(fileName)
     let finalName = safeName.hasSuffix(".m4a") ? safeName : "\(safeName).m4a"
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
+    let url = Self.renderDirectory.appendingPathComponent(finalName)
     try? FileManager.default.removeItem(at: url)
     return url
   }

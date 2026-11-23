@@ -1408,6 +1408,9 @@ export function useRecording(
       return true;
     } catch (error) {
       take.facts.expectedStop = false;
+      // Said in the log: this branch tells the writer "kept for recovery" and used to say
+      // nothing here, so a save that failed left no trace of why (2026-11-23).
+      console.warn("Recording save failed; take kept for recovery", error);
       if (error instanceof StepTimeoutError) stopLateRecorder();
       // Roll back the PARTIAL artifacts (the managed copy and the intermediate trim temp),
       // but PRESERVE the recorder temp file AND the pending-session marker — together they

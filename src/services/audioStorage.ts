@@ -697,7 +697,20 @@ async function importAudioAssetFromSource(
                 asset.moveIntoLibrary != null ||
                 (asset.discardSourceAfterImport === true && isImportOnlyCopy(sourceUri));
             if (ownsSource) {
-                await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
+                try {
+                    await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
+                } catch (moveError) {
+                    // A move needs to WRITE in the source's folder, and on iOS the file API
+                    // may not write in the app's tmp folder, which is where the native
+                    // renderer put its output (a trimmed take, a converted import). Since
+                    // takes began moving instead of copying (2026-11-02) every such save on
+                    // an iPhone failed here: a layer or a count-in take was "kept for
+                    // recovery" and came back as a loose clip (found 2026-11-23). Copy
+                    // instead; the source is ours and is removed if the file API can.
+                    console.warn("[import] move refused; copying instead", moveError);
+                    await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+                    void FileSystem.deleteAsync(sourceUri, { idempotent: true }).catch(() => {});
+                }
             } else {
                 await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
             }
