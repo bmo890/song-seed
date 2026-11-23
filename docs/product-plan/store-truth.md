@@ -178,7 +178,8 @@ Apple appends the same subscription paragraph as before (below, per language in
 
 - **Apple subtitle = Play short description:** `A quiet corner for your songs` (29)
 - **Apple promotional text:** `New: record in stereo with your phone's own mics, and fix how a clip sounds in one tap.` (founder kept; what's new, changes without review)
-- **Keywords, screenshots, songnook.app:** not yet redone to the new story.
+- **Apple keywords (100), 2026-11-23:** `songwriting,songwriter,rehearsal,practice,lyrics,chords,voice memo,stereo recorder,setlist,demo,band` (adds rehearsal, practice, band, stereo; drops tuner, metronome, song ideas). Other languages in `store-listing-translations.md`.
+- **Screenshots:** kept as they are (founder: new captions are "too much"). **songnook.app:** later.
 - **1.0.3 store builds, 2026-11-23 (from 5f46924d, runtime 1.0.3):** iOS build 35 (.ipa on
   EAS, not uploaded to App Store Connect), Android versionCode 22 (.aab on EAS, founder uploads
   by hand). Builds 34 / 21 failed (audio-studio patch, fixed in 5f46924d). Not submitted.
@@ -293,36 +294,26 @@ Your first month includes every tool, free, no card needed. After that, recordin
 New in the metronome: practice patterns. Build up to four bars, accent or silence any beat or sub-beat, and turn on a screen flash to see the beat from across the room.
 ```
 
-**What's new, 1.0.3 (both stores, ≤ 500 for Play; DRAFT 2026-11-23, founder to approve):**
+**What's new, 1.0.3 (both stores; founder approved 2026-11-23):**
 
 ```
-Record in stereo with your phone's own microphones, free.
-Shape how a clip sounds: one tap to fix the level and tone, or set low, mid and high yourself. Keep it as a new clip or save it over the original. Also in the clip editor.
-Metronome practice: beats drop out at random, so you learn to hold the tempo on your own.
+Record in stereo with your phone's own mics, free. Fix how a clip sounds in one tap, or shape the lows, mids and highs yourself. And a new metronome practice where beats drop out at random, to work on your internal rhythm.
 ```
 
 ```he
-הקלטה בסטריאו עם המיקרופונים של הטלפון, בחינם.
-עיצוב הצליל של קטע: הקשה אחת מתקנת עוצמה וגוון, או שמכוונים בעצמכם נמוכים, אמצע וגבוהים. שומרים כקטע חדש או במקום המקור. זמין גם בעריכת קטע.
-תרגול במטרונום: פעמות נעלמות באקראי, כדי ללמוד להחזיק את הקצב לבד.
+הקלטה בסטריאו עם המיקרופונים של הטלפון, בחינם. תיקון הצליל של קטע בהקשה אחת, או עיצוב הנמוכים, האמצע והגבוהים בעצמכם. ותרגול חדש במטרונום שבו פעמות נעלמות באקראי, כדי לעבוד על תחושת הקצב הפנימית.
 ```
 
 ```es
-Graba en estéreo con los micrófonos del teléfono, gratis.
-Da forma al sonido de un clip: un toque corrige nivel y tono, o ajusta tú graves, medios y agudos. Guárdalo como clip nuevo o sobre el original. También en el editor de clips.
-Práctica con metrónomo: algunos pulsos desaparecen al azar, para que aprendas a sostener el tempo solo.
+Graba en estéreo con los micrófonos del teléfono, gratis. Corrige el sonido de un clip con un toque, o ajusta tú los graves, medios y agudos. Y una nueva práctica con metrónomo en la que algunos pulsos desaparecen al azar, para trabajar tu ritmo interno.
 ```
 
 ```de
-Nimm in Stereo mit den Mikrofonen deines Telefons auf, kostenlos.
-Forme den Klang eines Clips: Ein Tipp korrigiert Pegel und Klang, oder stell Tiefen, Mitten und Höhen selbst ein. Als neuen Clip behalten oder über das Original speichern. Auch im Clip-Editor.
-Üben mit dem Metronom: Schläge fallen zufällig weg, damit du das Tempo selbst hältst.
+Nimm in Stereo mit den Mikrofonen deines Telefons auf, kostenlos. Korrigiere den Klang eines Clips mit einem Tipp, oder forme Tiefen, Mitten und Höhen selbst. Und eine neue Metronom-Übung, bei der Schläge zufällig wegfallen, um an deinem inneren Rhythmus zu arbeiten.
 ```
 
 ```pt
-Grave em estéreo com os microfones do telefone, de graça.
-Molde o som de um clipe: um toque corrige nível e tom, ou ajuste você mesmo graves, médios e agudos. Guarde como clipe novo ou salve por cima do original. Também no editor de clipes.
-Prática com metrônomo: batidas somem ao acaso, para você aprender a manter o andamento sozinho.
+Grave em estéreo com os microfones do telefone, de graça. Corrija o som de um clipe com um toque, ou molde você mesmo graves, médios e agudos. E uma nova prática com metrônomo em que batidas somem ao acaso, para trabalhar seu ritmo interno.
 ```
 
 **Apple only, appended (required for auto-renewing Pro):**

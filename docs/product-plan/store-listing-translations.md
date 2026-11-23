@@ -33,6 +33,7 @@ Translated by Claude; no native reader has checked them.
 
 - **Subtitle / short description:** `Un rincón para tus canciones`
 - **Apple promotional text:** `Novedad: graba en estéreo con los micrófonos del teléfono y corrige el sonido de un clip con un toque.`
+- **Apple keywords:** `componer,compositor,ensayo,práctica,letras,acordes,nota de voz,grabadora estéreo,setlist,demo,banda`
 
 ```
 SongNook es para compositores y músicos en activo: para escribir y desarrollar canciones y ensayar el repertorio.
@@ -50,6 +51,7 @@ SongNook Pro, gratis tu primer mes: herramientas de práctica (bajar la velocida
 
 - **Subtitle / short description:** `Ein stiller Winkel für Songs`
 - **Apple promotional text:** `Neu: Nimm in Stereo mit den Mikrofonen deines Telefons auf und korrigiere den Klang eines Clips mit einem Tipp.`
+- **Apple keywords:** `songwriting,songwriter,probe,üben,songtext,akkorde,sprachmemo,stereo rekorder,setlist,demo,band`
 
 ```
 SongNook ist für Songwriter und aktive Musiker: um Songs zu schreiben, weiterzuentwickeln und das Set zu proben.
@@ -67,6 +69,7 @@ SongNook Pro, im ersten Monat kostenlos: Übungswerkzeuge (langsamer spielen, To
 
 - **Subtitle / short description:** `Um canto para suas músicas`
 - **Apple promotional text:** `Novidade: grave em estéreo com os microfones do telefone e corrija o som de um clipe com um toque.`
+- **Apple keywords:** `compor,compositor,ensaio,prática,letra,acordes,memo de voz,gravador estéreo,setlist,demo,banda,cifra`
 
 ```
 O SongNook é para compositores e músicos na ativa: para escrever e desenvolver músicas e ensaiar o repertório.
@@ -84,6 +87,7 @@ SongNook Pro, grátis no primeiro mês: ferramentas de estudo (diminuir a veloci
 
 - **Subtitle / short description:** `פינה שקטה לשירים שלכם`
 - **Apple promotional text:** `חדש: הקלטה בסטריאו עם המיקרופונים של הטלפון, ותיקון הצליל של קטע בהקשה אחת.`
+- **Apple keywords:** `כתיבת שירים,מילים,אקורדים,חזרות,תרגול,תזכיר קולי,הקלטה בסטריאו,סטליסט,דמו,להקה,שיר`
 
 ```
 SongNook נועדה לכותבי שירים ולמוזיקאים פעילים, לכתוב ולפתח שירים ולעשות חזרות על הסט.
@@ -364,6 +368,13 @@ SongNook Pro זמין כמנוי שנתי או חודשי, או כרכישה ח�
 ```
 
 ---
+
+## What's new, 1.0.3 (2026-11-23, founder approved the English)
+
+- **es:** `Graba en estéreo con los micrófonos del teléfono, gratis. Corrige el sonido de un clip con un toque, o ajusta tú los graves, medios y agudos. Y una nueva práctica con metrónomo en la que algunos pulsos desaparecen al azar, para trabajar tu ritmo interno.`
+- **de:** `Nimm in Stereo mit den Mikrofonen deines Telefons auf, kostenlos. Korrigiere den Klang eines Clips mit einem Tipp, oder forme Tiefen, Mitten und Höhen selbst. Und eine neue Metronom-Übung, bei der Schläge zufällig wegfallen, um an deinem inneren Rhythmus zu arbeiten.`
+- **pt:** `Grave em estéreo com os microfones do telefone, de graça. Corrija o som de um clipe com um toque, ou molde você mesmo graves, médios e agudos. E uma nova prática com metrônomo em que batidas somem ao acaso, para trabalhar seu ritmo interno.`
+- **he:** `הקלטה בסטריאו עם המיקרופונים של הטלפון, בחינם. תיקון הצליל של קטע בהקשה אחת, או עיצוב הנמוכים, האמצע והגבוהים בעצמכם. ותרגול חדש במטרונום שבו פעמות נעלמות באקראי, כדי לעבוד על תחושת הקצב הפנימית.`
 
 ## What's new, 1.0.2 (2026-11-16)
 
