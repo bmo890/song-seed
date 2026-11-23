@@ -39,7 +39,7 @@ import { LoopMoveHandle } from "../common/LoopMoveHandle";
 import { SpanInspector, spanNeighbors } from "../common/SpanInspector";
 import { getVisibleTimelineRange } from "../PlayerScreen/helpers";
 import { EditorSaveSheet } from "./components/EditorSaveSheet";
-import { LevelToneStrip } from "../common/LevelToneStrip";
+import { LevelToneStrip, eqStripHeight } from "../common/LevelToneStrip";
 import { AppAlert } from "../common/AppAlert";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
@@ -59,6 +59,14 @@ import { signedNumberText } from "../../i18n/direction";
 
 /** Picking an end edge cues two seconds before it, as the player's loop does. */
 const EDGE_END_PREROLL_MS = 2000;
+/** The tape at ease, and the least it may give up to before the page scrolls instead. */
+const EDITOR_REEL_HEIGHT = 160;
+const EDITOR_REEL_MIN_HEIGHT = 104;
+/** The tabs block and the transport row as drawn (measured; see `noteChrome`). */
+const EDITOR_TABS_HEIGHT = 58;
+const EDITOR_TRANSPORT_ROW_HEIGHT = 56;
+/** Under the EQ strip: its section's padding and a breath above the footer. */
+const EQ_SECTION_RESERVE = 12;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -76,9 +84,6 @@ const editorLocalStyles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 0,
         paddingBottom: 4,
-    },
-    eqStrip: {
-        gap: 6,
     },
     /** The canon transport sits directly under the tape, at the dock's compact
      *  size — the tape's own control, not a second headline. */
@@ -116,6 +121,29 @@ export function EditorScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
     const [editorMode, setEditorMode] = useState<"trim" | "transform" | "eq">("trim");
+    // The page fits its phone (founder, 2026-11-23: "it should auto adjust ... for height,
+    // i dont want a situation where a normal phone isnt tall enough"). The tallest tab is
+    // EQ, so the tape gives up height until EQ's strip fits under it at its closest
+    // layout, on every tab alike (a tape that changed size between tabs would shift the
+    // page). All of it is arithmetic on the body's height, which is known while the take
+    // is still being read, so the tape is drawn once at its size.
+    const [bodyHeight, setBodyHeight] = useState(0);
+    // What sits above a tab's body besides the tape: the tabs and the transport row.
+    // Started at their drawn heights, corrected if a phone draws them otherwise.
+    const [chrome, setChrome] = useState({ tabs: EDITOR_TABS_HEIGHT, row: EDITOR_TRANSPORT_ROW_HEIGHT });
+    const noteChrome = useCallback((part: "tabs" | "row", height: number) => {
+        const rounded = Math.round(height);
+        setChrome((prev) => (prev[part] === rounded ? prev : { ...prev, [part]: rounded }));
+    }, []);
+    const roomUnderChrome = bodyHeight > 0 ? bodyHeight - chrome.tabs - chrome.row : null;
+    const reelHeight =
+        roomUnderChrome == null
+            ? EDITOR_REEL_HEIGHT
+            : Math.max(
+                  EDITOR_REEL_MIN_HEIGHT,
+                  Math.min(EDITOR_REEL_HEIGHT, roomUnderChrome - eqStripHeight("tight", true) - EQ_SECTION_RESERVE)
+              );
+    const eqRoom = roomUnderChrome == null ? null : roomUnderChrome - reelHeight - EQ_SECTION_RESERVE;
     const [helpVisible, setHelpVisible] = useState(false);
     /** Reel magnification, reported by the reel — it scales the inspector's nudge step
      *  and decides whether snapping lands on bars or beats. */
@@ -629,6 +657,7 @@ export function EditorScreen() {
                     ) : null
                 }
                 scrollable
+                onBodyHeight={setBodyHeight}
             >
                 {sourceClipHasOverdubs ? (
                     <EmptyState
@@ -648,7 +677,10 @@ export function EditorScreen() {
                     </View>
                 ) : analysisData ? (
                     <>
-                        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
+                        <View
+                            style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}
+                            onLayout={(event) => noteChrome("tabs", event.nativeEvent.layout.height)}
+                        >
                             <SegmentedControl
                                 options={editorTabs}
                                 value={editorMode === "trim" ? editMode : editorMode}
@@ -676,6 +708,7 @@ export function EditorScreen() {
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}
+                            collapsedHeightOverride={reelHeight}
                             chrome="light"
                             // The player's reel arrangement, reached by configuration: zoom
                             // rides on the canvas instead of a pill row beneath it, and the
@@ -787,7 +820,10 @@ export function EditorScreen() {
 
                         {/* The skips go to the clip's ends: pause-seek-settle-resume, the
                             same round trip the reel's own scrub makes (seekAndSettle). */}
-                        <View style={editorLocalStyles.transportRow}>
+                        <View
+                            style={editorLocalStyles.transportRow}
+                            onLayout={(event) => noteChrome("row", event.nativeEvent.layout.height)}
+                        >
                             <TransportBar
                                 size="compact"
                                 isPlaying={previewTransport.effectiveIsPlaying}
@@ -881,7 +917,7 @@ export function EditorScreen() {
                                     onToggleToneFlag={transformState.toggleToneFlag}
                                     autoAudioUri={audioUri ?? null}
                                     subject="draft"
-                                    style={editorLocalStyles.eqStrip}
+                                    room={eqRoom}
                                     testID="editor-eq"
                                 />
                             </View>

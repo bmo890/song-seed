@@ -145,3 +145,27 @@ describe("the Sound strip's Auto", () => {
     await act(async () => r!.unmount());
   });
 });
+
+describe("the strip fits the room it is given", () => {
+  const { eqDensityForRoom, eqStripHeight } = require("../LevelToneStrip");
+
+  it("is at ease with no room named, or with plenty", () => {
+    expect(eqDensityForRoom(null, true)).toBe("roomy");
+    expect(eqDensityForRoom(eqStripHeight("roomy", true), true)).toBe("roomy");
+  });
+
+  it("puts Level on one line before it tightens anything", () => {
+    expect(eqDensityForRoom(eqStripHeight("roomy", true) - 1, true)).toBe("inline");
+    expect(eqDensityForRoom(eqStripHeight("inline", true) - 1, true)).toBe("tight");
+  });
+
+  it("each step is shorter, and a page too short for the last still gets it", () => {
+    expect(eqStripHeight("inline", true)).toBeLessThan(eqStripHeight("roomy", true));
+    expect(eqStripHeight("tight", true)).toBeLessThan(eqStripHeight("inline", true));
+    expect(eqDensityForRoom(100, true)).toBe("tight");
+  });
+
+  it("without the Even out row there is less to fit", () => {
+    expect(eqStripHeight("roomy", false)).toBeLessThan(eqStripHeight("roomy", true));
+  });
+});

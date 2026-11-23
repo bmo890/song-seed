@@ -41,10 +41,14 @@ import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { ProMarkText } from "../../common/ProMark";
 import { bpmAtRate, type SpeedUnit } from "../../../domain/tempoSpeed";
 import { LevelToneStrip } from "../../common/LevelToneStrip";
+import { useRoomBelow } from "../../common/TransportLayout";
 import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overdub";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 import { PIN_ICON } from "../../../design/markIcons";
 import { SpanGlyph } from "../../common/SpanGlyph";
+
+/** `toolList`'s gap (PlayerScreen/styles.ts): what sits between the tabs and a drawer. */
+const TOOL_LIST_GAP = 8;
 
 /** How early the playhead lands when the loop's end is picked. */
 const LOOP_END_PREROLL_MS = 2000;
@@ -354,6 +358,9 @@ export function PlayerPracticeDrawers({
   // Step up reads in BPM only when the dial does, on a take that has a tempo.
   const speedBpmBase = speedTempoBpm != null && speedUnit === "bpm" ? speedTempoBpm : null;
   const [drawer, setDrawer] = useState<Drawer>("marks");
+  // The room under the tabs, known from the moment the drawers open (on Marks), so
+  // the EQ strip picks a layout that fits before it first draws.
+  const tabsRoom = useRoomBelow();
   const [selected, setSelected] = useState<SelectedMark>(null);
   // The mark whose play glyph started the current playback — it wears the accent
   // only while the tape rolls; a pause or a cue elsewhere lets it go.
@@ -1099,6 +1106,8 @@ export function PlayerPracticeDrawers({
           autoAudioUri={soundAudioUri}
           onSave={onSaveSound}
           saving={savingSound}
+          // Less the list's gap between the tabs and the strip.
+          room={tabsRoom.room != null ? tabsRoom.room - TOOL_LIST_GAP : null}
           testID="sound-strip"
         />
       ) : null}
@@ -1111,6 +1120,7 @@ export function PlayerPracticeDrawers({
       {/* Recording a layer left this list (founder, 2026-10-13): a full row above
           the tabs cost the drawers their room. It is the "Layer" key beside
           Tools in the reel's toolbar now. */}
+      <View ref={tabsRoom.ref} onLayout={tabsRoom.onLayout} collapsable={false}>
       <SegmentedControl<Drawer>
         options={[
           // The dot means "something is RUNNING in there" — a loop looping, a
@@ -1128,6 +1138,7 @@ export function PlayerPracticeDrawers({
           onPinPreview(null);
         }}
       />
+      </View>
       {/* Reset all speaks for every tool; Keep speaks for the drawer it sits
           over, so the pitch can stay while the loop goes (founder, 2026-10-24).
           Marks are always saved, so the Marks tab goes without; so is the take's level

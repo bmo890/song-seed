@@ -54,6 +54,59 @@ const TONE_KEY_LABEL_KEYS: Record<"cut" | "boost", string> = {
   boost: "player.toneBoost",
 };
 
+/**
+ * How much air the strip takes, chosen from the room its page has (founder, 2026-11-23:
+ * "it should auto adjust ... for height, i dont want a situation where a normal phone
+ * isnt tall enough"). Nothing is dropped at any density; only the air goes.
+ *
+ *   roomy    the full layout: Level's name and value over its slider.
+ *   inline   Level on one line: name, slider, value.
+ *   tight    inline, with closer gaps and shorter keys.
+ *
+ * Every height the strip draws comes from these numbers, so `eqStripHeight` is what it
+ * will measure and the choice is made before the first frame, never after one.
+ */
+export type EqDensity = "roomy" | "inline" | "tight";
+type EqMetrics = {
+  levelInline: boolean;
+  stripGap: number;
+  groupGap: number;
+  keyHeight: number;
+  mixerGap: number;
+  bandMargin: number;
+};
+const EQ_METRICS: Record<EqDensity, EqMetrics> = {
+  roomy: { levelInline: false, stripGap: spacing.lg, groupGap: 8, keyHeight: LIT_KEY_HEIGHT, mixerGap: spacing.sm, bandMargin: 6 },
+  inline: { levelInline: true, stripGap: spacing.lg, groupGap: 8, keyHeight: LIT_KEY_HEIGHT, mixerGap: spacing.sm, bandMargin: 6 },
+  tight: { levelInline: true, stripGap: spacing.md, groupGap: 6, keyHeight: 44, mixerGap: 6, bandMargin: 3 },
+};
+const AUTO_ROW_HEIGHT = 36;
+const HEAD_HEIGHT = 24;
+const SLIDER_HEIGHT = 32;
+const EVEN_ROW_HEIGHT = 32;
+const BAND_LINE_HEIGHT = 20;
+const MIXER_PAD_TOP = 2;
+
+/** The strip's drawn height at a density (`even`: the Even out row is offered). */
+export function eqStripHeight(density: EqDensity, even: boolean): number {
+  const m = EQ_METRICS[density];
+  const level =
+    (m.levelInline ? SLIDER_HEIGHT : HEAD_HEIGHT + m.groupGap + SLIDER_HEIGHT) +
+    (even ? m.groupGap + EVEN_ROW_HEIGHT : 0);
+  const tone =
+    HEAD_HEIGHT + m.groupGap + MIXER_PAD_TOP + m.keyHeight * 2 + m.mixerGap * 2 + BAND_LINE_HEIGHT + m.bandMargin * 2;
+  return AUTO_ROW_HEIGHT + m.stripGap + level + m.stripGap + tone;
+}
+
+/** The roomiest density that fits `room` points; with no room given, at ease. A phone
+ *  too short even for `tight` gets `tight`, and the page scrolls the rest. */
+export function eqDensityForRoom(room: number | null | undefined, even: boolean): EqDensity {
+  if (room == null) return "roomy";
+  if (eqStripHeight("roomy", even) <= room) return "roomy";
+  if (eqStripHeight("inline", even) <= room) return "inline";
+  return "tight";
+}
+
 export type LevelToneStripProps = {
   gainDb: number;
   tonePreset: string;
@@ -74,6 +127,9 @@ export type LevelToneStripProps = {
    *  it), a layer's (kept with the layer; Combine bakes it), or the editor's draft
    *  (nothing changes until the editor's own save). */
   subject?: "clip" | "layer" | "draft";
+  /** The height the page has for the strip (`useRoomBelow`): it draws at the roomiest
+   *  density that fits. Absent (a sheet, which grows to its content), at ease. */
+  room?: number | null;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -106,6 +162,7 @@ export function LevelToneStrip({
   onSave = null,
   saving = false,
   subject = "clip",
+  room = null,
   style,
   testID,
 }: LevelToneStripProps) {
@@ -123,9 +180,44 @@ export function LevelToneStrip({
   // The tone bands only: Even out rides the same encoding but belongs to Level.
   const toneFlagsOn = parseToneFlags(tonePreset).filter((flag) => flag !== "even");
   const toneBent = toneFlagsOn.length > 0;
+  const density = eqDensityForRoom(room, newChain);
+  const m = EQ_METRICS[density];
+
+  const levelReadout = (
+    <Text style={[s.readout, m.levelInline ? s.readoutInline : null, levelBent ? s.readoutBent : null]}>
+      {`${signedNumberText(`${shownDb > 0 ? "+" : ""}${shownDb}`)} ${t("player.dB")}`}
+    </Text>
+  );
+  const levelSlider = (
+    <Slider
+      style={[s.slider, m.levelInline ? s.sliderInline : null]}
+      fill={false}
+      minimumValue={SOUND_LEVEL_MIN_DB}
+      maximumValue={SOUND_LEVEL_MAX_DB}
+      step={1}
+      detent={SOUND_LEVEL_DETENT_DB}
+      value={clampSoundLevelDb(gainDb)}
+      onValueChange={(next) => setDragDb(Math.round(next))}
+      onSlidingComplete={(next) => {
+        const rounded = Math.round(next);
+        setDragDb(null);
+        if (rounded !== gainDb) onCommitGain(rounded);
+      }}
+      accessibilityLabel={t("player.level")}
+      testID={testID ? `${testID}-level` : undefined}
+    />
+  );
+  const levelReset =
+    gainDb !== 0 ? (
+      <ResetKey onPress={() => onCommitGain(0)} accessibilityLabel={t("player.resetLevel")} />
+    ) : m.levelInline ? (
+      // Its seat is kept on the one-line Level, so the slider never changes width
+      // under a thumb when the reset comes and goes.
+      <View style={s.reset} />
+    ) : null;
 
   return (
-    <View style={[s.strip, style]} testID={testID}>
+    <View style={[s.strip, { gap: m.stripGap }, style]} testID={testID}>
       <View style={s.autoRow}>
         {auto.offered ? (
           <InkKey
@@ -206,34 +298,25 @@ export function LevelToneStrip({
         ]}
       />
 
-      <View style={s.group}>
-        <View style={s.head}>
-          <Text style={s.label}>{t("player.level")}</Text>
-          {gainDb !== 0 ? (
-            <ResetKey onPress={() => onCommitGain(0)} accessibilityLabel={t("player.resetLevel")} />
-          ) : null}
-          <View style={s.spacer} />
-          <Text style={[s.readout, levelBent ? s.readoutBent : null]}>
-            {`${signedNumberText(`${shownDb > 0 ? "+" : ""}${shownDb}`)} ${t("player.dB")}`}
-          </Text>
-        </View>
-        <Slider
-          style={s.slider}
-          fill={false}
-          minimumValue={SOUND_LEVEL_MIN_DB}
-          maximumValue={SOUND_LEVEL_MAX_DB}
-          step={1}
-          detent={SOUND_LEVEL_DETENT_DB}
-          value={clampSoundLevelDb(gainDb)}
-          onValueChange={(next) => setDragDb(Math.round(next))}
-          onSlidingComplete={(next) => {
-            const rounded = Math.round(next);
-            setDragDb(null);
-            if (rounded !== gainDb) onCommitGain(rounded);
-          }}
-          accessibilityLabel={t("player.level")}
-          testID={testID ? `${testID}-level` : undefined}
-        />
+      <View style={[s.group, { gap: m.groupGap }]}>
+        {m.levelInline ? (
+          <View style={s.levelLine}>
+            <Text style={s.label}>{t("player.level")}</Text>
+            {levelReset}
+            {levelSlider}
+            {levelReadout}
+          </View>
+        ) : (
+          <>
+            <View style={s.head}>
+              <Text style={s.label}>{t("player.level")}</Text>
+              {levelReset}
+              <View style={s.spacer} />
+              {levelReadout}
+            </View>
+            {levelSlider}
+          </>
+        )}
         {/* Even out (2026-11-22): gentle compression. Level's own switch; what it does
             is in the help. */}
         {newChain ? (
@@ -250,7 +333,7 @@ export function LevelToneStrip({
         ) : null}
       </View>
 
-      <View style={s.group}>
+      <View style={[s.group, { gap: m.groupGap }]}>
         <View style={s.head}>
           <Text style={s.label}>{t("player.tone")}</Text>
           {toneBent ? (
@@ -263,13 +346,14 @@ export function LevelToneStrip({
             />
           ) : null}
         </View>
-        <View style={s.mixer}>
+        <View style={[s.mixer, { gap: spacing.md }]}>
           {TONE_BANDS.map(({ band, cut, boost }) => {
             const position = toneBandPosition(tonePreset, band);
             const bandName = t(TONE_BAND_LABEL_KEYS[band]);
             const key = (direction: "cut" | "boost", flag: OverdubToneFlag) =>
               offers(flag) ? (
                 <LitKey
+                  style={{ height: m.keyHeight }}
                   label={t(TONE_KEY_LABEL_KEYS[direction])}
                   on={position === direction}
                   accessibilityLabel={t("player.toneKeyA11y", {
@@ -285,12 +369,12 @@ export function LevelToneStrip({
                 />
               ) : (
                 // A binary whose sound chain lacks this direction: its place stays empty.
-                <View style={s.mixerGap} />
+                <View style={{ height: m.keyHeight }} />
               );
             return (
-              <View key={band} style={s.mixerColumn}>
+              <View key={band} style={[s.mixerColumn, { gap: m.mixerGap }]}>
                 {key("boost", boost)}
-                <Text style={s.mixerBand} numberOfLines={1}>
+                <Text style={[s.mixerBand, { marginVertical: m.bandMargin }]} numberOfLines={1}>
                   {bandName}
                 </Text>
                 {key("cut", cut)}
@@ -395,16 +479,14 @@ function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; access
 }
 
 const s = StyleSheet.create({
-  strip: {
-    gap: spacing.lg,
-  },
+  strip: {},
   // Auto fix sets both groups below, so it leads them; the help ends its line.
   autoRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     // Fixed, so nothing that comes and goes on this line changes the page's height.
-    height: 36,
+    height: AUTO_ROW_HEIGHT,
   },
   autoLine: {
     ...text.supporting,
@@ -412,14 +494,19 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  group: {
-    gap: 8,
-  },
+  group: {},
   head: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minHeight: 24,
+    height: HEAD_HEIGHT,
+  },
+  // Level on one line (the inline and tight densities): name, slider, value.
+  levelLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: SLIDER_HEIGHT,
   },
   spacer: {
     flex: 1,
@@ -445,7 +532,15 @@ const s = StyleSheet.create({
     color: colors.primaryDeep,
   },
   slider: {
-    height: 32,
+    height: SLIDER_HEIGHT,
+  },
+  sliderInline: {
+    flex: 1,
+  },
+  // A fixed seat, so "0 dB" and "+12 dB" leave the slider the same width.
+  readoutInline: {
+    minWidth: 56,
+    textAlign: "right",
   },
   reset: {
     width: 24,
@@ -457,28 +552,23 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 32,
+    height: EVEN_ROW_HEIGHT,
   },
   // The mixer: three channel strips side by side, Boost over the band's name over Cut.
   mixer: {
     flexDirection: "row",
-    gap: spacing.md,
-    paddingTop: 2,
+    paddingTop: MIXER_PAD_TOP,
   },
   mixerColumn: {
     flex: 1,
-    gap: spacing.sm,
   },
   // The strip's name, between its two keys: plain ink, with air above and below
   // (founder, 2026-11-23: "doesnt need to be bold. just needs a bit more vertical margin").
   mixerBand: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
+    lineHeight: BAND_LINE_HEIGHT,
     textAlign: "center",
     color: colors.textPrimary,
-    marginVertical: 6,
-  },
-  mixerGap: {
-    minHeight: LIT_KEY_HEIGHT,
   },
 });

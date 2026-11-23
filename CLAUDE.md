@@ -98,6 +98,8 @@ The hard rules below are non-negotiable.
   pressed with a lit lamp when in): Boost over Low / Mid / High over Cut, no
   "flat" key, the lit one clears its band. Save asks New clip or Replace clip
   (a replaced clip reads flat from then on); a new clip's toast carries View.
+  The strip fits its phone: pass it the height there is (`room`) and it picks
+  the roomiest of three densities; never let a normal phone scroll to reach Cut.
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
 - Menus (2026-10-15, founder picked "rows on paper"): every action menu is

@@ -4,9 +4,11 @@ import React, {
   forwardRef,
   useCallback,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -28,6 +30,9 @@ export type TransportScroll = {
   scrollOffset: SharedValue<number>;
   /** `node`'s top in scroll-content coordinates, measured natively. */
   measureContentTop: (node: View, onMeasured: (contentY: number) => void) => void;
+  /** The scroll's visible height once it has settled (0 until laid out). React state,
+   *  so a block can choose its own layout from the room there is (`useRoomBelow`). */
+  viewportHeight: number;
 };
 
 const TransportScrollContext = createContext<TransportScroll | null>(null);
@@ -36,6 +41,50 @@ const TransportScrollContext = createContext<TransportScroll | null>(null);
  *  follow it (StickyInScroll). `null` outside a scrollable layout. */
 export function useTransportScroll(): TransportScroll | null {
   return useContext(TransportScrollContext);
+}
+
+/**
+ * How much of the page is left under a row of the scrollable body, with the body at
+ * rest (scrolled to its top): the viewport's height minus the row's bottom edge.
+ *
+ * For a block that should FIT rather than scroll (founder, 2026-11-23, on the EQ tab:
+ * "it should auto adjust ... for height, i dont want a situation where a normal phone
+ * isnt tall enough"). Put `ref` and `onLayout` on a row that is always mounted right
+ * above where the block goes (a tab bar, a transport row), so the answer is known
+ * before the block first draws and it never draws twice. `null` outside a scrollable
+ * TransportLayout, or before the first layout: draw at ease.
+ */
+export function useRoomBelow(): {
+  ref: React.RefObject<View | null>;
+  onLayout: (event: LayoutChangeEvent) => void;
+  room: number | null;
+} {
+  const transport = useTransportScroll();
+  const ref = useRef<View>(null);
+  const heightRef = useRef(0);
+  const [bottom, setBottom] = useState<number | null>(null);
+  const measure = useCallback(() => {
+    const node = ref.current;
+    if (!node || !transport) return;
+    transport.measureContentTop(node, (contentY) => {
+      const next = Math.round(contentY + heightRef.current);
+      setBottom((prev) => (prev === next ? prev : next));
+    });
+  }, [transport]);
+  const onLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      heightRef.current = event.nativeEvent.layout.height;
+      measure();
+    },
+    [measure]
+  );
+  const viewportHeight = transport?.viewportHeight ?? 0;
+  // The row may have moved without its own frame changing (something above it grew).
+  useEffect(() => {
+    if (viewportHeight > 0) measure();
+  }, [measure, viewportHeight]);
+  const room = bottom != null && viewportHeight > 0 ? viewportHeight - bottom : null;
+  return { ref, onLayout, room };
 }
 import { styles } from "../../styles";
 import { durations } from "../../design/motion";
@@ -65,6 +114,9 @@ export type TransportLayoutHandle = {
    */
   reveal: (node: View) => void;
 };
+
+/** How long the viewport's height must hold still before it is published as state. */
+const VIEWPORT_SETTLE_MS = 120;
 
 /** Breathing room kept between a revealed row and the viewport's edges. */
 const REVEAL_PADDING = 12;
@@ -147,14 +199,30 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
 
   useImperativeHandle(ref, () => ({ reveal }), [reveal]);
 
+  // The settled height, as state: the sticky band above may resize over several frames
+  // (the player's reel folding as Tools opens), and nothing should re-render per frame.
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const viewportSettle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (viewportSettle.current) clearTimeout(viewportSettle.current);
+    },
+    []
+  );
   const transportScroll = useMemo<TransportScroll>(
-    () => ({ scrollOffset, measureContentTop }),
-    [measureContentTop, scrollOffset]
+    () => ({ scrollOffset, measureContentTop, viewportHeight }),
+    [measureContentTop, scrollOffset, viewportHeight]
   );
 
   const handleViewportLayout = useCallback((event: LayoutChangeEvent) => {
-    viewportHeightRef.current = event.nativeEvent.layout.height;
-    viewportHeightSV.value = event.nativeEvent.layout.height;
+    const height = event.nativeEvent.layout.height;
+    viewportHeightRef.current = height;
+    viewportHeightSV.value = height;
+    if (viewportSettle.current) clearTimeout(viewportSettle.current);
+    viewportSettle.current = setTimeout(() => {
+      viewportSettle.current = null;
+      setViewportHeight(Math.round(height));
+    }, VIEWPORT_SETTLE_MS);
   }, []);
   const handleContentSizeChange = useCallback((_width: number, height: number) => {
     contentHeightRef.current = height;

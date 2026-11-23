@@ -353,7 +353,10 @@ export function AudioReel({
 }: Props) {
     const timelineTranslateX = useSharedValue(0);
     const timelineScale = useSharedValue(1);
-    const visualizerHeight = useSharedValue(compact ? 120 : 160);
+    // Born at the height it was asked for: starting from the default and gliding to an
+    // override made every sized reel settle on its first frames (seen 2026-11-23 on the
+    // editor's tape, which is sized to its phone).
+    const visualizerHeight = useSharedValue(collapsedHeightOverride ?? (compact ? 120 : 160));
     const localAudioProgress = useSharedValue(0);
     const sharedAudioProgress = externalSharedAudioProgress || localAudioProgress;
 
