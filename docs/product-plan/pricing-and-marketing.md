@@ -394,3 +394,10 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   `pro: true` restores them. Removed from the Pro page's "Also with Pro" line (five
   languages, back to "Export for DAW."). Free stereo and free lossless are now selling
   points for the store listing and landing page (not yet written there).
+- 2026-11-23 — Saved and edited clips stay compressed (founder: "leave it compressed for
+  now"). A recording is lossless (16-bit WAV); a version that has been changed (trimmed, a
+  speed or pitch change, EQ saved or replaced, layers combined) is M4A on both phones. So
+  the claim, when it is written, is lossless RECORDING, never "lossless" for the whole
+  library. If lossless saves are wanted later: an automatic rule (a save from a lossless
+  recording stays lossless), not a switch with a warning; small on iPhone, more work on
+  Android, whose renderer always encodes.
