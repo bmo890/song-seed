@@ -183,6 +183,12 @@ Apple appends the same subscription paragraph as before (below, per language in
 - **1.0.3 store builds, 2026-11-23 (from 5f46924d, runtime 1.0.3):** iOS build 35 (.ipa on
   EAS, not uploaded to App Store Connect), Android versionCode 22 (.aab on EAS, founder uploads
   by hand). Builds 34 / 21 failed (audio-studio patch, fixed in 5f46924d). Not submitted.
+- **Consoles, 2026-11-23:** Apple 1.0.3 version created, build 35 attached, description /
+  promo / What's new / keywords saved in en-US, de, he, pt-BR, es-MX, es-ES; subtitle (App
+  Information) "A quiet corner for your songs" in all six; manual release. Play: production
+  release 22 (1.0.3) drafted with notes in six languages; default listing short + full
+  description saved as draft in six languages. Apple warned (ITMS-90725) that from April 2027
+  uploads must be built with the iOS 27 SDK (Xcode 27): move the EAS iOS image before then.
 
 ```
 SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
