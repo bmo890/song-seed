@@ -396,7 +396,7 @@ index 12d30a2..1ad8772 100644
      }
  
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..de59992 100644
+index 6f93aa4..31eab18 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -735,7 +735,6 @@ index 6f93aa4..de59992 100644
 +        "no"
 +    }
 +}
-\ No newline at end of file
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
 index a6c1d5a..c5211c8 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt

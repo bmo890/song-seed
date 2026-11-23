@@ -401,3 +401,12 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   library. If lossless saves are wanted later: an automatic rule (a save from a lossless
   recording stays lossless), not a switch with a warning; small on iPhone, more work on
   Android, whose renderer always encodes.
+- 2026-11-23 — Positioning (founder): SongNook is for **songwriters and working musicians**,
+  for two halves of one working life: **writing and developing songs** (the point of
+  creation, from the first voice memo to a demo, before the DAW) and **rehearsing the set**
+  (learning songs, marking sections and notes). Production (mixing, effects, beat-making,
+  MIDI) and performance beyond the stage reader are out of scope; features are judged
+  against this. Store copy goes short and outcome-led ("let them discover the features
+  inside the app"), no feature lists; the line under the name is "A quiet corner for your
+  songs" on both stores. Free stereo is said in the description ("now in stereo").
+

@@ -21,6 +21,84 @@ keywords ≤ 100, description ≤ 4000.
 
 ---
 
+## 2026-11-23 rewrite for 1.0.3 (CURRENT; the per-language sections below are the history)
+
+English source: `store-truth.md` §6, 2026-11-23 entry. Same line for the Apple subtitle
+and the Play short description. Apple still appends each language's subscription
+paragraph from its section below; the old backup-line swap no longer applies (the new
+description names no storage service). Counts checked (subtitle ≤ 30, promo ≤ 170).
+Translated by Claude; no native reader has checked them.
+
+### Spanish (es-419, es-ES; Apple: Mexico, Spain)
+
+- **Subtitle / short description:** `Un rincón para tus canciones`
+- **Apple promotional text:** `Novedad: graba en estéreo con los micrófonos del teléfono y corrige el sonido de un clip con un toque.`
+
+```
+SongNook es para compositores y músicos en activo: para escribir y desarrollar canciones y ensayar el repertorio.
+
+Graba cuando llega la inspiración, ahora en estéreo. Organiza tus ideas como quieras, con cada toma y cada borrador de letra guardados juntos. Te devuelve ideas viejas que de otro modo habrías olvidado, y las herramientas de escritura están ahí cuando un verso no sale. Cuando una canción está lista, expórtala alineada al compás para tu DAW.
+
+¿Ensayando? Baja la velocidad de la parte difícil, repítela en loop y marca la canción hasta dominarla. Comparte el repertorio con tu banda, con letras, acordes, notas y todo.
+
+Sin cuenta y sin anuncios. Tus canciones se quedan en tu teléfono y nunca se usan para entrenar IA.
+
+SongNook Pro, gratis tu primer mes: herramientas de práctica (bajar la velocidad, cambiar el tono, loops que aceleran poco a poco), herramientas de escritura (rimas, sinónimos y juegos de escritura), cifrados para el escenario (transposición, capo, setlists), compartir sin límite y exportación para estudio.
+```
+
+### German (de-DE)
+
+- **Subtitle / short description:** `Ein stiller Winkel für Songs`
+- **Apple promotional text:** `Neu: Nimm in Stereo mit den Mikrofonen deines Telefons auf und korrigiere den Klang eines Clips mit einem Tipp.`
+
+```
+SongNook ist für Songwriter und aktive Musiker: um Songs zu schreiben, weiterzuentwickeln und das Set zu proben.
+
+Nimm auf, wenn die Inspiration kommt, jetzt auch in Stereo. Ordne deine Ideen, wie du willst, mit jedem Take und jedem Textentwurf zusammen gespeichert. SongNook bringt alte Ideen zurück, die du sonst vergessen hättest, und Schreibwerkzeuge helfen, wenn eine Zeile nicht kommen will. Ist ein Song fertig, exportiere ihn taktgenau für deine DAW.
+
+Beim Proben? Spiel die schwierige Stelle langsamer, lass sie in Schleife laufen und markiere den Song, bis er sitzt. Teil das Set mit deiner Band, mit Texten, Akkorden, Notizen und allem.
+
+Kein Konto, keine Werbung. Deine Songs bleiben auf deinem Telefon und werden nie zum Trainieren von KI verwendet.
+
+SongNook Pro, im ersten Monat kostenlos: Übungswerkzeuge (langsamer spielen, Tonart ändern, Schleifen, die nach und nach schneller werden), Schreibwerkzeuge (Reime, Synonyme und Schreibspiele), Bühnen-Charts (Transponieren, Kapo, Setlists), unbegrenztes Teilen und Studio-Export.
+```
+
+### Portuguese (pt-BR)
+
+- **Subtitle / short description:** `Um canto para suas músicas`
+- **Apple promotional text:** `Novidade: grave em estéreo com os microfones do telefone e corrija o som de um clipe com um toque.`
+
+```
+O SongNook é para compositores e músicos na ativa: para escrever e desenvolver músicas e ensaiar o repertório.
+
+Grave quando a inspiração chegar, agora em estéreo. Organize suas ideias como quiser, com cada take e cada rascunho de letra guardados juntos. Ele traz de volta ideias antigas que você teria esquecido, e as ferramentas de escrita estão lá quando um verso não sai. Quando uma música estiver pronta, exporte-a alinhada ao compasso para a sua DAW.
+
+Ensaiando? Diminua a velocidade da parte difícil, repita em loop e marque a música até ela estar na mão. Compartilhe o repertório com a banda, com letras, acordes, anotações e tudo.
+
+Sem conta e sem anúncios. Suas músicas ficam no seu telefone e nunca são usadas para treinar IA.
+
+SongNook Pro, grátis no primeiro mês: ferramentas de estudo (diminuir a velocidade, mudar o tom, loops que aceleram aos poucos), ferramentas de escrita (rimas, sinônimos e jogos de escrita), cifras para o palco (transposição, capo, setlists), compartilhamento ilimitado e exportação para estúdio.
+```
+
+### Hebrew (iw-IL; Apple: Hebrew)
+
+- **Subtitle / short description:** `פינה שקטה לשירים שלכם`
+- **Apple promotional text:** `חדש: הקלטה בסטריאו עם המיקרופונים של הטלפון, ותיקון הצליל של קטע בהקשה אחת.`
+
+```
+SongNook נועדה לכותבי שירים ולמוזיקאים פעילים, לכתוב ולפתח שירים ולעשות חזרות על הסט.
+
+להקליט כשההשראה מגיעה, עכשיו גם בסטריאו. לסדר את הרעיונות איך שרוצים, כשכל טייק וכל טיוטה של מילים שמורים יחד. SongNook מחזירה רעיונות ישנים שאחרת הייתם שוכחים, וכלי כתיבה זמינים כששורה לא מגיעה. כשהשיר מוכן, אפשר לייצא אותו מיושר לפעמה לתוכנת ההקלטה שלכם.
+
+בחזרות? להאט את הקטע הקשה, לנגן אותו בלופ ולסמן את השיר עד שהוא יושב בידיים. לשתף את הסט עם הלהקה, עם מילים, אקורדים, הערות והכול.
+
+בלי חשבון ובלי פרסומות. השירים שלכם נשארים בטלפון ולעולם לא משמשים לאימון בינה מלאכותית.
+
+SongNook Pro, חינם בחודש הראשון: כלי תרגול (האטה, שינוי סולם, לופים שמאיצים בהדרגה), כלי כתיבה (חרוזים, מילים נרדפות ומשחקי כתיבה), דפי אקורדים לבמה (טרנספוזיציה, קאפו, סטליסטים), שיתוף ללא הגבלה וייצוא לאולפן.
+```
+
+---
+
 ## Spanish (es-419, es-ES; Apple: Mexico, Spain)
 
 - **Apple subtitle:** `Un rincón para tus canciones`

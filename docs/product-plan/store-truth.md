@@ -166,6 +166,35 @@ controls going in the background").
 
 ## 6. Store description (one voice, both stores)
 
+**2026-11-23, NEW CURRENT COPY for 1.0.3 (founder, written together line by line).** The
+founder dropped the feature-list description: "short and sweet", say what SongNook lets
+you do and let people find the rest inside. Niche (founder): **songwriters and working
+musicians; writing and developing songs (point of creation, before the DAW) and
+rehearsing the set.** The subtitle and the Play short description are the same line on
+both stores; the description does not repeat it. The Pro paragraph names every Pro
+feature the description mentions (Apple 2.3.2); layers are not mentioned, so not listed.
+Apple appends the same subscription paragraph as before (below, per language in
+`store-listing-translations.md`). Everything under this entry is the history it replaces.
+
+- **Apple subtitle = Play short description:** `A quiet corner for your songs` (29)
+- **Apple promotional text:** `New: record in stereo with your phone's own mics, and fix how a clip sounds in one tap.` (founder kept; what's new, changes without review)
+- **Keywords, screenshots, songnook.app:** not yet redone to the new story.
+
+```
+SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
+
+Record when inspiration hits, now in stereo. Organize your ideas however you like, with every take and every lyric draft saved together. It brings back old ideas you'd otherwise have forgotten about, and writing tools are there when a line won't come. When a song is ready, export it lined up to the beat for your DAW.
+
+Rehearsing? Slow down the hard part, loop it, and mark up the song until it's in your hands. Share the set with your band, lyrics, chords, notes and all.
+
+No account and no ads. Your songs stay on your phone and are never used to train AI.
+
+SongNook Pro, free for your first month: practice tools (slow down, change key, loops that speed up as you go), writing tools (rhymes, synonyms and writing games), stage charts (transpose, capo, setlists), unlimited sharing, and studio export.
+```
+
+---
+
+
 This is the founder-approved copy, live in both consoles since 2026-10-25. Three SHARE lines (sealed Send, Export for your DAW, Send from a computer) approved 2026-11-09. The two stores
 differ only where marked.
 
