@@ -1422,7 +1422,7 @@ export const es = {
     chartBars_many: "{{count}} compases",
     solo: "Solo",
     mute: "Silencio",
-    autoFix: "Autoajuste", autoUndo: "Deshacer", autoUndoA11y: "Deshacer el autoajuste", autoHint: "Escucha la toma y ajusta nivel y tono.", autoBusy: "Escuchando…", evenOut: "Igualar", evenHint: "Fuerte y suave, más cerca", toneLow: "Graves", toneMid: "Medios", toneHigh: "Agudos", toneCut: "Corte", toneFlat: "Plano", toneBoost: "Realce", keptWithClip: "Se guarda con el clip", autoHeardQuiet: "Muy bajo", autoHeardLoud: "Muy alto", autoHeardRumble: "Retumbo grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Siseo", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nivel desigual",
+    playbackTab: "Reproducción", eqTab: "EQ", soundHelpThesis: "Da forma al sonido de este clip. La grabación no cambia.", soundHelpAuto: "Escucha y ajusta nivel y tono. Toca otra vez para deshacer.", soundHelpEven: "Acerca las partes fuertes y las suaves.", soundHelpTone: "Realza o corta cada banda. Toca una tecla encendida para quitarla.", soundHelpSavedLabel: "Se guarda solo", soundHelpSaved: "Los cambios quedan con el clip, al reproducirlo y al compartirlo.", toneKeyA11y: "{{band}}: {{direction}}", autoFix: "Autoajuste", evenOut: "Igualar", toneLow: "Graves", toneMid: "Medios", toneHigh: "Agudos", toneCut: "Corte", toneBoost: "Realce", autoHeardQuiet: "Muy bajo", autoHeardLoud: "Muy alto", autoHeardRumble: "Retumbo grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Siseo", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nivel desigual",
     
     editLyrics: "Editar letra",
     editChart: "Editar cifrado",

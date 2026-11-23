@@ -20,8 +20,11 @@ import {
 } from "../../domain/overdub";
 import { colors, spacing, text } from "../../design/tokens";
 import { Button } from "./Button";
-import { SegmentedControl } from "./SegmentedControl";
+import { HelpButton } from "./HelpButton";
+import { HelpSheet } from "./HelpSheet";
+import { InkKey, inkKeyColor } from "./InkKey";
 import { Slider } from "./Slider";
+import { Spinner } from "./Spinner";
 import { Switch } from "./Switch";
 import { Press } from "./Press";
 import { signedNumberText } from "../../i18n/direction";
@@ -46,9 +49,8 @@ const TONE_BAND_LABEL_KEYS: Record<ToneBand, string> = {
   mid: "player.toneMid",
   high: "player.toneHigh",
 };
-const TONE_POSITION_LABEL_KEYS: Record<ToneBandPosition, string> = {
+const TONE_KEY_LABEL_KEYS: Record<"cut" | "boost", string> = {
   cut: "player.toneCut",
-  flat: "player.toneFlat",
   boost: "player.toneBoost",
 };
 
@@ -67,19 +69,22 @@ export type LevelToneStripProps = {
 
 /**
  * THE take's sound, top to bottom the way it is reached for (2026-11-23, founder: "it's
- * not clear ... give me a better ui"):
+ * not clear ... give me a better ui", then "i want the tone to look more like a mixer"):
  *
- *   Auto fix   the easy button, with one line saying what it does; once pressed the line
- *              says what it heard, and the button undoes it.
+ *   Auto fix   the easy key (wand + word): lit while its choice stands, with what it
+ *              heard beside it; tapped again it puts back what was there. What it does
+ *              is behind the "?" at the end of its line, with the rest of the help: no
+ *              explaining text sits open on the page.
  *   Level      a kit Slider with a detent at every step and a rest at 0 dB, and Even out
  *              (gentle compression) as its switch.
- *   Tone       three bands, each cut, flat or boost: ink tabs, one line a band. (They
- *              were six loose dot-and-word keys, which read as a checklist.)
+ *   Tone       a little mixer: three columns (Low, Mid, High), Boost above each name and
+ *              Cut below. One of a band's two keys can be lit; tapping the lit one
+ *              clears it, and that is flat. (They were six loose dot-and-word keys.)
  *
- * One component for the player's Sound drawer and a layer's sheet, so a take and a layer
- * are tuned with the same hands. Level and Tone each carry their own reset, appearing
- * only once something is bent. Haptics are the kit controls' own (Button: tap; Slider:
- * grab/tick/light; Switch and the tabs: light; the resets: Press's tap).
+ * One component for the player's EQ tab and a layer's sheet, so a take and a layer are
+ * tuned with the same hands. Level and Tone each carry their own reset, appearing only
+ * once something is bent. Haptics are the kit controls' own (InkKey and Switch: light;
+ * Slider: grab/tick/light; the tone keys: Button's tap; the resets: Press's tap).
  */
 export function LevelToneStrip({
   gainDb,
@@ -92,6 +97,7 @@ export function LevelToneStrip({
 }: LevelToneStripProps) {
   const { t } = useTranslation();
   const [dragDb, setDragDb] = useState<number | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const auto = useAutoSound({ gainDb, tonePreset, onCommitGain, onToggleToneFlag, audioUri: autoAudioUri });
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
@@ -106,27 +112,53 @@ export function LevelToneStrip({
 
   return (
     <View style={[s.strip, style]} testID={testID}>
-      {auto.offered ? (
-        <View style={s.autoRow}>
-          <Button
-            // Haptics vocabulary: tap (Button's own), a deliberate press.
-            variant={auto.active ? "secondary" : "primary"}
-            label={t(auto.busy ? "player.autoBusy" : auto.active ? "player.autoUndo" : "player.autoFix")}
-            accessibilityLabel={t(auto.active ? "player.autoUndoA11y" : "player.autoA11y")}
+      <View style={s.autoRow}>
+        {auto.offered ? (
+          <InkKey
+            // Haptics vocabulary: light, a small state flip (the fix on, or put back).
+            haptic="light"
+            role="switch"
+            tone={auto.active ? "active" : "idle"}
+            glyph={
+              auto.busy ? (
+                <Spinner size="small" color={inkKeyColor("idle")} />
+              ) : (
+                <Ionicons
+                  name="color-wand-outline"
+                  size={18}
+                  color={inkKeyColor(auto.active ? "active" : "idle")}
+                />
+              )
+            }
+            label={t("player.autoFix")}
+            accessibilityLabel={t("player.autoA11y")}
             disabled={auto.busy}
             onPress={auto.toggle}
-            style={s.autoKey}
             testID={testID ? `${testID}-auto` : undefined}
           />
-          {/* One line: what it does, then (founder, 2026-11-23: "a quick explanation of
-              what was adjusted") what it heard, while its choice stands. Not a popup. */}
-          <Text style={s.autoLine} numberOfLines={2} testID={testID ? `${testID}-auto-line` : undefined}>
-            {auto.heard.length > 0
-              ? auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")
-              : t("player.autoHint")}
-          </Text>
-        </View>
-      ) : null}
+        ) : null}
+        {/* What it heard (founder, 2026-11-23: "a quick explanation of what was
+            adjusted"), only while its choice stands. */}
+        <Text style={s.autoLine} numberOfLines={1} testID={testID ? `${testID}-auto-line` : undefined}>
+          {auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")}
+        </Text>
+        <HelpButton compact onPress={() => setHelpOpen(true)} />
+      </View>
+      <HelpSheet
+        visible={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        thesis={t("player.soundHelpThesis")}
+        items={[
+          ...(auto.offered
+            ? [{ icon: "color-wand-outline" as const, label: t("player.autoFix"), description: t("player.soundHelpAuto") }]
+            : []),
+          ...(newChain
+            ? [{ icon: "swap-vertical-outline" as const, label: t("player.evenOut"), description: t("player.soundHelpEven") }]
+            : []),
+          { icon: "options-outline", label: t("player.tone"), description: t("player.soundHelpTone") },
+          { icon: "checkmark-circle-outline", label: t("player.soundHelpSavedLabel"), description: t("player.soundHelpSaved") },
+        ]}
+      />
 
       <View style={s.group}>
         <View style={s.head}>
@@ -156,14 +188,12 @@ export function LevelToneStrip({
           accessibilityLabel={t("player.level")}
           testID={testID ? `${testID}-level` : undefined}
         />
-        {/* Even out (2026-11-22): gentle compression. Level's own switch, with the few
-            words that say what it does (the bare word "Even" did not). */}
+        {/* Even out (2026-11-22): gentle compression. Level's own switch; what it does
+            is in the help. */}
         {newChain ? (
           <View style={s.evenRow}>
             <Text style={s.sublabel}>{t("player.evenOut")}</Text>
-            <Text style={s.hint} numberOfLines={1}>
-              {t("player.evenHint")}
-            </Text>
+            <View style={s.spacer} />
             <Switch
               value={evenOn}
               onValueChange={() => onToggleToneFlag("even")}
@@ -187,33 +217,45 @@ export function LevelToneStrip({
             />
           ) : null}
         </View>
-        {TONE_BANDS.map(({ band, cut, boost }) => {
-          const positions: ToneBandPosition[] = [
-            ...(offers(cut) ? (["cut"] as const) : []),
-            "flat",
-            ...(offers(boost) ? (["boost"] as const) : []),
-          ];
-          return (
-            <View key={band} style={s.bandRow}>
-              <Text style={[s.sublabel, s.bandLabel]}>{t(TONE_BAND_LABEL_KEYS[band])}</Text>
-              <View style={s.bandTabs}>
-                <SegmentedControl<ToneBandPosition>
-                  bare
-                  restKey="flat"
-                  options={positions.map((position) => ({
-                    key: position,
-                    label: t(TONE_POSITION_LABEL_KEYS[position]),
-                  }))}
-                  value={toneBandPosition(tonePreset, band)}
-                  onChange={(next) => {
-                    const flag = toneBandToggle(tonePreset, band, next);
-                    if (flag) onToggleToneFlag(flag);
+        <View style={s.mixer}>
+          {TONE_BANDS.map(({ band, cut, boost }) => {
+            const position = toneBandPosition(tonePreset, band);
+            const bandName = t(TONE_BAND_LABEL_KEYS[band]);
+            const key = (direction: "cut" | "boost", flag: OverdubToneFlag) =>
+              offers(flag) ? (
+                <Button
+                  // Lit = the terracotta wash; off = the quiet key. Tapping the lit one
+                  // clears the band (flat); tapping the other moves it across.
+                  variant={position === direction ? "primary" : "secondary"}
+                  label={t(TONE_KEY_LABEL_KEYS[direction])}
+                  style={s.mixerKey}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: position === direction }}
+                  accessibilityLabel={t("player.toneKeyA11y", {
+                    band: bandName,
+                    direction: t(TONE_KEY_LABEL_KEYS[direction]),
+                  })}
+                  onPress={() => {
+                    const flagToFlip = toneBandToggle(tonePreset, band, position === direction ? "flat" : direction);
+                    if (flagToFlip) onToggleToneFlag(flagToFlip);
                   }}
+                  testID={testID ? `${testID}-${flag}` : undefined}
                 />
+              ) : (
+                // A binary whose sound chain lacks this direction: its place stays empty.
+                <View style={s.mixerGap} />
+              );
+            return (
+              <View key={band} style={s.mixerColumn}>
+                {key("boost", boost)}
+                <Text style={s.mixerBand} numberOfLines={1}>
+                  {bandName}
+                </Text>
+                {key("cut", cut)}
               </View>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -310,21 +352,19 @@ function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; access
   );
 }
 
-/** The band names share one column, so the three tab rows line up. */
-const BAND_LABEL_WIDTH = 72;
+/** A tone key: a little under the app's 38 pt key, so three strips fit the drawer. */
+const MIXER_KEY_HEIGHT = 34;
 
 const s = StyleSheet.create({
   strip: {
     gap: spacing.lg,
   },
-  // Auto fix sets both groups below, so it leads them.
+  // Auto fix sets both groups below, so it leads them; the help ends its line.
   autoRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-  },
-  autoKey: {
-    alignSelf: "center",
+    minHeight: 32,
   },
   autoLine: {
     ...text.supporting,
@@ -352,13 +392,6 @@ const s = StyleSheet.create({
     ...text.body,
     color: colors.textStrong,
   },
-  bandLabel: {
-    width: BAND_LABEL_WIDTH,
-  },
-  hint: {
-    ...text.supporting,
-    flex: 1,
-  },
   // A measured value, not a name: tabular Jakarta (it was the serif).
   readout: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -384,11 +417,26 @@ const s = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 32,
   },
-  bandRow: {
+  // The mixer: three channel strips side by side, Boost over the band's name over Cut.
+  mixer: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: spacing.sm,
   },
-  bandTabs: {
+  mixerColumn: {
     flex: 1,
+    gap: 6,
+  },
+  mixerKey: {
+    alignSelf: "stretch",
+    minHeight: MIXER_KEY_HEIGHT,
+    paddingHorizontal: 4,
+  },
+  mixerGap: {
+    minHeight: MIXER_KEY_HEIGHT,
+  },
+  mixerBand: {
+    ...text.caption,
+    textAlign: "center",
+    color: colors.textStrong,
   },
 });

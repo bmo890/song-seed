@@ -1421,7 +1421,7 @@ export const pt = {
     chartBars_many: "{{count}} compassos",
     solo: "Solo",
     mute: "Mudo",
-    autoFix: "Autoajuste", autoUndo: "Desfazer", autoUndoA11y: "Desfazer o autoajuste", autoHint: "Ouve o take e ajusta nível e tom.", autoBusy: "Ouvindo…", evenOut: "Equilibrar", evenHint: "Forte e suave mais próximos", toneLow: "Graves", toneMid: "Médios", toneHigh: "Agudos", toneCut: "Corte", toneFlat: "Plano", toneBoost: "Realce", keptWithClip: "Fica com o clipe", autoHeardQuiet: "Baixo demais", autoHeardLoud: "Alto demais", autoHeardRumble: "Ronco grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Chiado", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nível desigual",
+    playbackTab: "Reprodução", eqTab: "EQ", soundHelpThesis: "Molde o som deste clipe. A gravação em si não muda.", soundHelpAuto: "Ouve e ajusta nível e tom. Toque de novo para desfazer.", soundHelpEven: "Aproxima as partes fortes e as suaves.", soundHelpTone: "Realce ou corte cada banda. Toque numa tecla acesa para limpar.", soundHelpSavedLabel: "Salvo automaticamente", soundHelpSaved: "As mudanças ficam com o clipe, ao tocar e ao compartilhar.", toneKeyA11y: "{{band}}: {{direction}}", autoFix: "Autoajuste", evenOut: "Equilibrar", toneLow: "Graves", toneMid: "Médios", toneHigh: "Agudos", toneCut: "Corte", toneBoost: "Realce", autoHeardQuiet: "Baixo demais", autoHeardLoud: "Alto demais", autoHeardRumble: "Ronco grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Chiado", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nível desigual",
     
     editLyrics: "Editar letra",
     editChart: "Editar cifra",

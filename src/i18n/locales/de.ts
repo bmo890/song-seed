@@ -1351,7 +1351,7 @@ export const de = {
     chartBars_other: "{{count}} Takte",
     solo: "Solo",
     mute: "Stumm",
-    autoFix: "Auto-Korrektur", autoUndo: "Zurück", autoUndoA11y: "Auto-Korrektur zurücknehmen", autoHint: "Hört den Take ab und stellt Pegel und Klang ein.", autoBusy: "Hört zu…", evenOut: "Ausgleichen", evenHint: "Laut und leise rücken zusammen", toneLow: "Tiefen", toneMid: "Mitten", toneHigh: "Höhen", toneCut: "Senken", toneFlat: "Neutral", toneBoost: "Anheben", keptWithClip: "Bleibt beim Clip", autoHeardQuiet: "Zu leise", autoHeardLoud: "Zu laut", autoHeardRumble: "Tiefes Rumpeln", autoHeardHarsh: "Scharfe Höhen", autoHeardHiss: "Rauschen", autoHeardDull: "Dumpfe Höhen", autoHeardUneven: "Ungleicher Pegel",
+    playbackTab: "Wiedergabe", eqTab: "EQ", soundHelpThesis: "Forme den Klang dieses Clips. Die Aufnahme selbst bleibt unverändert.", soundHelpAuto: "Hört zu und stellt Pegel und Klang ein. Erneut tippen nimmt es zurück.", soundHelpEven: "Bringt laute und leise Stellen näher zusammen.", soundHelpTone: "Jedes Band anheben oder senken. Ein leuchtendes Feld antippen löscht es.", soundHelpSavedLabel: "Automatisch gespeichert", soundHelpSaved: "Änderungen bleiben beim Clip, beim Abspielen und beim Teilen.", toneKeyA11y: "{{band}}: {{direction}}", autoFix: "Auto-Korrektur", evenOut: "Ausgleichen", toneLow: "Tiefen", toneMid: "Mitten", toneHigh: "Höhen", toneCut: "Senken", toneBoost: "Anheben", autoHeardQuiet: "Zu leise", autoHeardLoud: "Zu laut", autoHeardRumble: "Tiefes Rumpeln", autoHeardHarsh: "Scharfe Höhen", autoHeardHiss: "Rauschen", autoHeardDull: "Dumpfe Höhen", autoHeardUneven: "Ungleicher Pegel",
     
     editLyrics: "Text bearbeiten",
     editChart: "Akkordblatt bearbeiten",

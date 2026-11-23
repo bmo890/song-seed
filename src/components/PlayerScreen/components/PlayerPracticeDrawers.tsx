@@ -67,9 +67,10 @@ const LOOP_END_PREROLL_MS = 2000;
  * agree with the reel); language rows mirror normally. See `ltrRow`.
  */
 
-/** Speed holds how you practise today (click, speed, pitch); Sound holds the take's own
- *  level and tone (2026-11-23, founder: "it's all in a different category than pitch /
- *  speed"). They were one tab. */
+/** "speed" (the Playback tab) holds how you practise today: click, speed, pitch. "sound"
+ *  (the EQ tab) holds the take's own level and tone (2026-11-23, founder: "it's all in a
+ *  different category than pitch / speed ... Sound should probably be EQ"). They were
+ *  one tab. */
 type Drawer = "marks" | "loop" | "speed" | "sound";
 
 type SelectedMark =
@@ -1109,8 +1110,8 @@ export function PlayerPracticeDrawers({
           // to signal, so that tab never wears one.
           { key: "marks", label: t("player.marks") },
           { key: "loop", label: t("player.loop"), dot: drawerHasState.loop },
-          { key: "speed", label: t("player.speed"), dot: drawerHasState.speed },
-          { key: "sound", label: t("player.sound"), dot: drawerHasState.sound },
+          { key: "speed", label: t("player.playbackTab"), dot: drawerHasState.speed },
+          { key: "sound", label: t("player.eqTab"), dot: drawerHasState.sound },
         ]}
         selectedKey={drawer}
         onSelect={(next) => {
@@ -1121,8 +1122,9 @@ export function PlayerPracticeDrawers({
       />
       {/* Reset all speaks for every tool; Keep speaks for the drawer it sits
           over, so the pitch can stay while the loop goes (founder, 2026-10-24).
-          Marks are always saved, so the Marks tab goes without. */}
-      {drawer !== "marks" ? (
+          Marks are always saved, so the Marks tab goes without; so is the take's level
+          and tone, and EQ carries its own resets. */}
+      {drawer === "loop" || drawer === "speed" ? (
         <View style={[pd.row, pd.keepRow]}>
           {anyToolSet ? (
             <InkKey
@@ -1133,21 +1135,13 @@ export function PlayerPracticeDrawers({
             />
           ) : null}
           <View style={pd.rowSpacer} />
-          {drawer === "sound" ? (
-            // The take's level and tone are the take's: there is nothing to choose to
-            // keep, so the line says so where Keep sits on the other tabs.
-            <Text style={pd.keepLabel}>{t("player.keptWithClip")}</Text>
-          ) : (
-            <>
-              <Text style={pd.keepLabel}>{t("player.keep")}</Text>
-              <Switch
-                // Keep's "sound" part is the practice bend (speed, pitch, click).
-                value={keepOn[drawer === "loop" ? "loop" : "sound"]}
-                onValueChange={() => onToggleKeep(drawer === "loop" ? "loop" : "sound")}
-                accessibilityLabel={t(drawer === "loop" ? "player.keepLoopA11y" : "player.keepSoundA11y")}
-              />
-            </>
-          )}
+          <Text style={pd.keepLabel}>{t("player.keep")}</Text>
+          <Switch
+            // Keep's "sound" part is the practice bend (speed, pitch, click).
+            value={keepOn[drawer === "loop" ? "loop" : "sound"]}
+            onValueChange={() => onToggleKeep(drawer === "loop" ? "loop" : "sound")}
+            accessibilityLabel={t(drawer === "loop" ? "player.keepLoopA11y" : "player.keepSoundA11y")}
+          />
         </View>
       ) : null}
       {drawer === "marks"
