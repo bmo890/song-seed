@@ -50,11 +50,18 @@ final class SongNookPitchShiftRenderer {
     // A limiter after the shift: a shifted peak can land above the source's.
     let limiterNode = SongNookToneEQ.makeLimiterNode()
 
+    // The main mixer takes 3 dB off a mono source: given back before the limiter, so a
+    // speed or pitch save is as loud as the take it came from.
+    let makeupNode = SongNookToneEQ.makeNode()
+    makeupNode.globalGain = renderFormat.channelCount == 1 ? Float(SongNookToneEQ.monoMixerMakeupDb) : 0
+
     engine.attach(playerNode)
     engine.attach(timePitchNode)
+    engine.attach(makeupNode)
     engine.attach(limiterNode)
     engine.connect(playerNode, to: timePitchNode, format: renderFormat)
-    engine.connect(timePitchNode, to: limiterNode, format: renderFormat)
+    engine.connect(timePitchNode, to: makeupNode, format: renderFormat)
+    engine.connect(makeupNode, to: limiterNode, format: renderFormat)
     engine.connect(limiterNode, to: engine.mainMixerNode, format: renderFormat)
 
     let maximumFrameCount: AVAudioFrameCount = 4096
@@ -155,7 +162,11 @@ final class SongNookPitchShiftRenderer {
       let playerNode = AVAudioPlayerNode()
       let eqNode = SongNookToneEQ.makeNode()
       SongNookToneEQ.configure(eqNode, tonePreset: input.tonePreset)
-      eqNode.globalGain = Float(input.gainDb)
+      // A mono input in a STEREO mix is panned to the centre by the main mixer, 3 dB down
+      // in each channel; given back here. (Mono into a mono mix passes at its own level:
+      // measured, 2026-11-23.)
+      let pannedDown = audioFile.processingFormat.channelCount == 1 && renderFormat.channelCount >= 2
+      eqNode.globalGain = Float(input.gainDb + (pannedDown ? SongNookToneEQ.monoMixerMakeupDb : 0))
 
       engine.attach(playerNode)
       engine.attach(eqNode)

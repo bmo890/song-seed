@@ -632,6 +632,7 @@ export function useRecording(
   }
 
   function buildRecordingConfig(): RecordingConfig {
+    take.facts.stereoAsked = wantsStereoTake(take.facts.stereoForTake);
     return {
       // Session-level selection (applyPreferredInput) covers iOS; Android's recorder only
       // honors the choice when the id rides the config into the native AudioRecord
@@ -641,7 +642,7 @@ export function useRecording(
       // The live stream's shape stays mono (the take session's clock); a stereo file is
       // asked for separately and folded to mono on the stream (onAudioStream below).
       channels: CAPTURE_CHANNELS as 1,
-      stereo: wantsStereoTake(take.facts.stereoForTake),
+      stereo: take.facts.stereoAsked,
       // 16-bit PCM WAV, named (decision F): see RECORDING_FILE_FORMAT.
       ...RECORDING_FILE_FORMAT,
       interval: LIVE_STREAM_INTERVAL_MS,
@@ -695,6 +696,12 @@ export function useRecording(
         // channel's samples, so fold it here (domain/stereoDownmix.ts).
         const streamChannels = (rawEvent as { songNookChannels?: unknown }).songNookChannels;
         const stereoStream = streamChannels === 2 && rawEvent?.data instanceof Float32Array;
+        // Asked for stereo, and the recorder says this take is one channel (a headset is
+        // the input, or the route would not open in stereo): say so once, quietly.
+        if (take.facts.stereoAsked && streamChannels === 1 && !take.facts.monoFallbackTold) {
+          take.facts.monoFallbackTold = true;
+          toast(t("recording.monoThisTake"), "information-circle-outline");
+        }
         if (stereoStream) {
           // Does this phone really give two different sides? (judged when the take ends)
           take.facts.stereoMeter ??= createStereoMeter();

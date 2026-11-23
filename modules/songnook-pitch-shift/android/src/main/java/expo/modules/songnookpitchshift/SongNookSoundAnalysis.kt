@@ -102,6 +102,9 @@ internal fun analyzeSound(context: Context, request: Map<String, Any?>): Map<Str
 
     var channels = if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) else 1
     var sampleRate = if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) format.getInteger(MediaFormat.KEY_SAMPLE_RATE) else 44_100
+    // Some decoders hand back float PCM (a float WAV, some hi-res imports): read as
+    // 16-bit it is noise, and Auto would "fix" what it never heard.
+    var floatPcm = false
     var meter: SongNookSoundMeter? = null
     val bufferInfo = MediaCodec.BufferInfo()
     var sawInputEos = false
@@ -128,6 +131,8 @@ internal fun analyzeSound(context: Context, request: Map<String, Any?>): Map<Str
         val out = codec.outputFormat
         if (out.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) channels = out.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         if (out.containsKey(MediaFormat.KEY_SAMPLE_RATE)) sampleRate = out.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        floatPcm = out.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
+          out.getInteger(MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT
       } else if (outIndex >= 0) {
         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) sawOutputEos = true
         val outputBuffer = codec.getOutputBuffer(outIndex)
@@ -135,13 +140,24 @@ internal fun analyzeSound(context: Context, request: Map<String, Any?>): Map<Str
           val m = meter ?: SongNookSoundMeter(sampleRate).also { meter = it }
           outputBuffer.position(bufferInfo.offset)
           outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-          val shorts = outputBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
           val frameWidth = max(1, channels)
-          val frames = shorts.remaining() / frameWidth
-          for (frame in 0 until frames) {
-            var sum = 0.0
-            for (channel in 0 until frameWidth) sum += shorts.get(frame * frameWidth + channel) / 32768.0
-            m.feed(sum / frameWidth)
+          val ordered = outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+          if (floatPcm) {
+            val floats = ordered.asFloatBuffer()
+            val frames = floats.remaining() / frameWidth
+            for (frame in 0 until frames) {
+              var sum = 0.0
+              for (channel in 0 until frameWidth) sum += floats.get(frame * frameWidth + channel).toDouble()
+              m.feed(sum / frameWidth)
+            }
+          } else {
+            val shorts = ordered.asShortBuffer()
+            val frames = shorts.remaining() / frameWidth
+            for (frame in 0 until frames) {
+              var sum = 0.0
+              for (channel in 0 until frameWidth) sum += shorts.get(frame * frameWidth + channel) / 32768.0
+              m.feed(sum / frameWidth)
+            }
           }
         }
         codec.releaseOutputBuffer(outIndex, false)

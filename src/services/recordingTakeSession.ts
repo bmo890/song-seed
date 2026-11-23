@@ -141,6 +141,11 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
     /** The recorder screen's Stereo key for this take (locked while it rolls); null
      *  before the screen has said, when the Settings default stands. */
     stereoForTake: null as boolean | null,
+    /** The recorder was asked for stereo for this take, and whether the writer has been
+     *  told it came out mono instead (a headset, a route that would not open in stereo):
+     *  the Stereo key stays lit either way, so a quiet word says so once. */
+    stereoAsked: false,
+    monoFallbackTold: false,
     /** How different the take's two channels really are, while a stereo take rolls
      *  (domain/stereoDownmix.ts). Null for a mono take. */
     stereoMeter: null as StereoMeter | null,
@@ -171,6 +176,7 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
   function beginTake() {
     facts.recordingStartedAt = null;
     facts.stereoMeter = null;
+    facts.monoFallbackTold = false;
     facts.sessionPersisted = false;
     resetCaptureStart();
     headTrim.set({ pending: false, ms: 0 });

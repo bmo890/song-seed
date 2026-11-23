@@ -302,6 +302,10 @@ final class SongNookPitchShiftPracticeEngine {
     engine.disconnectNodeOutput(playerNode)
     engine.disconnectNodeOutput(clickPlayer)
     engine.connect(playerNode, to: streamMix, fromBus: 0, toBus: 0, format: songFormat)
+    // A stereo song loses nothing in the mixer; it gives back the EQ's mono make-up.
+    playerNode.volume = songFormat.channelCount >= 2
+      ? Float(pow(10, -SongNookToneEQ.monoMixerMakeupDb / 20))
+      : 1
     engine.connect(clickPlayer, to: streamMix, fromBus: 0, toBus: 1, format: format)
     clickFormat = format
     if wasRunning { try? engine.start() }
@@ -405,7 +409,11 @@ final class SongNookPitchShiftPracticeEngine {
   private func applySoundSettings() {
     SongNookToneEQ.configure(eqNode, tonePreset: currentTonePreset)
     SongNookToneEQ.configureEven(evenNode, tonePreset: currentTonePreset)
-    eqNode.globalGain = Float(currentGainDb)
+    // The song and the click both reach the EQ through the stream mixer, which takes
+    // 3 dB off a mono source (SongNookToneEQ.monoMixerMakeupDb). The click is mono, so
+    // the make-up is always on here; a stereo song is turned down by the same amount at
+    // its player (connectStreams), so every source leaves this chain at its own level.
+    eqNode.globalGain = Float(currentGainDb + SongNookToneEQ.monoMixerMakeupDb)
   }
 
   private func clampGainDb(_ value: Double) -> Double {

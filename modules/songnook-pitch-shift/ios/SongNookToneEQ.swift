@@ -25,6 +25,14 @@ enum SongNookTimePitch {
 enum SongNookToneEQ {
   static let bandCount = 6
 
+  /// What a mono source loses entering an AVAudioMixerNode: the mixer pans it to the
+  /// centre at equal power, 3.01 dB down in each channel (and in a mono output too).
+  /// Plain playback has no such loss, so a mono take dropped 3 dB the moment the engine
+  /// took over (a tone key pressed mid-song), and every bake of one came out 3 dB under
+  /// its source. Measured 2026-11-23: mono -3.14 dB, stereo -0.13 dB through the live
+  /// chain. The chains that pass a mono source through a mixer add this back.
+  static let monoMixerMakeupDb: Double = 3.0103
+
   static func makeNode() -> AVAudioUnitEQ {
     let node = AVAudioUnitEQ(numberOfBands: bandCount)
     configure(node, tonePreset: "neutral")
@@ -79,9 +87,9 @@ enum SongNookToneEQ {
   }
 
   /// Even (2026-11-22): gentle compression after the tone keys and before the limiter,
-  /// so a rehearsal's drums and a voice sit closer. Apple's dynamics processor, set to
-  /// match Android's SoundChainAudioProcessor as near as its parameters allow:
-  /// threshold -26 dBFS, 10 ms attack, 200 ms release, +5 dB make-up, no expansion.
+  /// so a rehearsal's drums and a voice sit closer. Apple's dynamics processor, fitted to
+  /// Android's SoundChainAudioProcessor (see the parameters below): 10 ms attack,
+  /// 200 ms release, no expansion.
   /// Bypassed unless the "even" flag is on.
   static func makeEvenNode() -> AVAudioUnitEffect {
     var description = AudioComponentDescription()
@@ -93,14 +101,16 @@ enum SongNookToneEQ {
     let node = AVAudioUnitEffect(audioComponentDescription: description)
     let unit = node.audioUnit
     let global = kAudioUnitScope_Global
-    AudioUnitSetParameter(unit, kDynamicsProcessorParam_Threshold, global, 0, -26, 0)
-    // HeadRoom is how far above the threshold the curve reaches full scale: 12 dB gives
-    // a gentle slope (Android's 3:1 with a 6 dB knee).
-    AudioUnitSetParameter(unit, kDynamicsProcessorParam_HeadRoom, global, 0, 12, 0)
+    // Apple's unit has no ratio or knee, only a threshold and a "head room", so its
+    // curve was fitted to Android's (threshold -26 dBFS, 3:1, 6 dB knee, +5 dB) by
+    // measurement (2026-11-23): these three land within 0.7 dB of it from -40 to -1 dBFS.
+    // The first guess (-26 / 12 / +5) ran up to 3.4 dB louder in the middle.
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_Threshold, global, 0, -37, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_HeadRoom, global, 0, 25, 0)
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_ExpansionRatio, global, 0, 1, 0)
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_AttackTime, global, 0, 0.010, 0)
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_ReleaseTime, global, 0, 0.200, 0)
-    AudioUnitSetParameter(unit, kDynamicsProcessorParam_OverallGain, global, 0, 5, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_OverallGain, global, 0, 5.3, 0)
     node.bypass = true
     return node
   }

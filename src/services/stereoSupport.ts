@@ -24,6 +24,10 @@ import type { StereoVerdict } from "../domain/stereoDownmix";
 export type StereoSupport = "yes" | "no" | "unknown";
 
 const VERDICT_KEY = "songnook.stereoVerdict";
+/** The recorder's last definite answer, kept so an iPhone that cannot do stereo does not
+ *  show the switch again after every launch until the recorder has been opened (there
+ *  the answer is only known while a recording session is up). */
+const OFFERED_KEY = "songnook.stereoOffered";
 type DeviceVerdict = "verified" | "doubted" | "fake" | null;
 
 let offered: StereoSupport = "unknown";
@@ -55,6 +59,15 @@ function loadVerdictOnce() {
       }
     })
     .catch(() => {});
+  void AsyncStorage.getItem(OFFERED_KEY)
+    .then((raw) => {
+      // Only fills in what the recorder has not said yet this launch.
+      if (offered === "unknown" && (raw === "yes" || raw === "no")) {
+        offered = raw;
+        publish();
+      }
+    })
+    .catch(() => {});
 }
 
 /** Ask the native recorder again. Never downgrades a known answer to "unknown". */
@@ -67,6 +80,7 @@ export function refreshStereoSupport(): StereoSupport {
     // An older binary without the probe cannot record stereo at all.
     const next: StereoSupport | null = !probe ? "no" : answer === "yes" || answer === "no" ? answer : null;
     if (next) {
+      if (next !== offered && probe) void AsyncStorage.setItem(OFFERED_KEY, next).catch(() => {});
       offered = next;
       publish();
     }
