@@ -358,7 +358,7 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
 - **2026-11-23: 1.0.2 released on Apple by the founder.** 1.0.3 gets its own update channel
   version (`runtimeVersion` 1.0.3 in app.json; every earlier store build is 1.0.0), so an
   over-the-air update from main reaches 1.0.3 phones only. A JS fix for phones still on 1.0.x
-  must be published from a branch at the 1.0.2 version commit (``) with runtime 1.0.0.
+  must be published from a branch at the 1.0.2 version commit (`fe65b5c5`) with runtime 1.0.0.
 
 ---
 
