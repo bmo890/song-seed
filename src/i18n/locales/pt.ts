@@ -1338,7 +1338,7 @@ export const pt = {
     playFromA11y: "Tocar a partir de {{title}}",
     unavailableA11y: "{{title}} (indisponível)",
   },
-  player: { even: "Equilibrar", auto: "Auto", autoA11y: "Nível e tom automáticos", autoNothing: "Nada para ouvir", autoBalanced: "Já está equilibrado", autoFailed: "Não deu para ler",
+  player: { autoA11y: "Nível e tom automáticos", autoNothing: "Nada para ouvir", autoBalanced: "Já está equilibrado", autoFailed: "Não deu para ler",
     playLayerA11y: "Tocar a música um pouco antes desta camada",
     dragToMove: "Arraste para mover",
     soloLayer: "Solo em {{title}}",
@@ -1421,8 +1421,8 @@ export const pt = {
     chartBars_many: "{{count}} compassos",
     solo: "Solo",
     mute: "Mudo",
-    hiCut: "Corte de agudos", hiBoost: "Realce de agudos", midCut: "Corte de médios", autoHeardQuiet: "Baixo demais", autoHeardLoud: "Alto demais", autoHeardRumble: "Ronco grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Chiado", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nível desigual",
-    midBoost: "Realce de médios",
+    autoFix: "Autoajuste", autoUndo: "Desfazer", autoUndoA11y: "Desfazer o autoajuste", autoHint: "Ouve o take e ajusta nível e tom.", autoBusy: "Ouvindo…", evenOut: "Equilibrar", evenHint: "Forte e suave mais próximos", toneLow: "Graves", toneMid: "Médios", toneHigh: "Agudos", toneCut: "Corte", toneFlat: "Plano", toneBoost: "Realce", keptWithClip: "Fica com o clipe", autoHeardQuiet: "Baixo demais", autoHeardLoud: "Alto demais", autoHeardRumble: "Ronco grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Chiado", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nível desigual",
+    
     editLyrics: "Editar letra",
     editChart: "Editar cifra",
     noteEyebrow: "Nota",
@@ -1582,8 +1582,8 @@ export const pt = {
     clipNotes: "Notas do clipe",
     noNotesBody: "Nenhuma nota ainda.",
     saveOneClip: "Combinar camadas",
-    lowCut: "Corte de graves",
-    lowBoost: "Realce de graves",
+    
+    
     level: "Nível",
     tone: "Timbre",
     dB: "dB",

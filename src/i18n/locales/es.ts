@@ -1339,7 +1339,7 @@ export const es = {
     playFromA11y: "Reproducir desde {{title}}",
     unavailableA11y: "{{title}} (no disponible)",
   },
-  player: { even: "Igualar", auto: "Auto", autoA11y: "Nivel y tono automáticos", autoNothing: "No se oye nada", autoBalanced: "Ya está equilibrado", autoFailed: "No se pudo leer",
+  player: { autoA11y: "Nivel y tono automáticos", autoNothing: "No se oye nada", autoBalanced: "Ya está equilibrado", autoFailed: "No se pudo leer",
     playLayerA11y: "Reproducir la canción desde justo antes de esta capa",
     dragToMove: "Arrastra para mover",
     soloLayer: "Poner {{title}} en solo",
@@ -1422,8 +1422,8 @@ export const es = {
     chartBars_many: "{{count}} compases",
     solo: "Solo",
     mute: "Silencio",
-    hiCut: "Corte de agudos", hiBoost: "Realce de agudos", midCut: "Corte de medios", autoHeardQuiet: "Muy bajo", autoHeardLoud: "Muy alto", autoHeardRumble: "Retumbo grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Siseo", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nivel desigual",
-    midBoost: "Realce de medios",
+    autoFix: "Autoajuste", autoUndo: "Deshacer", autoUndoA11y: "Deshacer el autoajuste", autoHint: "Escucha la toma y ajusta nivel y tono.", autoBusy: "Escuchando…", evenOut: "Igualar", evenHint: "Fuerte y suave, más cerca", toneLow: "Graves", toneMid: "Medios", toneHigh: "Agudos", toneCut: "Corte", toneFlat: "Plano", toneBoost: "Realce", keptWithClip: "Se guarda con el clip", autoHeardQuiet: "Muy bajo", autoHeardLoud: "Muy alto", autoHeardRumble: "Retumbo grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Siseo", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nivel desigual",
+    
     editLyrics: "Editar letra",
     editChart: "Editar cifrado",
     noteEyebrow: "Nota",
@@ -1583,8 +1583,8 @@ export const es = {
     clipNotes: "Notas del clip",
     noNotesBody: "Aún no hay notas.",
     saveOneClip: "Combinar capas",
-    lowCut: "Corte de graves",
-    lowBoost: "Realce de graves",
+    
+    
     level: "Nivel",
     tone: "Timbre",
     dB: "dB",

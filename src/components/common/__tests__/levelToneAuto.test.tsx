@@ -49,25 +49,30 @@ describe("the Sound strip's Auto", () => {
     await act(async () => {
       r = TestRenderer.create(<Harness onState={(next) => (sound = next)} />);
     });
+    // Before: the button names the fix and the line says what it does.
+    const line = () =>
+      r!.root.findAll((n) => n.props.testID === "strip-auto-line" && typeof n.props.children === "string")[0]?.props
+        .children;
+    expect(autoKey(r!).props.accessibilityLabel).toBe("Auto level and tone");
+    expect(line()).toBe("Listens to the take, then sets level and tone.");
     await act(async () => {
       await autoKey(r!).props.onPress();
     });
     expect(sound).toEqual({ gainDb: 9, tonePreset: "low-cut" });
-    expect(autoKey(r!).props.tone).toBe("active");
-    // It says what it heard while its choice stands, and stops once it is undone.
-    const heard = () => r!.root.findAll((n) => n.props.testID === "strip-auto-heard" && typeof n.props.children === "string");
-    expect(heard()[0]?.props.children).toBe("Too quiet · Low rumble");
+    // After: the button undoes it, and the line says what it heard.
+    expect(autoKey(r!).props.accessibilityLabel).toBe("Undo auto fix");
+    expect(line()).toBe("Too quiet · Low rumble");
 
     await act(async () => {
       await autoKey(r!).props.onPress();
     });
     expect(sound).toEqual({ gainDb: 0, tonePreset: "mid-boost" });
-    expect(autoKey(r!).props.tone).toBe("idle");
-    expect(heard()).toHaveLength(0);
+    expect(autoKey(r!).props.accessibilityLabel).toBe("Auto level and tone");
+    expect(line()).toBe("Listens to the take, then sets level and tone.");
     await act(async () => r!.unmount());
   });
 
-  it("keeps Even on its own key: the Tone reset leaves it alone", async () => {
+  it("keeps Even out on its own switch: the Tone reset leaves it alone", async () => {
     let sound = { gainDb: 0, tonePreset: "" };
     let r: Rendered | null = null;
     await act(async () => {

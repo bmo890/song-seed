@@ -1,5 +1,5 @@
 import { decideAutoSound } from "../autoSound";
-import { toggleToneFlag } from "../overdub";
+import { toggleToneFlag, toneBandPosition, toneBandToggle } from "../overdub";
 
 const db = (value: number) => Math.pow(10, value / 20);
 
@@ -129,6 +129,21 @@ describe("the high band's two directions", () => {
   it("lighting Hi boost puts out Hi cut, and the other way round", () => {
     expect(toggleToneFlag("low-cut+hi-cut", "hi-boost")).toBe("low-cut+hi-boost");
     expect(toggleToneFlag("hi-boost+even", "hi-cut")).toBe("hi-cut+even");
+  });
+
+  it("a band reads as cut, flat or boost, and moves with one toggle", () => {
+    expect(toneBandPosition("low-cut+hi-boost+even", "low")).toBe("cut");
+    expect(toneBandPosition("low-cut+hi-boost+even", "mid")).toBe("flat");
+    expect(toneBandPosition("low-cut+hi-boost+even", "high")).toBe("boost");
+    // Already there: nothing to toggle.
+    expect(toneBandToggle("low-cut", "low", "cut")).toBeNull();
+    // Flat puts out whichever direction is lit.
+    expect(toneBandToggle("low-cut", "low", "flat")).toBe("low-cut");
+    expect(toneBandToggle("hi-boost", "high", "flat")).toBe("hi-boost");
+    // Straight across: lighting the other direction puts this one out.
+    const flag = toneBandToggle("mid-boost", "mid", "cut");
+    expect(flag).toBe("mid-cut");
+    expect(toggleToneFlag("mid-boost", flag!)).toBe("mid-cut");
   });
 
   it("the middle has both directions too, and they exclude each other", () => {

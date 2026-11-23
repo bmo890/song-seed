@@ -67,7 +67,10 @@ const LOOP_END_PREROLL_MS = 2000;
  * agree with the reel); language rows mirror normally. See `ltrRow`.
  */
 
-type Drawer = "marks" | "loop" | "sound";
+/** Speed holds how you practise today (click, speed, pitch); Sound holds the take's own
+ *  level and tone (2026-11-23, founder: "it's all in a different category than pitch /
+ *  speed"). They were one tab. */
+type Drawer = "marks" | "loop" | "speed" | "sound";
 
 type SelectedMark =
   | { kind: "section"; id: string; edge: "start" | "end" }
@@ -446,14 +449,15 @@ export function PlayerPracticeDrawers({
   // loop, and count-in is a one-shot arming choice — neither is a live state.
   const drawerHasState = {
     loop: practiceLoopEnabled,
-    sound:
+    speed:
       Math.abs(playbackSpeed - 1) > 0.01 ||
       pitchShiftSemitones !== 0 ||
-      (clickAvailable && clickEnabled) ||
-      (!!sound && (sound.gainDb !== 0 || !isTonePresetNeutral(sound.tonePreset))),
+      (clickAvailable && clickEnabled),
+    sound: !!sound && (sound.gainDb !== 0 || !isTonePresetNeutral(sound.tonePreset)),
   };
   // Anything a reset would change, set-ups included (count-in, a drill).
-  const anyToolSet = drawerHasState.loop || drawerHasState.sound || countInOption !== "off" || stepUpEnabled;
+  const anyToolSet =
+    drawerHasState.loop || drawerHasState.speed || drawerHasState.sound || countInOption !== "off" || stepUpEnabled;
 
   const clampSectionEdge = (section: ClipSection, edge: "start" | "end", ms: number) => {
     const minMs = edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs));
@@ -968,9 +972,9 @@ export function PlayerPracticeDrawers({
     </View>
   );
 
-  // ---------------------------------------------------------------- sound
+  // ---------------------------------------------------------------- speed
 
-  const soundDrawer = (
+  const speedDrawer = (
     <View style={pd.wrap}>
       {/* Click leads (founder, 2026-10-15): it exists only on a take recorded
           with the metronome, so when it is here it is the first thing to set.
@@ -1071,21 +1075,23 @@ export function PlayerPracticeDrawers({
         pitchPro={practicePro}
       />
 
-      {/* Below the hairline: the take's own sound, kept with it. Above it, how you
-          practise today. */}
+    </View>
+  );
+
+  // ---------------------------------------------------------------- sound
+  // The take's own sound, kept with it: its level and tone, and Auto fix.
+  const soundDrawer = (
+    <View style={pd.wrap}>
       {sound ? (
-        <>
-          <View style={pd.soundDivider} />
-          <LevelToneStrip
-            style={pd.soundStrip}
-            gainDb={sound.gainDb}
-            tonePreset={sound.tonePreset}
-            onCommitGain={onCommitSoundLevel}
-            onToggleToneFlag={onToggleSoundTone}
-            autoAudioUri={soundAudioUri}
-            testID="sound-strip"
-          />
-        </>
+        <LevelToneStrip
+          style={pd.soundStrip}
+          gainDb={sound.gainDb}
+          tonePreset={sound.tonePreset}
+          onCommitGain={onCommitSoundLevel}
+          onToggleToneFlag={onToggleSoundTone}
+          autoAudioUri={soundAudioUri}
+          testID="sound-strip"
+        />
       ) : null}
     </View>
   );
@@ -1103,6 +1109,7 @@ export function PlayerPracticeDrawers({
           // to signal, so that tab never wears one.
           { key: "marks", label: t("player.marks") },
           { key: "loop", label: t("player.loop"), dot: drawerHasState.loop },
+          { key: "speed", label: t("player.speed"), dot: drawerHasState.speed },
           { key: "sound", label: t("player.sound"), dot: drawerHasState.sound },
         ]}
         selectedKey={drawer}
@@ -1126,15 +1133,30 @@ export function PlayerPracticeDrawers({
             />
           ) : null}
           <View style={pd.rowSpacer} />
-          <Text style={pd.keepLabel}>{t("player.keep")}</Text>
-          <Switch
-            value={keepOn[drawer]}
-            onValueChange={() => onToggleKeep(drawer)}
-            accessibilityLabel={t(drawer === "loop" ? "player.keepLoopA11y" : "player.keepSoundA11y")}
-          />
+          {drawer === "sound" ? (
+            // The take's level and tone are the take's: there is nothing to choose to
+            // keep, so the line says so where Keep sits on the other tabs.
+            <Text style={pd.keepLabel}>{t("player.keptWithClip")}</Text>
+          ) : (
+            <>
+              <Text style={pd.keepLabel}>{t("player.keep")}</Text>
+              <Switch
+                // Keep's "sound" part is the practice bend (speed, pitch, click).
+                value={keepOn[drawer === "loop" ? "loop" : "sound"]}
+                onValueChange={() => onToggleKeep(drawer === "loop" ? "loop" : "sound")}
+                accessibilityLabel={t(drawer === "loop" ? "player.keepLoopA11y" : "player.keepSoundA11y")}
+              />
+            </>
+          )}
         </View>
       ) : null}
-      {drawer === "marks" ? marksDrawer : drawer === "loop" ? loopDrawer : soundDrawer}
+      {drawer === "marks"
+        ? marksDrawer
+        : drawer === "loop"
+          ? loopDrawer
+          : drawer === "speed"
+            ? speedDrawer
+            : soundDrawer}
 
       <SectionPickerModal
         visible={pickerOpen}

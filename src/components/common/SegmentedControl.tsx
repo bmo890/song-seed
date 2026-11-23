@@ -66,6 +66,11 @@ type Props<T extends string> = {
   glyphOnly?: boolean;
   /** No hairline of its own: the control sits in a line that draws one. */
   bare?: boolean;
+  /** The option that means nothing is on (a tone band's Flat, 2026-11-23). Chosen, the
+   *  control rests: plain ink over a quiet rule, so a row of untouched controls does not
+   *  shout. Any other choice is something ON and reads in terracotta ink, the way a
+   *  bent Level's readout does. */
+  restKey?: T;
 };
 
 /**
@@ -86,8 +91,11 @@ export function SegmentedControl<T extends string>({
   persist,
   glyphOnly = false,
   bare = false,
+  restKey,
 }: Props<T>) {
   const activeKey = selectedKey ?? value;
+  const atRest = restKey !== undefined && activeKey === restKey;
+  const bent = restKey !== undefined && !atRest;
   const activeIndex = Math.max(
     0,
     options.findIndex((option) => option.key === activeKey)
@@ -147,6 +155,8 @@ export function SegmentedControl<T extends string>({
         <Animated.View
           style={[
             segmentedControlStyles.thumb,
+            atRest ? segmentedControlStyles.thumbRest : null,
+            bent ? segmentedControlStyles.thumbBent : null,
             { width: segmentWidth, transform: [{ translateX: thumbX }] },
           ]}
         />
@@ -195,6 +205,8 @@ export function SegmentedControl<T extends string>({
                   segmentedControlStyles.segmentLabel,
                   option.glyph ? segmentedControlStyles.segmentLabelSmall : null,
                   active ? segmentedControlStyles.segmentLabelActive : null,
+                  active && atRest ? segmentedControlStyles.segmentLabelRest : null,
+                  active && bent ? segmentedControlStyles.segmentLabelBent : null,
                 ]}
               >
                 {option.label}
@@ -229,6 +241,12 @@ const segmentedControlStyles = StyleSheet.create({
     start: TRACK_PAD_H,
     borderRadius: 1,
     backgroundColor: colors.textPrimary,
+  },
+  thumbRest: {
+    backgroundColor: colors.borderMuted,
+  },
+  thumbBent: {
+    backgroundColor: colors.primaryDeep,
   },
   segment: {
     flex: 1,
@@ -288,5 +306,12 @@ const segmentedControlStyles = StyleSheet.create({
   segmentLabelActive: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
+  },
+  segmentLabelRest: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textStrong,
+  },
+  segmentLabelBent: {
+    color: colors.primaryDeep,
   },
 });

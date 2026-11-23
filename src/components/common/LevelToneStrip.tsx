@@ -7,37 +7,30 @@ import {
   SOUND_LEVEL_MAX_DB,
   SOUND_LEVEL_MIN_DB,
   SOUND_KEYS_NEEDING_NEW_CHAIN,
-  SOUND_TONE_KEY_ROWS,
+  TONE_BANDS,
   clampSoundLevelDb,
+  formatToneFlags,
   hasToneFlag,
   parseToneFlags,
+  toneBandPosition,
+  toneBandToggle,
   type OverdubToneFlag,
+  type ToneBand,
+  type ToneBandPosition,
 } from "../../domain/overdub";
 import { colors, spacing, text } from "../../design/tokens";
-import { InkOption } from "./InkOption";
+import { Button } from "./Button";
+import { SegmentedControl } from "./SegmentedControl";
 import { Slider } from "./Slider";
+import { Switch } from "./Switch";
 import { Press } from "./Press";
 import { signedNumberText } from "../../i18n/direction";
-import { InkKey, inkKeyColor } from "./InkKey";
-import { Spinner } from "./Spinner";
 import { toast } from "./toastStore";
 import { haptic } from "../../design/haptics";
-import { formatToneFlags } from "../../domain/overdub";
 import type { AutoFinding, AutoSound } from "../../domain/autoSound";
 import { isAutoSoundAvailable, suggestAutoSound } from "../../services/autoSound";
 
-/** i18n keys for the tone keys, by flag. */
-const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
-  "low-cut": "player.lowCut",
-  "low-boost": "player.lowBoost",
-  "hi-cut": "player.hiCut",
-  "hi-boost": "player.hiBoost",
-  "mid-boost": "player.midBoost",
-  "mid-cut": "player.midCut",
-  even: "player.even",
-};
-
-/** What Auto heard, a word or two each: the line beside its key. */
+/** What Auto fix heard, a word or two each: the line beside its key. */
 const AUTO_HEARD_LABEL_KEYS: Record<AutoFinding, string> = {
   quiet: "player.autoHeardQuiet",
   loud: "player.autoHeardLoud",
@@ -48,31 +41,45 @@ const AUTO_HEARD_LABEL_KEYS: Record<AutoFinding, string> = {
   uneven: "player.autoHeardUneven",
 };
 
+const TONE_BAND_LABEL_KEYS: Record<ToneBand, string> = {
+  low: "player.toneLow",
+  mid: "player.toneMid",
+  high: "player.toneHigh",
+};
+const TONE_POSITION_LABEL_KEYS: Record<ToneBandPosition, string> = {
+  cut: "player.toneCut",
+  flat: "player.toneFlat",
+  boost: "player.toneBoost",
+};
+
 export type LevelToneStripProps = {
   gainDb: number;
   tonePreset: string;
   /** The knob's value on release — absolute, in dB. */
   onCommitGain: (gainDb: number) => void;
   onToggleToneFlag: (flag: OverdubToneFlag) => void;
-  /** The take's (or layer's) own file: offers Auto, which measures it and sets the
-   *  level and tone here (domain/autoSound.ts). Absent, no Auto key. */
+  /** The take's (or layer's) own file: offers Auto fix, which measures it and sets the
+   *  level and tone here (domain/autoSound.ts). Absent, no Auto fix. */
   autoAudioUri?: string | null;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
 /**
- * THE take's sound: a level and four tone options, in the drawer's one row
- * recipe (2026-10-15, founder picked "Sound A"): a label, its value at the
- * end, the control beneath. The level is a kit Slider with a detent at every
- * step and a rest at 0 dB (it was a knob); tone is editorial ink, dot + word,
- * hollow to terracotta (they were boxed lit keys). One component for the
- * player's Sound drawer and the Layers bench, so a take and a layer are tuned
- * with the same hands.
+ * THE take's sound, top to bottom the way it is reached for (2026-11-23, founder: "it's
+ * not clear ... give me a better ui"):
  *
- * Each group carries its own reset, appearing only once something is bent.
- * Haptics are the kit controls' own (Slider: grab/tick/light; InkOption:
- * light; the resets: Press's tap). Nothing here fires its own.
+ *   Auto fix   the easy button, with one line saying what it does; once pressed the line
+ *              says what it heard, and the button undoes it.
+ *   Level      a kit Slider with a detent at every step and a rest at 0 dB, and Even out
+ *              (gentle compression) as its switch.
+ *   Tone       three bands, each cut, flat or boost: ink tabs, one line a band. (They
+ *              were six loose dot-and-word keys, which read as a checklist.)
+ *
+ * One component for the player's Sound drawer and a layer's sheet, so a take and a layer
+ * are tuned with the same hands. Level and Tone each carry their own reset, appearing
+ * only once something is bent. Haptics are the kit controls' own (Button: tap; Slider:
+ * grab/tick/light; Switch and the tabs: light; the resets: Press's tap).
  */
 export function LevelToneStrip({
   gainDb,
@@ -89,13 +96,11 @@ export function LevelToneStrip({
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
   const evenOn = hasToneFlag(tonePreset, "even");
-  // Even, Hi boost and Mid cut arrived with the native measurer (one binary): on an older
-  // one the sound chain ignores them, so their keys stay away.
+  // Even out, Hi boost and Mid cut arrived with the native measurer (one binary): on an
+  // older one the sound chain ignores them, so they stay away.
   const newChain = isAutoSoundAvailable();
-  const toneRows = SOUND_TONE_KEY_ROWS.map((row) =>
-    row.filter((flag) => newChain || !SOUND_KEYS_NEEDING_NEW_CHAIN.includes(flag))
-  ).filter((row) => row.length > 0);
-  // The tone keys only: Even rides the same encoding but belongs to Level.
+  const offers = (flag: OverdubToneFlag) => newChain || !SOUND_KEYS_NEEDING_NEW_CHAIN.includes(flag);
+  // The tone bands only: Even out rides the same encoding but belongs to Level.
   const toneFlagsOn = parseToneFlags(tonePreset).filter((flag) => flag !== "even");
   const toneBent = toneFlagsOn.length > 0;
 
@@ -103,37 +108,26 @@ export function LevelToneStrip({
     <View style={[s.strip, style]} testID={testID}>
       {auto.offered ? (
         <View style={s.autoRow}>
-          <InkKey
-            // Haptics vocabulary: light, a small state flip (Auto on or off).
-            haptic="light"
-            role="switch"
-            tone={auto.active ? "active" : "idle"}
-            glyph={
-              auto.busy ? (
-                <Spinner size="small" color={inkKeyColor("idle")} />
-              ) : (
-                <Ionicons
-                  name="color-wand-outline"
-                  size={18}
-                  color={inkKeyColor(auto.active ? "active" : "idle")}
-                />
-              )
-            }
-            label={t("player.auto")}
-            accessibilityLabel={t("player.autoA11y")}
+          <Button
+            // Haptics vocabulary: tap (Button's own), a deliberate press.
+            variant={auto.active ? "secondary" : "primary"}
+            label={t(auto.busy ? "player.autoBusy" : auto.active ? "player.autoUndo" : "player.autoFix")}
+            accessibilityLabel={t(auto.active ? "player.autoUndoA11y" : "player.autoA11y")}
             disabled={auto.busy}
             onPress={auto.toggle}
+            style={s.autoKey}
             testID={testID ? `${testID}-auto` : undefined}
           />
-          {/* What Auto heard (founder, 2026-11-23: "a quick explanation of what was
-              adjusted"): a quiet line in place while its choice stands, not a popup. */}
-          {auto.heard.length > 0 ? (
-            <Text style={s.autoHeard} numberOfLines={2} testID={testID ? `${testID}-auto-heard` : undefined}>
-              {auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")}
-            </Text>
-          ) : null}
+          {/* One line: what it does, then (founder, 2026-11-23: "a quick explanation of
+              what was adjusted") what it heard, while its choice stands. Not a popup. */}
+          <Text style={s.autoLine} numberOfLines={2} testID={testID ? `${testID}-auto-line` : undefined}>
+            {auto.heard.length > 0
+              ? auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")
+              : t("player.autoHint")}
+          </Text>
         </View>
       ) : null}
+
       <View style={s.group}>
         <View style={s.head}>
           <Text style={s.label}>{t("player.level")}</Text>
@@ -162,14 +156,18 @@ export function LevelToneStrip({
           accessibilityLabel={t("player.level")}
           testID={testID ? `${testID}-level` : undefined}
         />
-        {/* Even (2026-11-22): gentle compression, so the loud parts and the quiet
-            ones sit closer. Level's own switch, beside the slider it relates to. */}
+        {/* Even out (2026-11-22): gentle compression. Level's own switch, with the few
+            words that say what it does (the bare word "Even" did not). */}
         {newChain ? (
-          <View style={s.options}>
-            <InkOption
-              label={t("player.even")}
-              selected={evenOn}
-              onPress={() => onToggleToneFlag("even")}
+          <View style={s.evenRow}>
+            <Text style={s.sublabel}>{t("player.evenOut")}</Text>
+            <Text style={s.hint} numberOfLines={1}>
+              {t("player.evenHint")}
+            </Text>
+            <Switch
+              value={evenOn}
+              onValueChange={() => onToggleToneFlag("even")}
+              accessibilityLabel={t("player.evenOut")}
               testID={testID ? `${testID}-even` : undefined}
             />
           </View>
@@ -182,36 +180,49 @@ export function LevelToneStrip({
           {toneBent ? (
             <ResetKey
               onPress={() => {
-                // Each lit option goes out; the toggle helper writes one flag at a time.
+                // Each bent band goes flat; the toggle helper writes one flag at a time.
                 for (const flag of toneFlagsOn) onToggleToneFlag(flag);
               }}
               accessibilityLabel={t("player.resetTone")}
             />
           ) : null}
         </View>
-        {toneRows.map((row, rowIndex) => (
-          <View key={rowIndex} style={s.toneRow}>
-            {row.map((flag) => (
-              <View key={flag} style={s.toneCell}>
-                <InkOption
-                  label={t(TONE_FLAG_LABEL_KEYS[flag])}
-                  selected={hasToneFlag(tonePreset, flag)}
-                  onPress={() => onToggleToneFlag(flag)}
-                  testID={testID ? `${testID}-${flag}` : undefined}
+        {TONE_BANDS.map(({ band, cut, boost }) => {
+          const positions: ToneBandPosition[] = [
+            ...(offers(cut) ? (["cut"] as const) : []),
+            "flat",
+            ...(offers(boost) ? (["boost"] as const) : []),
+          ];
+          return (
+            <View key={band} style={s.bandRow}>
+              <Text style={[s.sublabel, s.bandLabel]}>{t(TONE_BAND_LABEL_KEYS[band])}</Text>
+              <View style={s.bandTabs}>
+                <SegmentedControl<ToneBandPosition>
+                  bare
+                  restKey="flat"
+                  options={positions.map((position) => ({
+                    key: position,
+                    label: t(TONE_POSITION_LABEL_KEYS[position]),
+                  }))}
+                  value={toneBandPosition(tonePreset, band)}
+                  onChange={(next) => {
+                    const flag = toneBandToggle(tonePreset, band, next);
+                    if (flag) onToggleToneFlag(flag);
+                  }}
                 />
               </View>
-            ))}
-          </View>
-        ))}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 /**
- * Auto (2026-11-22): measure the file once, then set the level and the tone keys to what
- * it heard, where they can be seen and bent. The key reads on while the controls still
- * hold Auto's choice; tapped then, it puts back what was there before.
+ * Auto fix (2026-11-22): measure the file once, then set the level and tone to what it
+ * heard, where they can be seen and bent. While the controls still hold its choice the
+ * button reads Undo, and puts back what was there before.
  */
 function useAutoSound({
   gainDb,
@@ -258,7 +269,9 @@ function useAutoSound({
       }
       const before = { gainDb, tonePreset: canonicalTone };
       if (auto.gainDb === before.gainDb && auto.tonePreset === before.tonePreset) {
+        // Nothing to change: say so, and leave the button as it was (nothing to undo).
         toast(t("player.autoBalanced"), "checkmark-outline");
+        return;
       }
       apply(auto);
       setChosen({ auto, before, uri: audioUri });
@@ -297,18 +310,23 @@ function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; access
   );
 }
 
+/** The band names share one column, so the three tab rows line up. */
+const BAND_LABEL_WIDTH = 72;
+
 const s = StyleSheet.create({
   strip: {
-    gap: 16,
+    gap: spacing.lg,
   },
-  // Auto sets both groups below, so it sits above them.
+  // Auto fix sets both groups below, so it leads them.
   autoRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    marginBottom: -8,
   },
-  autoHeard: {
+  autoKey: {
+    alignSelf: "center",
+  },
+  autoLine: {
     ...text.supporting,
     flex: 1,
   },
@@ -329,6 +347,18 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
   },
+  // A row inside a group: quieter than the group's own label.
+  sublabel: {
+    ...text.body,
+    color: colors.textStrong,
+  },
+  bandLabel: {
+    width: BAND_LABEL_WIDTH,
+  },
+  hint: {
+    ...text.supporting,
+    flex: 1,
+  },
   // A measured value, not a name: tabular Jakarta (it was the serif).
   readout: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -348,16 +378,17 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Two columns, low to high: each band's cut and boost side by side.
-  toneRow: {
+  evenRow: {
     flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 32,
   },
-  toneCell: {
-    width: "50%",
-  },
-  options: {
+  bandRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    columnGap: 6,
+    alignItems: "center",
+  },
+  bandTabs: {
+    flex: 1,
   },
 });

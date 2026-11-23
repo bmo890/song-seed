@@ -96,6 +96,39 @@ export const SOUND_TONE_KEY_ROWS: readonly (readonly OverdubToneFlag[])[] = [
   ["mid-cut", "mid-boost"],
   ["hi-cut", "hi-boost"],
 ];
+/**
+ * The tone as three bands, each in one of three positions (2026-11-23, founder: "it's not
+ * clear ... give me a better ui"): six loose keys read as a checklist; a band that is cut,
+ * flat or boosted reads as what it is. The flags underneath are unchanged.
+ */
+export type ToneBand = "low" | "mid" | "high";
+export type ToneBandPosition = "cut" | "flat" | "boost";
+export const TONE_BANDS: readonly { band: ToneBand; cut: OverdubToneFlag; boost: OverdubToneFlag }[] = [
+  { band: "low", cut: "low-cut", boost: "low-boost" },
+  { band: "mid", cut: "mid-cut", boost: "mid-boost" },
+  { band: "high", cut: "hi-cut", boost: "hi-boost" },
+];
+
+export function toneBandPosition(preset: string | undefined, band: ToneBand): ToneBandPosition {
+  const flags = parseToneFlags(preset);
+  const { cut, boost } = TONE_BANDS.find((entry) => entry.band === band)!;
+  return flags.includes(cut) ? "cut" : flags.includes(boost) ? "boost" : "flat";
+}
+
+/** The one flag to toggle to move a band to `next`, or null when it is already there
+ *  (lighting a direction puts out its opposite: `toggleToneFlag`). */
+export function toneBandToggle(
+  preset: string | undefined,
+  band: ToneBand,
+  next: ToneBandPosition
+): OverdubToneFlag | null {
+  const now = toneBandPosition(preset, band);
+  if (now === next) return null;
+  const { cut, boost } = TONE_BANDS.find((entry) => entry.band === band)!;
+  if (next === "flat") return now === "cut" ? cut : boost;
+  return next === "cut" ? cut : boost;
+}
+
 /** The keys a binary older than 2026-11-22 cannot play (its sound chain ignores them):
  *  hidden there, so an over-the-air update never shows a key that does nothing. */
 export const SOUND_KEYS_NEEDING_NEW_CHAIN: readonly OverdubToneFlag[] = ["even", "hi-boost", "mid-cut"];

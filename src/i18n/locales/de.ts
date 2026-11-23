@@ -1269,7 +1269,7 @@ export const de = {
     playFromA11y: "Ab {{title}} abspielen",
     unavailableA11y: "{{title}} (nicht verfügbar)",
   },
-  player: { even: "Ausgleichen", auto: "Auto", autoA11y: "Pegel und Klang automatisch", autoNothing: "Nichts zu hören", autoBalanced: "Schon ausgewogen", autoFailed: "Clip nicht lesbar",
+  player: { autoA11y: "Pegel und Klang automatisch", autoNothing: "Nichts zu hören", autoBalanced: "Schon ausgewogen", autoFailed: "Clip nicht lesbar",
     playLayerA11y: "Song kurz vor dieser Spur abspielen",
     dragToMove: "Zum Verschieben ziehen",
     soloLayer: "{{title}} solo",
@@ -1351,8 +1351,8 @@ export const de = {
     chartBars_other: "{{count}} Takte",
     solo: "Solo",
     mute: "Stumm",
-    hiCut: "Höhen senken", hiBoost: "Höhen anheben", midCut: "Mitten senken", autoHeardQuiet: "Zu leise", autoHeardLoud: "Zu laut", autoHeardRumble: "Tiefes Rumpeln", autoHeardHarsh: "Scharfe Höhen", autoHeardHiss: "Rauschen", autoHeardDull: "Dumpfe Höhen", autoHeardUneven: "Ungleicher Pegel",
-    midBoost: "Mitten anheben",
+    autoFix: "Auto-Korrektur", autoUndo: "Zurück", autoUndoA11y: "Auto-Korrektur zurücknehmen", autoHint: "Hört den Take ab und stellt Pegel und Klang ein.", autoBusy: "Hört zu…", evenOut: "Ausgleichen", evenHint: "Laut und leise rücken zusammen", toneLow: "Tiefen", toneMid: "Mitten", toneHigh: "Höhen", toneCut: "Senken", toneFlat: "Neutral", toneBoost: "Anheben", keptWithClip: "Bleibt beim Clip", autoHeardQuiet: "Zu leise", autoHeardLoud: "Zu laut", autoHeardRumble: "Tiefes Rumpeln", autoHeardHarsh: "Scharfe Höhen", autoHeardHiss: "Rauschen", autoHeardDull: "Dumpfe Höhen", autoHeardUneven: "Ungleicher Pegel",
+    
     editLyrics: "Text bearbeiten",
     editChart: "Akkordblatt bearbeiten",
     noteEyebrow: "Notiz",
@@ -1508,8 +1508,8 @@ export const de = {
     clipNotes: "Clip-Notizen",
     noNotesBody: "Noch keine Notizen.",
     saveOneClip: "Spuren kombinieren",
-    lowCut: "Bässe senken",
-    lowBoost: "Bässe anheben",
+    
+    
     level: "Pegel",
     tone: "Klang",
     dB: "dB",
