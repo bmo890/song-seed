@@ -18,8 +18,8 @@ import {
   type ToneBand,
   type ToneBandPosition,
 } from "../../domain/overdub";
-import { colors, spacing, text } from "../../design/tokens";
-import { Button } from "./Button";
+import { colors, radii, shadows, spacing, text } from "../../design/tokens";
+import { hexToRgba } from "../../domain/playerSections";
 import { HelpButton } from "./HelpButton";
 import { HelpSheet } from "./HelpSheet";
 import { InkKey, inkKeyColor } from "./InkKey";
@@ -84,7 +84,7 @@ export type LevelToneStripProps = {
  * One component for the player's EQ tab and a layer's sheet, so a take and a layer are
  * tuned with the same hands. Level and Tone each carry their own reset, appearing only
  * once something is bent. Haptics are the kit controls' own (InkKey and Switch: light;
- * Slider: grab/tick/light; the tone keys: Button's tap; the resets: Press's tap).
+ * Slider: grab/tick/light; the tone keys: light; the resets: Press's tap).
  */
 export function LevelToneStrip({
   gainDb,
@@ -223,18 +223,14 @@ export function LevelToneStrip({
             const bandName = t(TONE_BAND_LABEL_KEYS[band]);
             const key = (direction: "cut" | "boost", flag: OverdubToneFlag) =>
               offers(flag) ? (
-                <Button
-                  // Lit = the terracotta wash; off = the quiet key. Tapping the lit one
-                  // clears the band (flat); tapping the other moves it across.
-                  variant={position === direction ? "primary" : "secondary"}
+                <MixerKey
                   label={t(TONE_KEY_LABEL_KEYS[direction])}
-                  style={s.mixerKey}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: position === direction }}
+                  on={position === direction}
                   accessibilityLabel={t("player.toneKeyA11y", {
                     band: bandName,
                     direction: t(TONE_KEY_LABEL_KEYS[direction]),
                   })}
+                  // Tapping the lit key clears the band (flat); the other moves it across.
                   onPress={() => {
                     const flagToFlip = toneBandToggle(tonePreset, band, position === direction ? "flat" : direction);
                     if (flagToFlip) onToggleToneFlag(flagToFlip);
@@ -335,6 +331,53 @@ function useAutoSound({
   };
 }
 
+/**
+ * A channel-strip key (founder, 2026-11-23: "more like a mixer - like a button with a
+ * light when its engaged - 'pressed down' with the right shadow when pressed").
+ *
+ * Out, it is a quiet raised key: paper white on the page, a whisper of shadow, its lamp
+ * dark. In, it sits pressed: the shadow goes, the face sinks a tone with a shade along
+ * its top edge (the inside of the well), the word drops a point, and the lamp lights
+ * terracotta with a soft halo. The lamp is the only colour, so three strips of keys stay
+ * calm until one is on. Haptics vocabulary: light, a small state flip.
+ */
+function MixerKey({
+  label,
+  on,
+  onPress,
+  accessibilityLabel,
+  testID,
+}: {
+  label: string;
+  on: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+  testID?: string;
+}) {
+  return (
+    <Press
+      feel="surface"
+      haptic="light"
+      style={[s.mixerKey, on ? s.mixerKeyIn : s.mixerKeyOut]}
+      onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+    >
+      {on ? <View style={s.mixerKeyShade} pointerEvents="none" /> : null}
+      <View style={[s.mixerKeyFace, on ? s.mixerKeyFaceIn : null]}>
+        <View style={[s.lampHalo, on ? s.lampHaloOn : null]}>
+          <View style={[s.lamp, on ? s.lampOn : null]} />
+        </View>
+        <Text style={[s.mixerKeyLabel, on ? s.mixerKeyLabelOn : null]} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+    </Press>
+  );
+}
+
 /** A group's reset: a bare refresh glyph, shown only once there is something to
  *  undo. Press owns the `tap`. */
 function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; accessibilityLabel: string }) {
@@ -352,8 +395,8 @@ function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; access
   );
 }
 
-/** A tone key: a little under the app's 38 pt key, so three strips fit the drawer. */
-const MIXER_KEY_HEIGHT = 34;
+/** A tone key: room for its lamp over its word. */
+const MIXER_KEY_HEIGHT = 46;
 
 const s = StyleSheet.create({
   strip: {
@@ -420,23 +463,89 @@ const s = StyleSheet.create({
   // The mixer: three channel strips side by side, Boost over the band's name over Cut.
   mixer: {
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.md,
+    paddingTop: 2,
   },
   mixerColumn: {
     flex: 1,
-    gap: 6,
+    gap: spacing.sm,
   },
-  mixerKey: {
-    alignSelf: "stretch",
-    minHeight: MIXER_KEY_HEIGHT,
-    paddingHorizontal: 4,
+  // The strip's name is what the two keys are about: full ink, a size up.
+  mixerBand: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 15,
+    textAlign: "center",
+    color: colors.textPrimary,
   },
   mixerGap: {
     minHeight: MIXER_KEY_HEIGHT,
   },
-  mixerBand: {
-    ...text.caption,
-    textAlign: "center",
-    color: colors.textStrong,
+  mixerKey: {
+    minHeight: MIXER_KEY_HEIGHT,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  // Out: lifted paper.
+  mixerKeyOut: {
+    backgroundColor: colors.surface,
+    borderColor: hexToRgba(colors.textPrimary, 0.08),
+    ...shadows.control,
+    // The shadow needs the key's own shape, not a clip.
+    overflow: "visible",
+  },
+  // In: the well it was pressed into.
+  mixerKeyIn: {
+    backgroundColor: colors.surfaceHigh,
+    borderColor: hexToRgba(colors.textPrimary, 0.1),
+  },
+  // The shade under the well's top lip.
+  mixerKeyShade: {
+    position: "absolute",
+    top: 0,
+    start: 0,
+    end: 0,
+    height: 3,
+    backgroundColor: hexToRgba(colors.textPrimary, 0.07),
+  },
+  mixerKeyFace: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  mixerKeyFaceIn: {
+    transform: [{ translateY: 1 }],
+  },
+  mixerKeyLabel: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
+  mixerKeyLabelOn: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textPrimary,
+  },
+  // The lamp: dark until the key is in, then terracotta inside a soft halo.
+  lampHalo: {
+    width: 12,
+    height: 12,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lampHaloOn: {
+    backgroundColor: hexToRgba(colors.primary, 0.32),
+  },
+  lamp: {
+    width: 6,
+    height: 6,
+    borderRadius: radii.round,
+    backgroundColor: hexToRgba(colors.textPrimary, 0.14),
+  },
+  lampOn: {
+    backgroundColor: colors.primary,
   },
 });
