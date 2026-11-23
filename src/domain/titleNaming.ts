@@ -36,8 +36,14 @@ const RECORDER_FILENAMES = [
   /^\d[\d\s_\-:.T]*$/, // 20260921_143012, 2026-09-21 14.30.12
 ];
 
+/** The tails we add ourselves: a child take's "v3", a saved sound's "EQ" (2026-11-23).
+ *  Neither turns a timestamp into a name: "8:24 PM Nov 23rd EQ" is still a machine's. */
 function stripVersionSuffix(title: string): string {
-  return title.replace(/\s+v\d+$/i, "").trim();
+  return title
+    .replace(/\s+v\d+$/i, "")
+    .replace(/\s+EQ$/, "")
+    .replace(/\s+v\d+$/i, "")
+    .trim();
 }
 
 export function looksMachineNamed(title: string, createdAt?: number): boolean {
