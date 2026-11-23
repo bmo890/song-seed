@@ -189,6 +189,13 @@ Apple appends the same subscription paragraph as before (below, per language in
   release 22 (1.0.3) drafted with notes in six languages; default listing short + full
   description saved as draft in six languages. Apple warned (ITMS-90725) that from April 2027
   uploads must be built with the iOS 27 SDK (Xcode 27): move the EAS iOS image before then.
+- **1.0.3 SUBMITTED 2026-11-23 (founder: "Submit"):** Apple: Waiting for Review, manual release
+  (founder presses Release). Google: 13 changes in review (release 22 at 100% + short and full
+  description in six listings); managed publishing off, so it goes live on approval. Google's
+  pre-review check flagged `android.hardware.screen.portrait` as a required feature (the app is
+  portrait-only since 1.0.0, `app.json` orientation); device reach unchanged from 1.0.2 (0 lost),
+  so it was ignored ("publishing is more critical"). If wanted later: mark the feature
+  `required="false"` in the manifest via a config plugin.
 
 ```
 SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
