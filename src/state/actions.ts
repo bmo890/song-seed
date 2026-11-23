@@ -37,10 +37,11 @@ import { persistLog } from "../services/persistLog";
 import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
 import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
-import { trashFilesOfDroppedClips } from "./mediaCleanup";
+import { trashFilesNoLongerUsed, trashFilesOfDroppedClips } from "./mediaCleanup";
 import { captureDeletedIdeas, captureDeletedTakes } from "./recentlyDeleted";
 import type { DeletedItem } from "../types";
 import {
+    collectManagedClipAudioUris,
     collectManagedIdeaAudioUris,
     deleteManagedArchiveUri,
     deleteManagedAudioUris,
@@ -56,6 +57,7 @@ import {
     clampClipOverdubStemOffsetMs,
     clampOverdubGainDb,
     getClipOverdubRootSettings,
+    isTonePresetNeutral,
     getDefaultOverdubStemTitle,
     snapPunchInMsToGrid,
     toggleToneFlag,
@@ -287,6 +289,38 @@ async function buildImportedClipOverdubMix(
             durationMs: metadata.durationMs,
             waveformPeaks: metadata.waveformPeaks,
         };
+    } finally {
+        await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
+    }
+}
+
+/**
+ * A take WITHOUT layers has no rendered mix: its level and tone are applied live by the
+ * player's engine, and its file is the recording (the mix above is only built for two or
+ * more inputs). Saving that sound therefore renders it here: the one take through its own
+ * level and tone, imported as a managed file. (Found 2026-11-23: Save's first build
+ * copied the untouched recording.)
+ */
+async function importClipSoundRender(clip: ClipVersion, clipId: string, label: string) {
+    const inputs = buildClipOverdubMixInputs(clip);
+    if (inputs.length === 0) {
+        throw new Error("This clip has no audio to save.");
+    }
+    const rendered = await renderMixedFile({
+        inputs,
+        outputFileName: `${clipId}-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    });
+    try {
+        return await importAudioAsset(
+            {
+                uri: rendered.outputUri,
+                name: rendered.outputUri.split("/").pop() ?? `${clipId}-${label}.m4a`,
+                mimeType: "audio/mp4",
+            },
+            `${clipId}-${label}-${Date.now()}`,
+            // The writer is waiting on it.
+            { decodeMode: "interactive" }
+        );
     } finally {
         await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
     }
@@ -1911,6 +1945,63 @@ export const appActions = {
         return merged.id;
     },
 
+    /**
+     * EQ › Save › Replace clip (founder, 2026-11-23: "overwriting would mean that the eq
+     * changes would be saved over this clip, and from then on would be the 'flat'
+     * setting, since its as if thats how the clip sounded when it was recorded").
+     *
+     * The take keeps everything that is the take's (its id, date, name, marks, sections,
+     * grid, lyrics, its place in playlists); only its audio becomes the tuned render,
+     * and its level and tone go back to flat. The recording it replaces goes to the
+     * trash once the library is durable (the media law), unless another clip uses it.
+     * A take with layers is not offered this: Combine bakes those.
+     */
+    bakeClipSoundIntoClip: async (ideaId: string, clipId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+        if (match.clip.overdub?.stems?.length) {
+            throw new Error("A take with layers is combined instead.");
+        }
+        const rootSettings = getClipOverdubRootSettings(match.clip);
+        // Flat already: the take IS its recording, nothing to bake.
+        if (rootSettings.gainDb === 0 && isTonePresetNeutral(rootSettings.tonePreset)) return;
+
+        const imported = await importClipSoundRender(match.clip, clipId, "eq");
+
+        const replacedFiles = Array.from(collectManagedClipAudioUris(match.clip));
+        const now = Date.now();
+        state.updateIdeas(
+            (prev) =>
+                prev.map((idea) =>
+                    idea.id !== ideaId
+                        ? idea
+                        : {
+                              ...idea,
+                              lastActivityAt: now,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id !== clipId
+                                      ? clip
+                                      : {
+                                            ...clip,
+                                            audioUri: imported.audioUri,
+                                            sourceAudioUri: imported.audioUri,
+                                            durationMs: imported.durationMs ?? clip.durationMs,
+                                            waveformPeaks: imported.waveformPeaks ?? clip.waveformPeaks,
+                                            // No layers, and the sound is in the file now: flat.
+                                            overdub: undefined,
+                                        }
+                              ),
+                          }
+                ),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
+        );
+        state.logIdeaActivity(ideaId, "updated", "audio-edit", clipId);
+        trashFilesNoLongerUsed(replacedFiles, "EQ replace");
+    },
+
     saveCombinedClipAsNewClip: async (
         ideaId: string,
         clipId: string,
@@ -1932,16 +2023,20 @@ export const appActions = {
             throw new Error("This clip does not have a combined playback source yet.");
         }
 
-        const imported = await importAudioAsset(
-            {
-                uri: playbackUri,
-                name: playbackUri.split("/").pop() ?? `${clipId}-mix.m4a`,
-                mimeType: "audio/mp4",
-            },
-            `${clipId}-flattened-${Date.now()}`,
-            // User-blocking flow (editor's "save combined and continue").
-            { decodeMode: "interactive" }
-        );
+        // With layers the rendered mix is the sound. Without, there is no mix (the take's
+        // level and tone are live only), so it is rendered for this.
+        const imported = match.clip.overdub?.stems?.length
+            ? await importAudioAsset(
+                  {
+                      uri: playbackUri,
+                      name: playbackUri.split("/").pop() ?? `${clipId}-mix.m4a`,
+                      mimeType: "audio/mp4",
+                  },
+                  `${clipId}-flattened-${Date.now()}`,
+                  // User-blocking flow (editor's "save combined and continue").
+                  { decodeMode: "interactive" }
+              )
+            : await importClipSoundRender(match.clip, clipId, "flattened");
 
         const now = Date.now();
         const removeOriginalAfterExport = !!options?.removeOriginalAfterExport;

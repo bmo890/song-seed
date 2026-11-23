@@ -24,7 +24,8 @@ import { sameKeptPractice, toggleKeptPart } from "../../domain/keptPractice";
 import { parseToneFlags } from "../../domain/overdub";
 import { clickRateBounds } from "../../domain/stepUpLoop";
 import { haptic } from "../../design/haptics";
-import { toast } from "../common/toastStore";
+import { toast, toastStore } from "../common/toastStore";
+import { actionIcons } from "../common/actionIcons";
 import { usePlayerPins } from "./hooks/usePlayerPins";
 import { useIsReadOnlyIdea } from "../../hooks/useReadOnly";
 import { isIdeaReadOnly } from "../../domain/itemLocator";
@@ -1442,34 +1443,82 @@ function PlayerScreenInner({
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
   );
   handleSaveAsOneClipRef.current = handleSaveAsOneClip;
-  // EQ › Save copy (founder, 2026-11-23): the take's level and tone become a NEW clip with
-  // them baked in (marks, sections and grid carried over: same timeline; speed, pitch and
-  // the loop are practice settings and are not), and this take goes back to flat, so the
-  // two are the recording as it was and the recording as tuned. The player stays put.
-  const saveCopyIdeaId = playerIdea?.id;
-  const saveCopyClipId = playerClip?.id;
-  const saveCopyClipTitle = playerClip?.title;
-  const saveCopySound = data.overdubRootSettings;
-  const handleSaveSoundCopy = useCallback(async () => {
-    if (!saveCopyIdeaId || !saveCopyClipId) return;
-    if (effectiveIsPlaying) await practicePitchTransport.pause();
-    try {
-      await appActions.saveCombinedClipAsNewClip(saveCopyIdeaId, saveCopyClipId, {
-        title: `${saveCopyClipTitle ?? ""} EQ`.trim(),
-      });
-      if (saveCopySound && saveCopySound.gainDb !== 0) {
-        await appActions.adjustClipOverdubRootGain(saveCopyIdeaId, saveCopyClipId, -saveCopySound.gainDb);
+  // EQ › Save (founder, 2026-11-23: "its supposed to be just 'save', then user has option
+  // of saving new copy or overwriting current copy"). The chooser IS the confirmation,
+  // each row spelling its outcome, as Combine's does.
+  //   New clip      the level and tone baked into a NEW clip (marks, sections and grid
+  //                 carried over: same timeline; speed, pitch and the loop are practice
+  //                 settings and are not), and this take back to flat. The toast's View
+  //                 jumps to it, highlighted, the way "view in collection" does.
+  //   Replace clip  baked into THIS take, which is then flat: that is how it sounds now.
+  const saveSoundIdeaId = playerIdea?.id;
+  const saveSoundClipId = playerClip?.id;
+  const saveSoundClipTitle = playerClip?.title;
+  const saveSoundSettings = data.overdubRootSettings;
+  const [savingSound, setSavingSound] = useState(false);
+  const runSaveSound = useCallback(
+    async (mode: "copy" | "replace") => {
+      if (!saveSoundIdeaId || !saveSoundClipId) return;
+      setSavingSound(true);
+      try {
+        if (effectiveIsPlaying) await practicePitchTransport.pause();
+        if (mode === "replace") {
+          await appActions.bakeClipSoundIntoClip(saveSoundIdeaId, saveSoundClipId);
+          toast(t("player.eqReplaced"), "checkmark-outline");
+          return;
+        }
+        const saved = await appActions.saveCombinedClipAsNewClip(saveSoundIdeaId, saveSoundClipId, {
+          // A copy of a copy keeps one "EQ", not a tail of them.
+          title: /(^| )EQ$/.test(saveSoundClipTitle ?? "") ? saveSoundClipTitle : `${saveSoundClipTitle ?? ""} EQ`.trim(),
+        });
+        if (saveSoundSettings && saveSoundSettings.gainDb !== 0) {
+          await appActions.adjustClipOverdubRootGain(saveSoundIdeaId, saveSoundClipId, -saveSoundSettings.gainDb);
+        }
+        for (const flag of parseToneFlags(saveSoundSettings?.tonePreset)) {
+          await appActions.toggleClipOverdubRootToneFlag(saveSoundIdeaId, saveSoundClipId, flag);
+        }
+        toastStore.show({
+          message: t("player.eqCopySaved"),
+          icon: "checkmark-outline",
+          action: { label: t("player.eqViewCopy"), onPress: () => handleQueueOpenIdea(saved.ideaId) },
+        });
+      } catch (error) {
+        // Haptics vocabulary: error, a failure the person meets.
+        haptic.error();
+        AppAlert.error(t("player.saveFailed"), userFacingMessage(error, t("player.eqSaveFailed")));
+      } finally {
+        setSavingSound(false);
       }
-      for (const flag of parseToneFlags(saveCopySound?.tonePreset)) {
-        await appActions.toggleClipOverdubRootToneFlag(saveCopyIdeaId, saveCopyClipId, flag);
-      }
-      toast(t("player.eqCopySaved"), "checkmark-outline");
-    } catch (error) {
-      // Haptics vocabulary: error, a failure the person meets.
-      haptic.error();
-      AppAlert.error(t("player.saveFailed"), userFacingMessage(error, t("player.eqCopyFailed")));
-    }
-  }, [effectiveIsPlaying, practicePitchTransport, saveCopyClipId, saveCopyClipTitle, saveCopyIdeaId, saveCopySound, t]);
+    },
+    [
+      effectiveIsPlaying,
+      handleQueueOpenIdea,
+      practicePitchTransport,
+      saveSoundClipId,
+      saveSoundClipTitle,
+      saveSoundIdeaId,
+      saveSoundSettings,
+      t,
+    ]
+  );
+  const handleSaveSound = useCallback(() => {
+    AppAlert.custom(t("player.eqSaveTitle"), t("player.eqSaveBody"), [
+      {
+        label: t("player.saveCopy"),
+        description: t("player.eqSaveCopyDesc"),
+        icon: actionIcons.copy,
+        onPress: () => void runSaveSound("copy"),
+      },
+      {
+        label: t("player.eqReplace"),
+        description: t("player.eqReplaceDesc"),
+        icon: actionIcons.convert,
+        style: "destructive",
+        onPress: () => void runSaveSound("replace"),
+      },
+      { label: t("common.cancel"), style: "cancel" },
+    ]);
+  }, [runSaveSound, t]);
   // A take with layers has Combine for this (it bakes the layers too).
   const offersSoundCopy = !!playerClip && !(playerClip.overdub?.stems?.length);
   // Every layer-mix control shares one shape: guard on a loaded clip, fire the action
@@ -2211,7 +2260,8 @@ function PlayerScreenInner({
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}
               soundAudioUri={playerClip?.audioUri ?? null}
-              onSaveSoundCopy={offersSoundCopy ? handleSaveSoundCopy : null}
+              onSaveSound={offersSoundCopy ? handleSaveSound : null}
+              savingSound={savingSound}
             />
           ) : (
             <PlayerSupportSections

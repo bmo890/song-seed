@@ -191,8 +191,10 @@ type PlayerPracticeDrawersProps = {
   sound: { gainDb: number; tonePreset: string } | null;
   /** The take's own file, for the Sound strip's Auto. */
   soundAudioUri?: string | null;
-  /** Save the take's sound as a new clip; null where that is not offered. */
-  onSaveSoundCopy?: (() => Promise<void>) | null;
+  /** Save the take's sound (the caller asks: a new clip, or this one); null where that
+   *  is not offered. */
+  onSaveSound?: (() => void) | null;
+  savingSound?: boolean;
   /** The knob's value on release — absolute, in dB. */
   onCommitSoundLevel: (gainDb: number) => void;
   onToggleSoundTone: (flag: OverdubToneFlag) => void;
@@ -345,7 +347,8 @@ export function PlayerPracticeDrawers({
   onCommitSoundLevel,
   onToggleSoundTone,
   soundAudioUri = null,
-  onSaveSoundCopy = null,
+  onSaveSound = null,
+  savingSound = false,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
   // Step up reads in BPM only when the dial does, on a take that has a tempo.
@@ -1094,7 +1097,8 @@ export function PlayerPracticeDrawers({
           onCommitGain={onCommitSoundLevel}
           onToggleToneFlag={onToggleSoundTone}
           autoAudioUri={soundAudioUri}
-          onSaveCopy={onSaveSoundCopy}
+          onSave={onSaveSound}
+          saving={savingSound}
           testID="sound-strip"
         />
       ) : null}

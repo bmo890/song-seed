@@ -63,10 +63,13 @@ export type LevelToneStripProps = {
   /** The take's (or layer's) own file: offers Auto fix, which measures it and sets the
    *  level and tone here (domain/autoSound.ts). Absent, no Auto fix. */
   autoAudioUri?: string | null;
-  /** Save this sound as a new clip (founder, 2026-11-23: "add save as new clip"). The
-   *  key shows only while the level or tone is bent: there is something to save. Absent
-   *  (a layer's sheet, a take with layers, which has Combine), no key. */
-  onSaveCopy?: (() => Promise<void>) | null;
+  /** Save (founder, 2026-11-23: "its supposed to be just 'save', then user has option
+   *  of saving new copy or overwriting current copy"). The caller asks which. The key
+   *  shows only while the level or tone is bent: there is something to save. Absent (a
+   *  layer's sheet, a take with layers, which has Combine), no key. */
+  onSave?: (() => void) | null;
+  /** The save is running. */
+  saving?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -96,14 +99,14 @@ export function LevelToneStrip({
   onCommitGain,
   onToggleToneFlag,
   autoAudioUri = null,
-  onSaveCopy = null,
+  onSave = null,
+  saving = false,
   style,
   testID,
 }: LevelToneStripProps) {
   const { t } = useTranslation();
   const [dragDb, setDragDb] = useState<number | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [savingCopy, setSavingCopy] = useState(false);
   const auto = useAutoSound({ gainDb, tonePreset, onCommitGain, onToggleToneFlag, audioUri: autoAudioUri });
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
@@ -150,25 +153,22 @@ export function LevelToneStrip({
         </Text>
         {/* On this line, not its own (founder: "make sure theres no scroll height added"):
             the line's height is fixed, so the key coming and going moves nothing. */}
-        {onSaveCopy && (gainDb !== 0 || toneBent || evenOn) ? (
+        {onSave && (gainDb !== 0 || toneBent || evenOn) ? (
           <InkKey
-            // Haptics vocabulary: tap, a control acted (the save's own result toasts).
+            // Haptics vocabulary: tap, a control acted (it opens the choice).
             haptic="tap"
             glyph={
-              savingCopy ? (
+              saving ? (
                 <Spinner size="small" color={inkKeyColor("idle")} />
               ) : (
-                <Ionicons name="duplicate-outline" size={17} color={inkKeyColor("idle")} />
+                <Ionicons name="save-outline" size={17} color={inkKeyColor("idle")} />
               )
             }
-            label={t("player.eqSaveCopy")}
-            accessibilityLabel={t("player.eqSaveCopyA11y")}
-            disabled={savingCopy}
-            onPress={() => {
-              setSavingCopy(true);
-              void onSaveCopy().finally(() => setSavingCopy(false));
-            }}
-            testID={testID ? `${testID}-save-copy` : undefined}
+            label={t("player.eqSave")}
+            accessibilityLabel={t("player.eqSaveA11y")}
+            disabled={saving}
+            onPress={onSave}
+            testID={testID ? `${testID}-save` : undefined}
           />
         ) : null}
         <HelpButton compact onPress={() => setHelpOpen(true)} />
