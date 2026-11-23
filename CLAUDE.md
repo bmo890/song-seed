@@ -90,6 +90,14 @@ The hard rules below are non-negotiable.
   list; a lane's wave rides the reel's own pan and zoom. Solo is a switch (any
   number at once): the main transport plays a solo mix (`services/soloMix.ts`),
   so there is one player and one playhead; the layer sheet has no audio of its own.
+- EQ (2026-11-23, founder's look): one strip (`common/LevelToneStrip`) in the
+  player's EQ tab, a layer's sheet and the Edit view's EQ tab; the Tools tabs read
+  Marks · Loop · Playback · EQ. Top line: the wand `InkKey` "Auto fix", what it
+  heard, "Save" only while the sound is bent, the `?`. No help text sits open on
+  the page. Tone is a mixer of `LitKey`s (the one boxed toggle: raised when out,
+  pressed with a lit lamp when in): Boost over Low / Mid / High over Cut, no
+  "flat" key, the lit one clears its band. Save asks New clip or Replace clip
+  (a replaced clip reads flat from then on); a new clip's toast carries View.
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
 - Menus (2026-10-15, founder picked "rows on paper"): every action menu is

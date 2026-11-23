@@ -407,7 +407,9 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 | Sheets | `common/BottomSheet.tsx` | The only sheet primitive. |
 | Title field | `common/TitleInput.tsx` | The one place a title is typed: soft-key shell (`radii.lg`, hairline `borderSubtle`), Lora 18 for the value, Jakarta placeholder, trailing keys (sparkle, clear) sized into the padding only when shown (2026-09-15). |
 | Metronome blocks | `common/metronome/MetronomeBlocks.tsx` | The one metronome vocabulary, shared by the recorder sheet and the Metronome page (2026-09-16). `MeterRow`: the eight meters on ONE line, small tabular keys, active = tonal wash. `FeelControl` ("Click on"): a glyph+word `SegmentedControl` of the feels players actually set for that meter (simple: beats/eighths/triplets/sixteenths · 5/4: 3+2/2+3/eighths · 7/8: its three groupings · compound: in two/three/four or eighths) + Custom, and the `BarStrip` under it — the bar as dots (filled accent, hollow click, small rest, ticks for sub-clicks), which becomes the editor in Custom (tap a pulse: accent → click → rest). Subdivision and grouping are never shown as separate questions. `CueRows` (2026-10-29, founder: "too much text"): Beep / Visual / Haptic as three `InkKey` switches on one line (glyph + word, terracotta ink on, muted off, no fill); beneath them only the settings of the cues that are on, each led by a glyph instead of a label (Beep: speaker-flanked volume slider + Click/Wood tabs; Haptic: phone glyph + three rising strength bars). No hint text. Rest-based feels appear only with `supportsSilentBeats`. |
-| Speed & pitch dials | `common/SpeedPitchDials.tsx` | The one speed/pitch idiom (slider + presets + serif value + per-dial reset + pitch tick rail). Player Sound drawer and the clip editor both use it; never re-implement ± steppers. |
+| Speed & pitch dials | `common/SpeedPitchDials.tsx` | The one speed/pitch idiom (slider + presets + serif value + per-dial reset + pitch tick rail). The player's Playback tab and the clip editor both use it; never re-implement ± steppers. |
+| EQ strip | `common/LevelToneStrip.tsx` | The one level-and-tone surface (founder, 2026-11-23), wherever sound is shaped: the player's **EQ** tab (the Tools tabs read Marks · Loop · Playback · EQ), a layer's sheet, the Edit view's EQ tab (`subject` clip / layer / draft picks the helper's words). Top line, fixed height so nothing that comes and goes moves the page: the wand `InkKey` "Auto fix" (terracotta while its choice stands; a second tap puts back what was there), a quiet line of what it heard ("Too loud · dull highs"), `InkKey` "Save" only while the sound is bent, and the compact `?`. No explanatory text sits open on the page; the helper holds it. Then Level (canon `Slider`, tabular dB readout, reset glyph once bent) with the "Even out" `Switch`, then Tone as a mixer: three columns, `LitKey` Boost over the band's name (Low, Mid, High: plain ink, not bold, air above and below) over `LitKey` Cut. There is no "flat" key: one of a band's two may be in, and tapping the lit one clears it. |
+| Saving a sound | `PlayerScreen` `handleSaveSound` | EQ is live and kept with the clip until Save. Save asks one question (`AppAlert.custom`): **New clip** (a copy titled "<title> EQ"; this clip goes back to flat) or **Replace clip** (the sound becomes the clip itself and its EQ reads flat from then on; destructive ink, last). A new clip's toast carries **View**, which jumps to it with the usual highlight flash. Saved renders are compressed (M4A). Not offered on a take with layers (its mix is the bench's job). |
 | Action sheets | `common/SelectionActionSheet.tsx` | **Max ~6 rows.** More than that means the screen's information architecture is wrong — split by intent or promote the top 1–2 actions inline. Only a row that opens another sheet or picker points onward (`opens: true` → chevron); terminal rows carry no trailing glyph. A second-level sheet names its parent (`onBack`) and wears a back key beside its title — drilling in is never a one-way door (2026-09-15). |
 | Overflow | `IconButton` `ellipsis-horizontal` → action sheet | |
 | Empty states | `common/EmptyState.tsx` | The ONLY "nothing here yet" surface (2026-09-08): icon ring · Lora title · one Jakarta line · at most one tonal soft key + one quiet ink link. `compact` inside a screen. No page carries a permanent intro paragraph — the empty state teaches once, the help sheet keeps the details. |
@@ -487,11 +489,15 @@ Two treatments, used everywhere so single vs. multi reads at a glance:
 - **Multi-select** (Stage filter, tag pickers) → **editorial ink**: options as
   words with a leading ink-dot (hollow `borderMuted` → filled `colors.primary`
   when on), generous hit-padding for thumb targets. No capsules, no chips.
-- **Equipment** (decided 2026-10-14) → the **`LitKey`**: a quiet white box with a
-  small lamp that glows terracotta when on. The one boxed toggle in the app, and
-  only for controls that are gear — the Sound room's tone presets, a layer's
-  sheet. A level is a **`Knob`** there, not a slider. Nothing else may
-  borrow either; a settings row or a filter is ink, never a key.
+- **Equipment** (2026-10-14; this look founder, 2026-11-23: "like a mixer - like a
+  button with a light when its engaged - 'pressed down'") → the **`LitKey`**
+  (`common/LitKey.tsx`): out, a raised white key with a whisper shadow and a
+  dark lamp over its word; in, it sits pressed (`surfaceHigh`, a shade under
+  its top lip, the word one point down in full ink) and the lamp lights
+  terracotta. The one boxed toggle in the app, and only for controls that are
+  gear: the EQ's Boost and Cut keys. Nothing else may borrow it; a settings row
+  or a filter is ink, never a key. A level is the canon `Slider` (the `Knob` was
+  retired with the Sound room).
 - Stage accent color comes from the shared `STAGE_INK` map (`StatusBadge`), never
   cold literals.
 
