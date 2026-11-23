@@ -39,7 +39,7 @@ import kotlin.math.sqrt
  * Tone stages mirror SongNookToneEQ on iOS: low-cut = first-order high-pass
  * 140 Hz, low-boost = low shelf +4 dB at 120 Hz, mid-boost = peak +4 dB at
  * 1.8 kHz (Q 1), hi-cut = low-pass 7.2 kHz, hi-boost = high shelf +4 dB at 8 kHz
- * (2026-11-22). Coefficients follow the RBJ Audio
+ * (2026-11-22), mid-cut = peak -4 dB at 600 Hz, Q 0.9 (2026-11-23). Coefficients follow the RBJ Audio
  * EQ Cookbook and the real sample rate.
  */
 @UnstableApi
@@ -66,6 +66,7 @@ class SoundChainAudioProcessor(
   private var lowCutOn = false
   private var lowBoostOn = false
   private var midBoostOn = false
+  private var midCutOn = false
   private var hiCutOn = false
   private var hiBoostOn = false
   private var evenOn = false
@@ -82,6 +83,7 @@ class SoundChainAudioProcessor(
   private var lowCutPrevOut = DoubleArray(0)
   private val lowShelf = Biquad()
   private val peak = Biquad()
+  private val midDip = Biquad()
   private val lowPass = Biquad()
   private val highShelf = Biquad()
 
@@ -143,6 +145,7 @@ class SoundChainAudioProcessor(
           x = y
         }
         if (lowBoostOn) x = lowShelf.run(c, x)
+        if (midCutOn) x = midDip.run(c, x)
         if (midBoostOn) x = peak.run(c, x)
         if (hiCutOn) x = lowPass.run(c, x)
         if (hiBoostOn) x = highShelf.run(c, x)
@@ -219,6 +222,9 @@ class SoundChainAudioProcessor(
     }
     if (nextLowBoost && !lowBoostOn) lowShelf.clear()
     if (nextMidBoost && !midBoostOn) peak.clear()
+    val nextMidCut = "mid-cut" in flags
+    if (nextMidCut && !midCutOn) midDip.clear()
+    midCutOn = nextMidCut
     if (nextHiCut && !hiCutOn) lowPass.clear()
     lowCutOn = nextLowCut
     lowBoostOn = nextLowBoost
@@ -242,6 +248,7 @@ class SoundChainAudioProcessor(
     lowCutPrevOut = DoubleArray(channels)
     lowShelf.lowShelf(sampleRate, 120.0, 4.0, 0.707, channels)
     peak.peaking(sampleRate, 1800.0, 4.0, 1.0, channels)
+    midDip.peaking(sampleRate, 600.0, -4.0, 0.9, channels)
     lowPass.lowPass(sampleRate, 7200.0, 0.707, channels)
     highShelf.highShelf(sampleRate, 8000.0, 4.0, 0.707, channels)
 

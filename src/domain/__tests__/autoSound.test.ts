@@ -37,12 +37,12 @@ function take({
 
 describe("Auto in the Sound drawer", () => {
   it("brings a quiet take up toward a comfortable level", () => {
-    expect(decideAutoSound(take({ levelDb: -30 }))).toEqual({ gainDb: 12, tonePreset: "neutral" });
-    expect(decideAutoSound(take({ levelDb: -26 }))).toEqual({ gainDb: 8, tonePreset: "neutral" });
+    expect(decideAutoSound(take({ levelDb: -30 }))).toEqual({ gainDb: 12, tonePreset: "neutral", heard: ["quiet"] });
+    expect(decideAutoSound(take({ levelDb: -26 }))).toEqual({ gainDb: 8, tonePreset: "neutral", heard: ["quiet"] });
   });
 
   it("leaves a take that already sits right alone", () => {
-    expect(decideAutoSound(take({ levelDb: -18.5 }))).toEqual({ gainDb: 0, tonePreset: "neutral" });
+    expect(decideAutoSound(take({ levelDb: -18.5 }))).toEqual({ gainDb: 0, tonePreset: "neutral", heard: [] });
   });
 
   it("brings a too-loud take down", () => {
@@ -97,7 +97,21 @@ describe("Auto in the Sound drawer", () => {
   });
 
   it("brightens a dull take (a phone in a pocket) that has no hiss to lift", () => {
-    expect(decideAutoSound(take({ levelDb: -24, high: 0.001 }))?.tonePreset).toBe("hi-boost");
+    expect(decideAutoSound(take({ levelDb: -24, high: 0.0004 }))?.tonePreset).toBe("hi-boost");
+  });
+
+  it("keeps its hands off an ordinary take: a soft voice, a strummed guitar", () => {
+    // A hummed melody has little above 6 kHz by nature; a strummed guitar's peaks stand
+    // about 20 dB over it. Neither is a fault, so the tone and Even stay off.
+    expect(decideAutoSound(take({ levelDb: -18, high: 0.002 }))?.tonePreset).toBe("neutral");
+    expect(decideAutoSound(take({ levelDb: -22, peakDb: -1 }))?.tonePreset).toBe("neutral");
+  });
+
+  it("says what it heard, in the order it is shown", () => {
+    const rehearsal = decideAutoSound(take({ levelDb: -28, rumble: 0.3, high: 0.3, peakDb: -3 }));
+    expect(rehearsal?.heard).toEqual(["quiet", "rumble", "harsh", "uneven"]);
+    expect(decideAutoSound(take({ levelDb: -10, peakDb: -0.1 }))?.heard).toEqual(["loud"]);
+    expect(decideAutoSound(take({ levelDb: -24, high: 0.0004 }))?.heard).toEqual(["quiet", "dull"]);
   });
 
   it("never brightens and darkens at once", () => {
@@ -115,5 +129,10 @@ describe("the high band's two directions", () => {
   it("lighting Hi boost puts out Hi cut, and the other way round", () => {
     expect(toggleToneFlag("low-cut+hi-cut", "hi-boost")).toBe("low-cut+hi-boost");
     expect(toggleToneFlag("hi-boost+even", "hi-cut")).toBe("hi-cut+even");
+  });
+
+  it("the middle has both directions too, and they exclude each other", () => {
+    expect(toggleToneFlag("low-cut+mid-boost", "mid-cut")).toBe("low-cut+mid-cut");
+    expect(toggleToneFlag("mid-cut", "mid-boost")).toBe("mid-boost");
   });
 });

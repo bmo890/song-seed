@@ -146,6 +146,9 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
     stereoMeter: null as StereoMeter | null,
     /** prepareRecording ran and the native recorder is armed but not started. */
     prepared: false,
+    /** Whether that armed recorder was asked for stereo: the native side fixes the take's
+     *  channels when it prepares, so a Stereo key flipped since needs a fresh one. */
+    preparedStereo: null as boolean | null,
     /** The next "recordingStopped" event is one we asked for, not an interruption. */
     expectedStop: false,
   };

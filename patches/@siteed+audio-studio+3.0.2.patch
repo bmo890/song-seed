@@ -396,7 +396,7 @@ index 12d30a2..1ad8772 100644
      }
  
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..31eab18 100644
+index 6f93aa4..de59992 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -735,6 +735,7 @@ index 6f93aa4..31eab18 100644
 +        "no"
 +    }
 +}
+\ No newline at end of file
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
 index a6c1d5a..c5211c8 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
@@ -992,8 +993,36 @@ index e0cb1bd..c04650d 100644
      /**
       * Encoding type for the recording.
       *
+diff --git a/node_modules/@siteed/audio-studio/ios/AudioDeviceManager.swift b/node_modules/@siteed/audio-studio/ios/AudioDeviceManager.swift
+index 585bdc4..1d9991f 100644
+--- a/node_modules/@siteed/audio-studio/ios/AudioDeviceManager.swift
++++ b/node_modules/@siteed/audio-studio/ios/AudioDeviceManager.swift
+@@ -405,6 +405,7 @@ class AudioDeviceManager {
+             // Set the preferred input device
+             Logger.debug("AudioDeviceManager", "Setting preferred input to: \(selectedPort.portName) (ID: \(selectedPort.uid))")
+             try session.setPreferredInput(selectedPort)
++            SongNookStereoState.pinnedInput = false // SongNook: the writer's choice now
+             
+             // Verify selection
+             if let currentInput = session.currentRoute.inputs.first {
+@@ -456,6 +457,7 @@ class AudioDeviceManager {
+ 
+             Logger.debug("AudioDeviceManager", "Setting preferred input to: \(portToSet.portName) (ID: \(portToSet.uid)) (async)")
+             try session.setPreferredInput(portToSet)
++            SongNookStereoState.pinnedInput = false // SongNook: the writer's choice now
+              // Add a small delay hoping the system applies the change before potential next operations
+             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+ 
+@@ -545,6 +547,7 @@ class AudioDeviceManager {
+             
+             // Setting preferred input to nil lets the system choose the default
+             try session.setPreferredInput(nil)
++            SongNookStereoState.pinnedInput = false // SongNook: nothing is pinned any more
+             
+             // Log the device after reset
+             if let newDevice = session.currentRoute.inputs.first {
 diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
-index deec895..29be7e7 100644
+index deec895..13f053f 100644
 --- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 +++ b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 @@ -44,6 +44,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
@@ -1073,21 +1102,26 @@ index deec895..29be7e7 100644
              self.processAudioBuffer(buffer)
              self.lastBufferTime = time
          }
-@@ -814,6 +847,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -814,6 +847,18 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
      ///   - settings: The recording settings to use.
      /// - Returns: A boolean indicating if preparation was successful.
      func prepareRecording(settings: RecordingSettings) -> Bool {
 +        // SongNook: decide mono or stereo before the file's header is written.
 +        var settings = settings
-+        if settings.songNookStereo {
-+            settings.numberOfChannels = songNookStereoRouteReady() ? 2 : 1
++        if isPrepared || isRecording {
++            // Already set up: the take's channels were decided then (the header is written).
++            settings.numberOfChannels = recordingSettings?.numberOfChannels ?? settings.numberOfChannels
++        } else if settings.songNookStereo && songNookStereoRouteReady() {
++            settings.numberOfChannels = 2
 +        } else {
++            if settings.songNookStereo { settings.numberOfChannels = 1 }
++            // A mono take: undo what an earlier stereo take changed on the session.
 +            songNookClearStereoPattern()
 +        }
          // Store settings first before doing anything else
          recordingSettings = settings
          
-@@ -859,6 +899,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -859,6 +904,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
          lastEmittedCompressedSize = 0
          lastEmittedCompressedSizeAnalysis = 0
          isPaused = false
@@ -1096,7 +1130,7 @@ index deec895..29be7e7 100644
  
          // Create recording file first (unless primary output is disabled)
          if settings.output.primary.enabled {
-@@ -932,9 +974,26 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -932,9 +979,27 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
              Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.output.compressed.enabled)")
  
@@ -1104,6 +1138,7 @@ index deec895..29be7e7 100644
 +            // the built-in mic's stereo pattern, set after the category it lives under.
 +            if newSettings.numberOfChannels == 2 && newSettings.songNookStereo {
 +                if !songNookApplyStereo() {
++                    songNookClearStereoPattern()
 +                    newSettings.numberOfChannels = 1
 +                    recordingSettings = newSettings
 +                    songNookRewriteHeader()
@@ -1123,7 +1158,7 @@ index deec895..29be7e7 100644
              // Log tap configuration
              Logger.debug("AudioStreamManager", "Final Tap Configuration (Using Hardware Format):")
              Logger.debug("AudioStreamManager", "  - Tap Format: \(describeAudioFormat(tapFormat))")
-@@ -1027,6 +1086,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1027,6 +1092,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
      ///   - settings: The recording settings to use.
      /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
      func startRecording(settings: RecordingSettings) -> StartRecordingResult? {
@@ -1131,16 +1166,16 @@ index deec895..29be7e7 100644
          // If already prepared, use the prepared state
          if isPrepared {
              Logger.debug("Using prepared recording state")
-@@ -1227,6 +1287,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1227,6 +1293,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
          guard isRecording, isPaused else { return }
- 
+         
          Logger.debug("Resuming recording...")
 +        // SongNook: a resume after a full disk tries writing again (a later failure pauses again).
 +        songNookFileWriteQueue.async { [weak self] in self?.songNookWriteFailed = false }
- 
+         
          // Calculate and add the pause duration if we have a pause start time
          if let pauseStart = currentPauseStart {
-@@ -1487,6 +1549,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1487,6 +1555,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              }
          }
  
@@ -1160,7 +1195,7 @@ index deec895..29be7e7 100644
          // 2. Convert format if the (potentially resampled) buffer's format doesn't match the target
          if bufferToProcess.format.commonFormat != targetFormat {
              guard let targetAVFormat = AVAudioFormat(
-@@ -1515,16 +1590,27 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1515,16 +1596,27 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
  
          // Create an immutable copy for background/event emission
          let dataToWrite = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
@@ -1189,7 +1224,7 @@ index deec895..29be7e7 100644
                  do {
                      try handle.seekToEnd()
                      try handle.write(contentsOf: dataToWrite)
-@@ -1533,7 +1619,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1533,7 +1625,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                      // Cache WAV file size for performance
                      self.cachedWavFileSize = self.totalDataSize
                  } catch {
@@ -1205,7 +1240,15 @@ index deec895..29be7e7 100644
                  }
              }
          } else {
-@@ -1908,6 +2001,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1687,6 +1786,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+             if wasRunning { audioEngine.stop() }
+             audioEngine.inputNode.removeTap(onBus: 0)
+             try AVAudioSession.sharedInstance().setPreferredInput(port)
++            SongNookStereoState.pinnedInput = false // the input is the writer's choice now
+             Thread.sleep(forTimeInterval: 0.15)
+             audioEngine.reset()
+             _ = installTapWithHardwareFormat()
+@@ -1908,6 +2008,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              accumulatedAnalysisData.removeAll()
              recordingUUID = nil
              totalDataSize = 0
@@ -1214,7 +1257,7 @@ index deec895..29be7e7 100644
              
              stopping = false
              return result
-@@ -1950,11 +2045,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1950,11 +2052,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
          )
          
          // Perform file operations asynchronously after returning result
@@ -1224,14 +1267,14 @@ index deec895..29be7e7 100644
 +        // nil", and the header could state less than the file holds).
 +        songNookFileWriteQueue.async { [weak self] in
              guard let self = self else { return }
- 
+             
              // Update WAV header in background
 -            let finalDataChunkSize = capturedTotalDataSize - Int64(WAV_HEADER_SIZE)
 +            let finalDataChunkSize = max(capturedTotalDataSize, self.totalDataSize) - Int64(WAV_HEADER_SIZE)
              if finalDataChunkSize > 0 {
                  self.updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
                  Logger.debug("Background: WAV header updated. Data chunk size: \(finalDataChunkSize)")
-@@ -1974,6 +2072,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1974,6 +2079,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              self.accumulatedAnalysisData.removeAll()
              self.recordingUUID = nil
              self.totalDataSize = 0
@@ -1240,7 +1283,7 @@ index deec895..29be7e7 100644
              self.cachedWavFileSize = 0
              self.cachedCompressedFileSize = 0
              self.recordingFileURL = nil
-@@ -2009,6 +2109,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -2009,6 +2116,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
          case phoneCall = "phoneCall"
          case phoneCallEnded = "phoneCallEnded"
          case recordingStopped = "recordingStopped"
@@ -1249,7 +1292,7 @@ index deec895..29be7e7 100644
          case deviceConnected = "deviceConnected"
      }
  
-@@ -2136,6 +2238,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -2136,6 +2245,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                  guard let self = self, self.isRecording else { return }
                  
                  // Process the buffer normally - processAudioBuffer handles all emission logic
@@ -1257,7 +1300,7 @@ index deec895..29be7e7 100644
                  self.processAudioBuffer(buffer)
                  self.lastBufferTime = time
              }
-@@ -2274,6 +2377,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -2274,6 +2384,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              mode = audioSessionConfig.mode
              options = audioSessionConfig.categoryOptions
          }
@@ -1269,12 +1312,23 @@ index deec895..29be7e7 100644
          
          // Append necessary options for background recording if keepAwake is enabled
          if settings.keepAwake {
-@@ -2367,3 +2475,124 @@ extension AudioStreamManager: AVAudioRecorderDelegate {
+@@ -2367,3 +2482,160 @@ extension AudioStreamManager: AVAudioRecorderDelegate {
          }
      }
  }
 +
-+// MARK: - SongNook stereo (Pro setting, 2026-11-22)
++/// SongNook: what a stereo take changed on the shared audio session, so the next mono
++/// take can put it back. One recorder, one session: plain statics.
++enum SongNookStereoState {
++    /// A stereo take's set-up is still on the session.
++    static var applied = false
++    /// The session had no preferred input before stereo pinned the built-in mic.
++    static var pinnedInput = false
++    /// The built-in mic's preferred data source before stereo chose its own.
++    static var priorDataSourceID: NSNumber?
++}
++
++// MARK: - SongNook stereo (2026-11-22)
 +//
 +// iOS 14+ can record stereo from two of the iPhone's built-in mics: pick a built-in data
 +// source that offers the stereo polar pattern, ask for it, and say which way the phone is
@@ -1307,10 +1361,16 @@ index deec895..29be7e7 100644
 +    /// The take will record from the built-in mic, and it can do stereo.
 +    func songNookStereoRouteReady() -> Bool {
 +        let session = AVAudioSession.sharedInstance()
-+        if let preferred = session.preferredInput, preferred.portType != .builtInMic { return false }
-+        if session.preferredInput == nil,
-+           let current = session.currentRoute.inputs.first,
-+           current.portType != .builtInMic { return false }
++        if SongNookStereoState.pinnedInput {
++            // The built-in mic is preferred only because an earlier stereo take pinned it, so
++            // the route says nothing. Left to itself the phone gives the take to any other
++            // input in reach (a headset, USB, a Bluetooth call mic): that take is mono.
++            if session.availableInputs?.contains(where: { $0.portType != .builtInMic }) == true { return false }
++        } else if let preferred = session.preferredInput {
++            if preferred.portType != .builtInMic { return false }
++        } else if let current = session.currentRoute.inputs.first, current.portType != .builtInMic {
++            return false
++        }
 +        return Self.songNookStereoSource(in: session) != nil
 +    }
 +
@@ -1321,6 +1381,13 @@ index deec895..29be7e7 100644
 +        guard let found = Self.songNookStereoSource(in: session) else { return false }
 +        let port = found.port
 +        let source = found.source
++        // Remember what the session had, once, so a later mono take can put it back
++        // (songNookClearStereoPattern): stereo picks its own mic and pins the built-in input.
++        if !SongNookStereoState.applied {
++            SongNookStereoState.applied = true
++            SongNookStereoState.pinnedInput = session.preferredInput == nil
++            SongNookStereoState.priorDataSourceID = port.preferredDataSource?.dataSourceID
++        }
 +        do {
 +            try source.setPreferredPolarPattern(.stereo)
 +            try port.setPreferredDataSource(source)
@@ -1335,16 +1402,28 @@ index deec895..29be7e7 100644
 +        }
 +    }
 +
-+    /// A mono take after a stereo one: put the built-in mic back to its own pattern, so the
-+    /// mono path does not inherit a two-channel input and keep only its left side.
++    /// A mono take after a stereo one: put the built-in mic back as it was. Its pattern, so
++    /// the mono path does not inherit a two-channel input and keep only its left side; the
++    /// mic it records from (stereo chose the front one); and the pin on the built-in input,
++    /// so a headset plugged in later is heard again (2026-11-23).
 +    func songNookClearStereoPattern() {
 +        guard #available(iOS 14.0, *) else { return }
 +        let session = AVAudioSession.sharedInstance()
-+        guard let builtIn = session.availableInputs?.first(where: { $0.portType == .builtInMic }),
-+              let sources = builtIn.dataSources else { return }
++        // Under a playback category the inputs are hidden: try again at the next take.
++        guard let builtIn = session.availableInputs?.first(where: { $0.portType == .builtInMic }) else { return }
++        let sources = builtIn.dataSources ?? []
 +        for source in sources where source.preferredPolarPattern == .stereo {
 +            try? source.setPreferredPolarPattern(nil)
 +        }
++        guard SongNookStereoState.applied else { return }
++        let prior = sources.first(where: { $0.dataSourceID == SongNookStereoState.priorDataSourceID })
++        try? builtIn.setPreferredDataSource(prior)
++        if SongNookStereoState.pinnedInput, session.preferredInput?.portType == .builtInMic {
++            try? session.setPreferredInput(nil)
++        }
++        SongNookStereoState.applied = false
++        SongNookStereoState.pinnedInput = false
++        SongNookStereoState.priorDataSourceID = nil
 +    }
 +
 +    /// The take's channel count changed after its header was written (prepare only: the

@@ -80,27 +80,35 @@ export function buildCombinedClipTitle(_idea: SongIdea, clip: ClipVersion) {
 // "hi-boost" joined the same day (founder: "yes add high boost"): a gentle lift of the top
 // for a dull take (a phone in a pocket, across the room). It and "hi-cut" are the high
 // band's two directions, so they exclude each other, as the low band's do.
-export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost", "even", "hi-boost"] as const;
+// "mid-cut" joined on 2026-11-23 (founder: "should we have cut/boost for all lo mids and
+// hi?"): a wide dip around 600 Hz, the boxy middle of a room recording. With it every band
+// has both directions; it and "mid-boost" exclude each other like the other pairs.
+export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost", "even", "hi-boost", "mid-cut"] as const;
 export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
 /** The keys' order in the Sound room's two-by-two bank: the low band's two
  *  directions on the first row, mid and high beneath. */
-export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-boost", "hi-cut", "hi-boost"];
+export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-cut", "mid-boost", "hi-cut", "hi-boost"];
 /** The tone keys as the drawer lays them out (2026-11-22): low to high, a band's two
- *  directions side by side in two columns (three were too tight for German's labels). */
+ *  directions side by side in two columns (three were too tight for German's labels):
+ *  cut on the left, boost on the right. */
 export const SOUND_TONE_KEY_ROWS: readonly (readonly OverdubToneFlag[])[] = [
   ["low-cut", "low-boost"],
-  ["mid-boost"],
+  ["mid-cut", "mid-boost"],
   ["hi-cut", "hi-boost"],
 ];
+/** The keys a binary older than 2026-11-22 cannot play (its sound chain ignores them):
+ *  hidden there, so an over-the-air update never shows a key that does nothing. */
+export const SOUND_KEYS_NEEDING_NEW_CHAIN: readonly OverdubToneFlag[] = ["even", "hi-boost", "mid-cut"];
 
 /** Flags that cannot both be on: the same band pulled two ways. */
 const EXCLUSIVE_TONE_FLAGS: Record<OverdubToneFlag, OverdubToneFlag | null> = {
   "low-cut": "low-boost",
   "low-boost": "low-cut",
-  "mid-boost": null,
+  "mid-boost": "mid-cut",
   "hi-cut": "hi-boost",
   even: null,
   "hi-boost": "hi-cut",
+  "mid-cut": "mid-boost",
 };
 
 /** True once any tone flag is on: the tab's dot and the group's reset key. */

@@ -792,7 +792,9 @@ export function useRecording(
 
       await timedStep("record.session", claimRecordingAudioSession());
       take.beginTake();
-      await timedStep("record.prepare", recorder.prepareRecording(buildRecordingConfig()));
+      const config = buildRecordingConfig();
+      await timedStep("record.prepare", recorder.prepareRecording(config));
+      take.facts.preparedStereo = config.stereo === true;
       take.facts.prepared = true;
       return true;
     } catch (err) {
@@ -851,7 +853,9 @@ export function useRecording(
         await timedStep("record.prewarm.input", applyPreferredInput());
         await timedStep("record.prewarm.session", claimRecordingAudioSession());
         take.beginTake();
-        await timedStep("record.prewarm.native", recorder.prepareRecording(buildRecordingConfig()));
+        const config = buildRecordingConfig();
+        await timedStep("record.prewarm.native", recorder.prepareRecording(config));
+        take.facts.preparedStereo = config.stereo === true;
         take.facts.prepared = true;
         prewarmedRef.current = true;
         endRecordTrace("warm", "ok");
@@ -1019,6 +1023,23 @@ export function useRecording(
         haptic.error();
         AppAlert.info(t("recording.noSpaceTitle"), t("recording.noSpaceBody"));
         return false;
+      }
+      // The Stereo key was flipped after this recorder was prepared. The flip prepares a
+      // fresh one itself, but a record tap that lands with it wins the race and would
+      // start the old one: a take in the other channel count than its key shows.
+      if (
+        Platform.OS === "ios" &&
+        take.facts.prepared &&
+        take.facts.preparedStereo !== wantsStereoTake(take.facts.stereoForTake)
+      ) {
+        take.facts.prepared = false;
+        prewarmedRef.current = false;
+        try {
+          take.facts.expectedStop = true;
+          await recorder.stopRecording();
+        } catch {
+          take.facts.expectedStop = false;
+        }
       }
       if (!take.facts.prepared) {
         const prepared = await prepareRecording();

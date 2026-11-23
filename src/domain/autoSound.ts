@@ -23,9 +23,16 @@ import { clampSoundLevelDb, formatToneFlags, type OverdubToneFlag } from "./over
  *            quiet and loud parts, or its peaks stand far above it (a drum kit against
  *            a voice).
  *
- * Low boost and Mid boost are matters of taste, so Auto leaves them off.
+ * Low boost and the mid keys are matters of taste, so Auto leaves them off.
+ *
+ * Auto is the easy button (founder, 2026-11-23: "a quick easy button to flatten things out
+ * for an easy general sound with nothing too extreme"): it acts only on what is plainly
+ * wrong, and an ordinary take (a soft voice, a strummed guitar) keeps its tone. It also
+ * says what it heard, in a word or two each (`heard`), so the change explains itself.
  */
-export type AutoSound = { gainDb: number; tonePreset: string };
+/** What Auto found wrong, in the order it is said. */
+export type AutoFinding = "quiet" | "loud" | "rumble" | "harsh" | "hiss" | "dull" | "uneven";
+export type AutoSound = { gainDb: number; tonePreset: string; heard?: AutoFinding[] };
 
 /** Where the level lands: a lively phone-take loudness, not mastered-loud. */
 export const AUTO_TARGET_DB = -18;
@@ -45,15 +52,18 @@ const HARSH_SHARE = 0.25;
 const HISS_SHARE = 0.5;
 /** Hiss this loud after the lift is heard. */
 const AUDIBLE_HISS_DB = -50;
-/** Under this share of the playing's power above ~6 kHz, a take sounds dull. */
-const DULL_SHARE = 0.004;
+/** Under this share of the playing's power above ~6 kHz, a take is muffled. Kept low: a
+ *  hummed melody or a soft voice has little up there by nature (0.2–1%), and brightening
+ *  it would only lift the room's hiss. */
+const DULL_SHARE = 0.001;
 /** Even: the playing's loud parts (95th percentile) this far above its quiet ones
  *  (10th), counting windows within RANGE_GATE_DB of the average (deeper than that is
  *  the room between songs, not quiet playing)... */
 const WIDE_RANGE_DB = 15;
 const RANGE_GATE_DB = 18;
-/** ...or its peaks this far above its loudness (drums; a voice alone sits nearer 15). */
-const DRUM_CREST_DB = 20;
+/** ...or its peaks this far above its loudness (drums; a voice alone sits nearer 15, a
+ *  strummed acoustic guitar near 20, and neither needs evening out). */
+const DRUM_CREST_DB = 23;
 
 const toDb = (linear: number) => 20 * Math.log10(Math.max(linear, 1e-9));
 const powerDb = (power: number) => 10 * Math.log10(Math.max(power, 1e-18));
@@ -82,7 +92,13 @@ export function decideAutoSound(analysis: NativeSoundAnalysis): AutoSound | null
   const gainDb = clampSoundLevelDb(gain);
 
   const flags: OverdubToneFlag[] = [];
-  if (meanPower(playing, analysis.sub) / playingPower > RUMBLE_SHARE) flags.push("low-cut");
+  const heard: AutoFinding[] = [];
+  if (gainDb > 0) heard.push("quiet");
+  else if (gainDb < 0) heard.push("loud");
+  if (meanPower(playing, analysis.sub) / playingPower > RUMBLE_SHARE) {
+    flags.push("low-cut");
+    heard.push("rumble");
+  }
 
   const harsh = meanPower(playing, analysis.high) / playingPower > HARSH_SHARE;
   // The quiet parts: sounding, but below the playing. Hiss lives there.
@@ -93,8 +109,13 @@ export function decideAutoSound(analysis: NativeSoundAnalysis): AutoSound | null
     const quietHighShare = meanPower(quiet, analysis.high) / Math.max(quietPower, 1e-18);
     hiss = quietHighShare > HISS_SHARE && powerDb(quietPower) + gainDb > AUDIBLE_HISS_DB;
   }
-  if (harsh || hiss) flags.push("hi-cut");
-  else if (meanPower(playing, analysis.high) / playingPower < DULL_SHARE) flags.push("hi-boost");
+  if (harsh || hiss) {
+    flags.push("hi-cut");
+    heard.push(harsh ? "harsh" : "hiss");
+  } else if (meanPower(playing, analysis.high) / playingPower < DULL_SHARE) {
+    flags.push("hi-boost");
+    heard.push("dull");
+  }
 
   const ranged = sounding
     .filter((i) => toDb(analysis.rms[i]) >= ungatedDb - RANGE_GATE_DB)
@@ -102,7 +123,10 @@ export function decideAutoSound(analysis: NativeSoundAnalysis): AutoSound | null
     .sort((a, b) => a - b);
   const percentile = (p: number) => ranged[Math.min(ranged.length - 1, Math.floor(p * ranged.length))];
   const wideRange = ranged.length >= 10 && percentile(0.95) - percentile(0.1) > WIDE_RANGE_DB;
-  if (wideRange || peakDb - loudnessDb > DRUM_CREST_DB) flags.push("even");
+  if (wideRange || peakDb - loudnessDb > DRUM_CREST_DB) {
+    flags.push("even");
+    heard.push("uneven");
+  }
 
-  return { gainDb, tonePreset: formatToneFlags(flags) };
+  return { gainDb, tonePreset: formatToneFlags(flags), heard };
 }

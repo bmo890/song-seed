@@ -4,7 +4,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 jest.mock("expo-haptics", () => ({}));
 jest.mock("../../../services/autoSound", () => ({
   isAutoSoundAvailable: () => true,
-  suggestAutoSound: jest.fn(async () => ({ gainDb: 9, tonePreset: "low-cut" })),
+  suggestAutoSound: jest.fn(async () => ({ gainDb: 9, tonePreset: "low-cut", heard: ["quiet", "rumble"] })),
 }));
 
 import React from "react";
@@ -54,12 +54,16 @@ describe("the Sound strip's Auto", () => {
     });
     expect(sound).toEqual({ gainDb: 9, tonePreset: "low-cut" });
     expect(autoKey(r!).props.tone).toBe("active");
+    // It says what it heard while its choice stands, and stops once it is undone.
+    const heard = () => r!.root.findAll((n) => n.props.testID === "strip-auto-heard" && typeof n.props.children === "string");
+    expect(heard()[0]?.props.children).toBe("Too quiet · Low rumble");
 
     await act(async () => {
       await autoKey(r!).props.onPress();
     });
     expect(sound).toEqual({ gainDb: 0, tonePreset: "mid-boost" });
     expect(autoKey(r!).props.tone).toBe("idle");
+    expect(heard()).toHaveLength(0);
     await act(async () => r!.unmount());
   });
 

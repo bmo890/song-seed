@@ -1422,7 +1422,7 @@ export const es = {
     chartBars_many: "{{count}} compases",
     solo: "Solo",
     mute: "Silencio",
-    hiCut: "Corte de agudos", hiBoost: "Realce de agudos",
+    hiCut: "Corte de agudos", hiBoost: "Realce de agudos", midCut: "Corte de medios", autoHeardQuiet: "Muy bajo", autoHeardLoud: "Muy alto", autoHeardRumble: "Retumbo grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Siseo", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nivel desigual",
     midBoost: "Realce de medios",
     editLyrics: "Editar letra",
     editChart: "Editar cifrado",

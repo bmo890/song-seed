@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import type { StereoVerdict } from "../domain/stereoDownmix";
@@ -9,9 +10,13 @@ import type { StereoVerdict } from "../domain/stereoDownmix";
  * Two answers combine. The native recorder says whether the phone OFFERS stereo: Android
  * at once (two or more built-in mics), iOS only while the audio session allows input, so
  * outside a take it may answer "unknown" and the recorder asks again once its session is
- * up. Then the phone's own takes say whether it DELIVERS it: a take whose two channels
- * are one signal copied, or with one side silent, marks this phone as mono for good
- * (domain/stereoDownmix.ts `judgeStereo`), unless a real stereo take was heard first.
+ * up. Then an Android phone's own takes say whether it DELIVERS it: takes whose two
+ * channels are one signal copied, or with one side silent (domain/stereoDownmix.ts
+ * `judgeStereo`). One such take only raises a doubt (a finger or a case over one mic
+ * reads the same); a second, with no real stereo take between, marks the phone as mono.
+ * A real stereo take, once heard, settles it the other way for good. iPhones are never
+ * judged: their stereo is Apple's own, and a take that came out as one signal there is a
+ * route that fell back to a headset, not the hardware (2026-11-23).
  * The finding is kept on this phone only (not in backups: it is about the hardware).
  *
  * The stereo switches are hidden only on a definite "no".
@@ -19,7 +24,7 @@ import type { StereoVerdict } from "../domain/stereoDownmix";
 export type StereoSupport = "yes" | "no" | "unknown";
 
 const VERDICT_KEY = "songnook.stereoVerdict";
-type DeviceVerdict = "verified" | "fake" | null;
+type DeviceVerdict = "verified" | "doubted" | "fake" | null;
 
 let offered: StereoSupport = "unknown";
 let deviceVerdict: DeviceVerdict = null;
@@ -44,7 +49,7 @@ function loadVerdictOnce() {
   verdictLoaded = true;
   void AsyncStorage.getItem(VERDICT_KEY)
     .then((raw) => {
-      if (raw === "verified" || raw === "fake") {
+      if (raw === "verified" || raw === "doubted" || raw === "fake") {
         deviceVerdict = raw;
         publish();
       }
@@ -71,26 +76,42 @@ export function refreshStereoSupport(): StereoSupport {
   return current();
 }
 
+function keepVerdict(next: Exclude<DeviceVerdict, null>) {
+  deviceVerdict = next;
+  void AsyncStorage.setItem(VERDICT_KEY, next).catch(() => {});
+}
+
 /**
- * What a finished stereo take showed. Returns true when this take is the one that found
- * the phone fakes stereo (the caller says so once).
+ * What a finished stereo take showed. Returns true when this take is the one that settled
+ * that the phone fakes stereo (the caller says so once).
  */
-export function noteStereoTake(verdict: StereoVerdict): boolean {
-  if (verdict === "unsure") return false;
+export function noteStereoTake(verdict: StereoVerdict, platform: string = Platform.OS): boolean {
+  if (platform !== "android" || verdict === "unsure") return false;
   if (verdict === "stereo") {
     if (deviceVerdict !== "verified") {
-      deviceVerdict = "verified";
-      void AsyncStorage.setItem(VERDICT_KEY, "verified").catch(() => {});
+      keepVerdict("verified");
+      publish();
     }
     return false;
   }
   // A phone heard in real stereo once keeps it: a later copied take is a route that fell
   // back mid-take (a headset plugged in), not the hardware.
-  if (deviceVerdict !== null) return false;
-  deviceVerdict = "fake";
-  void AsyncStorage.setItem(VERDICT_KEY, "fake").catch(() => {});
+  if (deviceVerdict === "verified" || deviceVerdict === "fake") return false;
+  if (deviceVerdict === null) {
+    keepVerdict("doubted");
+    return false;
+  }
+  keepVerdict("fake");
   publish();
   return true;
+}
+
+/** Tests only: forget what the takes showed. */
+export function resetStereoVerdictForTests() {
+  deviceVerdict = null;
+  verdictLoaded = true;
+  offered = "unknown";
+  lastPublished = current();
 }
 
 export function getStereoSupport(): StereoSupport {

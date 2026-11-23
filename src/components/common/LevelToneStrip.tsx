@@ -6,13 +6,14 @@ import {
   SOUND_LEVEL_DETENT_DB,
   SOUND_LEVEL_MAX_DB,
   SOUND_LEVEL_MIN_DB,
+  SOUND_KEYS_NEEDING_NEW_CHAIN,
   SOUND_TONE_KEY_ROWS,
   clampSoundLevelDb,
   hasToneFlag,
   parseToneFlags,
   type OverdubToneFlag,
 } from "../../domain/overdub";
-import { colors, text } from "../../design/tokens";
+import { colors, spacing, text } from "../../design/tokens";
 import { InkOption } from "./InkOption";
 import { Slider } from "./Slider";
 import { Press } from "./Press";
@@ -22,7 +23,7 @@ import { Spinner } from "./Spinner";
 import { toast } from "./toastStore";
 import { haptic } from "../../design/haptics";
 import { formatToneFlags } from "../../domain/overdub";
-import type { AutoSound } from "../../domain/autoSound";
+import type { AutoFinding, AutoSound } from "../../domain/autoSound";
 import { isAutoSoundAvailable, suggestAutoSound } from "../../services/autoSound";
 
 /** i18n keys for the tone keys, by flag. */
@@ -32,7 +33,19 @@ const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
   "hi-cut": "player.hiCut",
   "hi-boost": "player.hiBoost",
   "mid-boost": "player.midBoost",
+  "mid-cut": "player.midCut",
   even: "player.even",
+};
+
+/** What Auto heard, a word or two each: the line beside its key. */
+const AUTO_HEARD_LABEL_KEYS: Record<AutoFinding, string> = {
+  quiet: "player.autoHeardQuiet",
+  loud: "player.autoHeardLoud",
+  rumble: "player.autoHeardRumble",
+  harsh: "player.autoHeardHarsh",
+  hiss: "player.autoHeardHiss",
+  dull: "player.autoHeardDull",
+  uneven: "player.autoHeardUneven",
 };
 
 export type LevelToneStripProps = {
@@ -76,6 +89,12 @@ export function LevelToneStrip({
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
   const evenOn = hasToneFlag(tonePreset, "even");
+  // Even, Hi boost and Mid cut arrived with the native measurer (one binary): on an older
+  // one the sound chain ignores them, so their keys stay away.
+  const newChain = isAutoSoundAvailable();
+  const toneRows = SOUND_TONE_KEY_ROWS.map((row) =>
+    row.filter((flag) => newChain || !SOUND_KEYS_NEEDING_NEW_CHAIN.includes(flag))
+  ).filter((row) => row.length > 0);
   // The tone keys only: Even rides the same encoding but belongs to Level.
   const toneFlagsOn = parseToneFlags(tonePreset).filter((flag) => flag !== "even");
   const toneBent = toneFlagsOn.length > 0;
@@ -106,6 +125,13 @@ export function LevelToneStrip({
             onPress={auto.toggle}
             testID={testID ? `${testID}-auto` : undefined}
           />
+          {/* What Auto heard (founder, 2026-11-23: "a quick explanation of what was
+              adjusted"): a quiet line in place while its choice stands, not a popup. */}
+          {auto.heard.length > 0 ? (
+            <Text style={s.autoHeard} numberOfLines={2} testID={testID ? `${testID}-auto-heard` : undefined}>
+              {auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")}
+            </Text>
+          ) : null}
         </View>
       ) : null}
       <View style={s.group}>
@@ -138,14 +164,16 @@ export function LevelToneStrip({
         />
         {/* Even (2026-11-22): gentle compression, so the loud parts and the quiet
             ones sit closer. Level's own switch, beside the slider it relates to. */}
-        <View style={s.options}>
-          <InkOption
-            label={t("player.even")}
-            selected={evenOn}
-            onPress={() => onToggleToneFlag("even")}
-            testID={testID ? `${testID}-even` : undefined}
-          />
-        </View>
+        {newChain ? (
+          <View style={s.options}>
+            <InkOption
+              label={t("player.even")}
+              selected={evenOn}
+              onPress={() => onToggleToneFlag("even")}
+              testID={testID ? `${testID}-even` : undefined}
+            />
+          </View>
+        ) : null}
       </View>
 
       <View style={s.group}>
@@ -161,7 +189,7 @@ export function LevelToneStrip({
             />
           ) : null}
         </View>
-        {SOUND_TONE_KEY_ROWS.map((row, rowIndex) => (
+        {toneRows.map((row, rowIndex) => (
           <View key={rowIndex} style={s.toneRow}>
             {row.map((flag) => (
               <View key={flag} style={s.toneCell}>
@@ -243,7 +271,13 @@ function useAutoSound({
     }
   }
 
-  return { offered: !!audioUri && isAutoSoundAvailable(), active, busy, toggle };
+  return {
+    offered: !!audioUri && isAutoSoundAvailable(),
+    active,
+    busy,
+    toggle,
+    heard: active && chosen ? chosen.auto.heard ?? [] : [],
+  };
 }
 
 /** A group's reset: a bare refresh glyph, shown only once there is something to
@@ -270,7 +304,13 @@ const s = StyleSheet.create({
   // Auto sets both groups below, so it sits above them.
   autoRow: {
     flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     marginBottom: -8,
+  },
+  autoHeard: {
+    ...text.supporting,
+    flex: 1,
   },
   group: {
     gap: 8,

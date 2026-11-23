@@ -1421,7 +1421,7 @@ export const pt = {
     chartBars_many: "{{count}} compassos",
     solo: "Solo",
     mute: "Mudo",
-    hiCut: "Corte de agudos", hiBoost: "Realce de agudos",
+    hiCut: "Corte de agudos", hiBoost: "Realce de agudos", midCut: "Corte de médios", autoHeardQuiet: "Baixo demais", autoHeardLoud: "Alto demais", autoHeardRumble: "Ronco grave", autoHeardHarsh: "Agudos ásperos", autoHeardHiss: "Chiado", autoHeardDull: "Agudos apagados", autoHeardUneven: "Nível desigual",
     midBoost: "Realce de médios",
     editLyrics: "Editar letra",
     editChart: "Editar cifra",

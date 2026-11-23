@@ -1,7 +1,7 @@
 import AVFoundation
 import AudioToolbox
 
-/// The take's tone, as one EQ node: four bands, each bypassed unless its flag is
+/// The take's tone, as one EQ node: six bands, each bypassed unless its flag is
 /// on. Shared by the practice engine (live) and the renderer (the mix bake), so a
 /// key in the Sound room and a bake of the mix sound the same.
 ///
@@ -12,6 +12,7 @@ import AudioToolbox
 ///   mid-boost = peak +4 dB at 1.8 kHz
 ///   hi-cut    = low-pass 7.2 kHz
 ///   hi-boost  = high shelf +4 dB at 8 kHz (2026-11-22)
+///   mid-cut   = peak -4 dB at 600 Hz, wide (2026-11-23): the boxy middle of a room
 /// The time-pitch unit's quality (2026-10-21). `overlap` is how many grains
 /// overlap per output sample, 3…32, default 8: more means fewer of the
 /// scratchy artifacts a shift adds, for more CPU. One stereo stream at 24 is
@@ -22,7 +23,7 @@ enum SongNookTimePitch {
 }
 
 enum SongNookToneEQ {
-  static let bandCount = 5
+  static let bandCount = 6
 
   static func makeNode() -> AVAudioUnitEQ {
     let node = AVAudioUnitEQ(numberOfBands: bandCount)
@@ -68,6 +69,13 @@ enum SongNookToneEQ {
     hiBoost.bandwidth = 0.8
     hiBoost.gain = 4
     hiBoost.bypass = !flags.contains("hi-boost")
+
+    let midCut = eqNode.bands[5]
+    midCut.filterType = .parametric
+    midCut.frequency = 600
+    midCut.bandwidth = 1.5
+    midCut.gain = -4
+    midCut.bypass = !flags.contains("mid-cut")
   }
 
   /// Even (2026-11-22): gentle compression after the tone keys and before the limiter,
@@ -92,7 +100,7 @@ enum SongNookToneEQ {
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_ExpansionRatio, global, 0, 1, 0)
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_AttackTime, global, 0, 0.010, 0)
     AudioUnitSetParameter(unit, kDynamicsProcessorParam_ReleaseTime, global, 0, 0.200, 0)
-    AudioUnitSetParameter(unit, kDynamicsProcessorParam_OutputGain, global, 0, 5, 0)
+    AudioUnitSetParameter(unit, kDynamicsProcessorParam_OverallGain, global, 0, 5, 0)
     node.bypass = true
     return node
   }
