@@ -470,12 +470,14 @@ const s = StyleSheet.create({
     flex: 1,
     gap: spacing.sm,
   },
-  // The strip's name is what the two keys are about: full ink, a size up.
+  // The strip's name, between its two keys: plain ink, with air above and below
+  // (founder, 2026-11-23: "doesnt need to be bold. just needs a bit more vertical margin").
   mixerBand: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
     textAlign: "center",
     color: colors.textPrimary,
+    marginVertical: 6,
   },
   mixerGap: {
     minHeight: MIXER_KEY_HEIGHT,
