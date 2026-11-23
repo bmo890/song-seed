@@ -261,6 +261,38 @@ Your first month includes every tool, free, no card needed. After that, recordin
 New in the metronome: practice patterns. Build up to four bars, accent or silence any beat or sub-beat, and turn on a screen flash to see the beat from across the room.
 ```
 
+**What's new, 1.0.3 (both stores, ≤ 500 for Play; DRAFT 2026-11-23, founder to approve):**
+
+```
+Record in stereo with your phone's own microphones, free.
+Shape how a clip sounds: one tap to fix the level and tone, or set low, mid and high yourself. Keep it as a new clip or save it over the original. Also in the clip editor.
+Metronome practice: beats drop out at random, so you learn to hold the tempo on your own.
+```
+
+```he
+הקלטה בסטריאו עם המיקרופונים של הטלפון, בחינם.
+עיצוב הצליל של קטע: הקשה אחת מתקנת עוצמה וגוון, או שמכוונים בעצמכם נמוכים, אמצע וגבוהים. שומרים כקטע חדש או במקום המקור. זמין גם בעריכת קטע.
+תרגול במטרונום: פעמות נעלמות באקראי, כדי ללמוד להחזיק את הקצב לבד.
+```
+
+```es
+Graba en estéreo con los micrófonos del teléfono, gratis.
+Da forma al sonido de un clip: un toque corrige nivel y tono, o ajusta tú graves, medios y agudos. Guárdalo como clip nuevo o sobre el original. También en el editor de clips.
+Práctica con metrónomo: algunos pulsos desaparecen al azar, para que aprendas a sostener el tempo solo.
+```
+
+```de
+Nimm in Stereo mit den Mikrofonen deines Telefons auf, kostenlos.
+Forme den Klang eines Clips: Ein Tipp korrigiert Pegel und Klang, oder stell Tiefen, Mitten und Höhen selbst ein. Als neuen Clip behalten oder über das Original speichern. Auch im Clip-Editor.
+Üben mit dem Metronom: Schläge fallen zufällig weg, damit du das Tempo selbst hältst.
+```
+
+```pt
+Grave em estéreo com os microfones do telefone, de graça.
+Molde o som de um clipe: um toque corrige nível e tom, ou ajuste você mesmo graves, médios e agudos. Guarde como clipe novo ou salve por cima do original. Também no editor de clipes.
+Prática com metrônomo: batidas somem ao acaso, para você aprender a manter o andamento sozinho.
+```
+
 **Apple only, appended (required for auto-renewing Pro):**
 
 ```
@@ -322,6 +354,11 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
   page carries the six new screens (`public/screens/he/`, deployed 6c4e82ac).
 - **Apple approved 1.0.2, 2026-11-17** (email "Review of your SongNook (iOS) submission is
   complete", submission 421b1379). Manual release: live once the founder presses Release.
+
+- **2026-11-23: 1.0.2 released on Apple by the founder.** 1.0.3 gets its own update channel
+  version (`runtimeVersion` 1.0.3 in app.json; every earlier store build is 1.0.0), so an
+  over-the-air update from main reaches 1.0.3 phones only. A JS fix for phones still on 1.0.x
+  must be published from a branch at the 1.0.2 version commit (``) with runtime 1.0.0.
 
 ---
 
