@@ -1442,6 +1442,36 @@ function PlayerScreenInner({
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
   );
   handleSaveAsOneClipRef.current = handleSaveAsOneClip;
+  // EQ › Save copy (founder, 2026-11-23): the take's level and tone become a NEW clip with
+  // them baked in (marks, sections and grid carried over: same timeline; speed, pitch and
+  // the loop are practice settings and are not), and this take goes back to flat, so the
+  // two are the recording as it was and the recording as tuned. The player stays put.
+  const saveCopyIdeaId = playerIdea?.id;
+  const saveCopyClipId = playerClip?.id;
+  const saveCopyClipTitle = playerClip?.title;
+  const saveCopySound = data.overdubRootSettings;
+  const handleSaveSoundCopy = useCallback(async () => {
+    if (!saveCopyIdeaId || !saveCopyClipId) return;
+    if (effectiveIsPlaying) await practicePitchTransport.pause();
+    try {
+      await appActions.saveCombinedClipAsNewClip(saveCopyIdeaId, saveCopyClipId, {
+        title: `${saveCopyClipTitle ?? ""} EQ`.trim(),
+      });
+      if (saveCopySound && saveCopySound.gainDb !== 0) {
+        await appActions.adjustClipOverdubRootGain(saveCopyIdeaId, saveCopyClipId, -saveCopySound.gainDb);
+      }
+      for (const flag of parseToneFlags(saveCopySound?.tonePreset)) {
+        await appActions.toggleClipOverdubRootToneFlag(saveCopyIdeaId, saveCopyClipId, flag);
+      }
+      toast(t("player.eqCopySaved"), "checkmark-outline");
+    } catch (error) {
+      // Haptics vocabulary: error, a failure the person meets.
+      haptic.error();
+      AppAlert.error(t("player.saveFailed"), userFacingMessage(error, t("player.eqCopyFailed")));
+    }
+  }, [effectiveIsPlaying, practicePitchTransport, saveCopyClipId, saveCopyClipTitle, saveCopyIdeaId, saveCopySound, t]);
+  // A take with layers has Combine for this (it bakes the layers too).
+  const offersSoundCopy = !!playerClip && !(playerClip.overdub?.stems?.length);
   // Every layer-mix control shares one shape: guard on a loaded clip, fire the action
   // with (ideaId, clipId, ...args), and surface failures as a "Layer update failed"
   // alert — preferring the action's own error message over the control-specific fallback.
@@ -2181,6 +2211,7 @@ function PlayerScreenInner({
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}
               soundAudioUri={playerClip?.audioUri ?? null}
+              onSaveSoundCopy={offersSoundCopy ? handleSaveSoundCopy : null}
             />
           ) : (
             <PlayerSupportSections

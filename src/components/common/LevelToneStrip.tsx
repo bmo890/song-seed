@@ -63,6 +63,10 @@ export type LevelToneStripProps = {
   /** The take's (or layer's) own file: offers Auto fix, which measures it and sets the
    *  level and tone here (domain/autoSound.ts). Absent, no Auto fix. */
   autoAudioUri?: string | null;
+  /** Save this sound as a new clip (founder, 2026-11-23: "add save as new clip"). The
+   *  key shows only while the level or tone is bent: there is something to save. Absent
+   *  (a layer's sheet, a take with layers, which has Combine), no key. */
+  onSaveCopy?: (() => Promise<void>) | null;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -92,12 +96,14 @@ export function LevelToneStrip({
   onCommitGain,
   onToggleToneFlag,
   autoAudioUri = null,
+  onSaveCopy = null,
   style,
   testID,
 }: LevelToneStripProps) {
   const { t } = useTranslation();
   const [dragDb, setDragDb] = useState<number | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [savingCopy, setSavingCopy] = useState(false);
   const auto = useAutoSound({ gainDb, tonePreset, onCommitGain, onToggleToneFlag, audioUri: autoAudioUri });
   const shownDb = dragDb ?? gainDb;
   const levelBent = shownDb !== 0;
@@ -139,9 +145,32 @@ export function LevelToneStrip({
         ) : null}
         {/* What it heard (founder, 2026-11-23: "a quick explanation of what was
             adjusted"), only while its choice stands. */}
-        <Text style={s.autoLine} numberOfLines={1} testID={testID ? `${testID}-auto-line` : undefined}>
+        <Text style={s.autoLine} numberOfLines={2} testID={testID ? `${testID}-auto-line` : undefined}>
           {auto.heard.map((finding) => t(AUTO_HEARD_LABEL_KEYS[finding])).join(" · ")}
         </Text>
+        {/* On this line, not its own (founder: "make sure theres no scroll height added"):
+            the line's height is fixed, so the key coming and going moves nothing. */}
+        {onSaveCopy && (gainDb !== 0 || toneBent || evenOn) ? (
+          <InkKey
+            // Haptics vocabulary: tap, a control acted (the save's own result toasts).
+            haptic="tap"
+            glyph={
+              savingCopy ? (
+                <Spinner size="small" color={inkKeyColor("idle")} />
+              ) : (
+                <Ionicons name="duplicate-outline" size={17} color={inkKeyColor("idle")} />
+              )
+            }
+            label={t("player.eqSaveCopy")}
+            accessibilityLabel={t("player.eqSaveCopyA11y")}
+            disabled={savingCopy}
+            onPress={() => {
+              setSavingCopy(true);
+              void onSaveCopy().finally(() => setSavingCopy(false));
+            }}
+            testID={testID ? `${testID}-save-copy` : undefined}
+          />
+        ) : null}
         <HelpButton compact onPress={() => setHelpOpen(true)} />
       </View>
       <HelpSheet
@@ -407,11 +436,14 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    minHeight: 32,
+    // Fixed, so nothing that comes and goes on this line changes the page's height.
+    height: 36,
   },
   autoLine: {
     ...text.supporting,
     flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
   },
   group: {
     gap: 8,

@@ -23,6 +23,8 @@ type Rendered = { root: Node; update(element: React.ReactElement): void; unmount
 const { act } = TestRenderer;
 
 /** A take's sound held the way the player holds it: every change lands in state. */
+const saveCopy = jest.fn(async () => {});
+
 function Harness({ onState }: { onState: (sound: { gainDb: number; tonePreset: string }) => void }) {
   const [sound, setSound] = React.useState({ gainDb: 0, tonePreset: "mid-boost" });
   onState(sound);
@@ -35,6 +37,7 @@ function Harness({ onState }: { onState: (sound: { gainDb: number; tonePreset: s
         setSound((current) => ({ ...current, tonePreset: toggleToneFlag(current.tonePreset, flag) }))
       }
       autoAudioUri="file:///take.wav"
+      onSaveCopy={saveCopy}
       testID="strip"
     />
   );
@@ -91,6 +94,28 @@ describe("the Sound strip's Auto", () => {
     )[0];
     await act(async () => toneReset.props.onPress());
     expect(sound.tonePreset).toBe("even");
+    await act(async () => r!.unmount());
+  });
+
+  it("offers Save copy only while there is a sound to save", async () => {
+    let sound = { gainDb: 0, tonePreset: "" };
+    let r: Rendered | null = null;
+    await act(async () => {
+      r = TestRenderer.create(<Harness onState={(next) => (sound = next)} />);
+    });
+    const saveKey = () =>
+      r!.root.findAll((n) => n.props.testID === "strip-save-copy" && typeof n.props.onPress === "function")[0];
+    // The harness starts with Mid boost lit: something to save.
+    expect(saveKey()).toBeDefined();
+    await act(async () => saveKey().props.onPress());
+    expect(saveCopy).toHaveBeenCalledTimes(1);
+    // Flat again: nothing to save, no key.
+    const midBoost = r!.root.findAll(
+      (n) => n.props.testID === "strip-mid-boost" && typeof n.props.onPress === "function"
+    )[0];
+    await act(async () => midBoost.props.onPress());
+    expect(sound.tonePreset).toBe("neutral");
+    expect(saveKey()).toBeUndefined();
     await act(async () => r!.unmount());
   });
 

@@ -1914,7 +1914,11 @@ export const appActions = {
     saveCombinedClipAsNewClip: async (
         ideaId: string,
         clipId: string,
-        options?: { removeOriginalAfterExport?: boolean }
+        options?: {
+            removeOriginalAfterExport?: boolean;
+            /** The new clip's name; the combined title ("… Mix") when absent. */
+            title?: string;
+        }
     ) => {
         await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true });
         const state = useStore.getState();
@@ -1941,7 +1945,7 @@ export const appActions = {
 
         const now = Date.now();
         const removeOriginalAfterExport = !!options?.removeOriginalAfterExport;
-        const nextTitle = buildCombinedClipTitle(match.idea, match.clip);
+        const nextTitle = options?.title?.trim() || buildCombinedClipTitle(match.idea, match.clip);
         // "Replace" drops the source take from the library; its files (take, source,
         // rendered mix, every layer) used to stay on the phone with nothing pointing
         // at them. They go to the trash once the new library is durable.
