@@ -22,12 +22,17 @@ test("a save names a known line and keeps only typed forms", () => {
   const save = parseSave({ itemId: first.id, forms: { "": "שלום", one: "   " }, note: "n", status: "changed" });
   assert.deepEqual(save, { itemId: first.id, forms: { "": "שלום" }, note: "n", status: "changed" });
   assert.equal(parseSave({ itemId: first.id, forms: {}, status: "deleted" })?.status, "");
-  assert.ok(parseSave({ itemId: sheet.terms[0].id, forms: {} }));
+  // Lines from outside the app (store listing, web pages) save like any other.
+  const outside = sheet.items.find((i) => i.id.startsWith("web:send."));
+  assert.ok(outside && parseSave({ itemId: outside.id, forms: { one: "א" } }));
+  // The key terms moved to their own page: the full sheet no longer takes them.
+  assert.equal(sheet.terms.length, 0);
 });
 
 test("placeholders are compared as a set", () => {
   assert.deepEqual(placeholders("{{count}} of {{ total }}"), ["count", "total"]);
   assert.deepEqual(placeholders("plain"), []);
+  assert.deepEqual(placeholders("{n} days from {sender}"), ["n", "sender"]);
 });
 
 test("every line is in the sheet once, with plural forms on one line", () => {

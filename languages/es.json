@@ -1,0 +1,5 @@
+{
+  "NSMicrophoneUsageDescription": "SongNook necesita acceso al micrófono para que puedas grabar ideas de canciones y notas de voz.",
+  "NSFaceIDUsageDescription": "SongNook pide Face ID solo para confirmar el borrado de todos los datos.",
+  "NSPhotoLibraryUsageDescription": "SongNook abre los videos que eliges para traer su sonido como clips."
+}

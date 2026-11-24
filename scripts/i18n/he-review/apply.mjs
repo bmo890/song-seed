@@ -1,5 +1,5 @@
 // Lays the translator's edits from the Hebrew review (songnook.app/review/he/<link>,
-// "Download backup") over src/i18n/locales/he.ts.
+// the file at <link>/export.json) over src/i18n/locales/he.ts.
 //
 //   node scripts/i18n/he-review/apply.mjs <songnook-hebrew-review-….json> [--dry-run]
 //
@@ -40,9 +40,15 @@ let changedLines = 0;
 const skipped = [];
 const missing = [];
 const terms = [];
+const outsideLines = [];
 const notes = [];
 for (const line of exported.lines) {
   if (line.note) notes.push(`${line.id}: ${line.note}`);
+  if (/^(store|web|prompt):/.test(line.id)) {
+    // Outside the app's catalog (outside.mjs): the store documents and the web pages.
+    for (const form of line.forms) if (form.new?.trim()) outsideLines.push(`${line.id}${form.form ? `_${form.form}` : ""}: ${form.he} → ${form.new}`);
+    continue;
+  }
   if (line.id.startsWith("term:")) {
     const next = line.forms[0]?.new;
     if (next) terms.push(`${line.forms[0].en}: ${line.forms[0].he} → ${next}`);
@@ -75,5 +81,7 @@ console.log(`${changedLines} lines changed (${changedKeys} keys)${dryRun ? " —
 if (skipped.length) console.log(`\nSkipped, {{tokens}} differ (${skipped.length}):\n  ${skipped.join("\n  ")}`);
 if (missing.length) console.log(`\nKeys no longer in he.ts (${missing.length}):\n  ${missing.join("\n  ")}`);
 if (terms.length) console.log(`\nKey terms to apply across the catalog by hand (${terms.length}):\n  ${terms.join("\n  ")}`);
+if (outsideLines.length)
+  console.log(`\nOutside the app, to apply by hand (store-listing-translations.md, sendI18n.ts, landingI18n.ts, languages/he.json) (${outsideLines.length}):\n  ${outsideLines.join("\n  ")}`);
 if (notes.length) console.log(`\nNotes (${notes.length}):\n  ${notes.join("\n  ")}`);
 if (!dryRun) writeCatalog("he", he, readHeader("he"));

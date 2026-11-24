@@ -1,3 +1,4 @@
+import { i18n } from "../i18n/instance";
 import {
   getClipPlaybackDurationMs,
   getPlayableClipForIdea,
@@ -42,8 +43,8 @@ export function resolvePlaylistTracks(workspaces: Workspace[], playlist: Playlis
       return {
         itemId: item.id,
         kind: item.kind,
-        title: item.kind === "song" ? "Unavailable song" : "Unavailable clip",
-        context: "No longer in the library",
+        title: i18n.t(item.kind === "song" ? "library.unavailableSong" : "library.unavailableClip"),
+        context: i18n.t("library.unavailableTrack"),
         available: false,
         durationMs: null,
         queueItem: null,

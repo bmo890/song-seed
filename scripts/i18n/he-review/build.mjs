@@ -10,11 +10,14 @@
 // - keys with the same English AND the same Hebrew are one line ("used in N places");
 // - keys nothing in the app reads any more are left out;
 // - the same English translated differently elsewhere is flagged, not merged
-//   (Hebrew genders may need two renderings).
+//   (Hebrew genders may need two renderings);
+// - the Hebrew outside the app (store listing, Send web page, website) follows, from
+//   outside.mjs.
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { ROOT, readCatalog, leaves } from "../catalog.mjs";
+import { outsideItems } from "./outside.mjs";
 
 const PLURAL = /_(zero|one|two|few|many|other)$/;
 const en = Object.fromEntries(leaves(readCatalog("en")));
@@ -158,6 +161,7 @@ for (const key of Object.keys(he)) {
 
 const unused = [];
 const nothingToTranslate = [];
+const developerOnly = [];
 const lines = new Map(); // signature -> line
 /** Only tokens, numbers and marks ("{{count}}", "{{a}} · {{b}}"): no words to translate. */
 const hasWords = (text) => /\p{L}/u.test(text.replace(/\{\{\s*\w+\s*\}\}/g, ""));
@@ -165,6 +169,11 @@ for (const [base, keys] of units) {
   const uses = usesOf(base);
   if (uses.length === 0) {
     unused.push(base);
+    continue;
+  }
+  // Lines only a developer's build shows (the dev menu, "rebuild the app"): not his to check.
+  if (/Dev$/.test(base) || keys.some((key) => /\(dev\)|Rebuild the app/.test(en[key] ?? ""))) {
+    developerOnly.push(base);
     continue;
   }
   if (!keys.some((key) => hasWords(en[key] ?? en[key.replace(PLURAL, "_other")] ?? "") || hasWords(he[key] ?? ""))) {
@@ -231,7 +240,14 @@ items.sort(
     a.forms[0].en.localeCompare(b.forms[0].en)
 );
 
+// The Hebrew outside the app (store listing, Send web page, website), after the app's
+// own lines and in the order each page reads.
+const outside = await outsideItems();
+items.push(...outside);
+
 // ── Key terms: the app's own words, decided once ─────────────────────────────
+// They moved to their own page (terms.mjs, songnook.app/review/he-terms): the full sheet
+// no longer asks for them twice.
 const TERMS = [
   ["idea", "Anything in progress: a clip or a sketch."],
   ["clip", "A recorded fragment."],
@@ -258,7 +274,7 @@ function currentHebrew(term) {
   const singular = hits.find((k) => /_one$/.test(k)) ?? hits[0];
   return singular ? he[singular] : "";
 }
-const terms = TERMS.map(([term, meaning]) => ({ id: `term:${term}`, term, meaning, he: currentHebrew(term) }));
+const terms = process.argv.includes("--with-terms") ? TERMS.map(([term, meaning]) => ({ id: `term:${term}`, term, meaning, he: currentHebrew(term) })) : [];
 
 const totalForms = items.reduce((s, i) => s + i.forms.length, 0);
 const words = items.reduce((s, i) => s + i.forms[0].en.split(/\s+/).filter(Boolean).length, 0);
@@ -270,8 +286,10 @@ const sheet = {
     hebrewForms: totalForms,
     englishWords: words,
     keysCovered: items.reduce((s, i) => s + i.keys.length, 0),
+    outsideTheApp: outside.length,
     unusedLeftOut: unused.length,
     nothingToTranslate: nothingToTranslate.length,
+    developerOnly: developerOnly.length,
     flaggedDifferent: items.filter((i) => i.otherHebrew.length).length,
   },
   terms,

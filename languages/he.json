@@ -1,0 +1,5 @@
+{
+  "NSMicrophoneUsageDescription": "SongNook צריכה גישה למיקרופון כדי להקליט רעיונות לשירים ותזכירים קוליים.",
+  "NSFaceIDUsageDescription": "SongNook מבקשת Face ID רק כדי לאשר מחיקה של כל הנתונים.",
+  "NSPhotoLibraryUsageDescription": "SongNook פותחת את הסרטונים שבחרתם כדי להביא את הסאונד שלהם כקטעים."
+}

@@ -11,6 +11,12 @@
       "url": "https://u.expo.dev/5bf8abdf-8811-41d2-963d-96ebd0744b80"
     },
     "runtimeVersion": "1.0.3",
+    "locales": {
+      "he": "./languages/he.json",
+      "es": "./languages/es.json",
+      "de": "./languages/de.json",
+      "pt": "./languages/pt.json"
+    },
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {

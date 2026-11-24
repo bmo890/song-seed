@@ -70,10 +70,10 @@ h1{font-family:Lora,serif;font-weight:500;font-size:28px;margin:0 0 4px}
 .state{font-size:12px;color:var(--ink-faint)}
 .warn{grid-column:2/4;font-size:12px;color:var(--warn)}
 .warn.bad{color:var(--bad)}
-.intro{background:var(--card);border-radius:12px;padding:16px 18px;margin:0 0 18px}
-.intro h2{font-family:Lora,serif;font-weight:500;font-size:18px;margin:0 0 6px}
-.intro ul{margin:6px 0 0;padding-left:18px}
-.intro li{margin:3px 0}
+.intro{margin:0 0 22px;max-width:720px;color:var(--ink-soft)}
+.intro p{margin:0 0 4px}
+.addnote{justify-self:start;border:0;background:none;padding:0;cursor:pointer;font-size:12.5px;color:var(--ink-faint)}
+.addnote:hover{color:var(--ink)}
 .empty{color:var(--ink-soft);padding:30px 0}
 .more{display:block;margin:18px auto 0}
 @media (max-width:820px){
@@ -93,13 +93,15 @@ const SCRIPT = String.raw`
 (function(){
   var base = location.pathname.replace(/\/$/, "");
   var LS = "songnook-review-he-pending";
-  var state = { sheet: null, edits: {}, section: "Key terms", filter: "all", query: "", shown: 120 };
+  var state = { sheet: null, edits: {}, section: "", filter: "all", query: "", shown: 120 };
+  var OUTSIDE = ["Phone prompts", "Store listing", "Send web page", "Website"];
   var pending = {};
   try { pending = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch (e) { pending = {}; }
   var timers = {};
   var $ = function (sel) { return document.querySelector(sel); };
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function placeholders(t) { var m = (t || "").match(/\{\{\s*\w+\s*\}\}/g) || []; return m.map(function (x) { return x.replace(/\s/g, ""); }).sort().join(","); }
+  var TOKEN = /\{\{\s*\w+\s*\}\}|\{\w+\}/g;
+  function placeholders(t) { var m = (t || "").match(TOKEN) || []; return m.map(function (x) { return x.replace(/\s/g, ""); }).sort().join(","); }
   function storePending() { try { localStorage.setItem(LS, JSON.stringify(pending)); } catch (e) {} }
   function savedLine(text, bad) { var s = $("#saved"); s.textContent = text; s.className = "saved" + (bad ? " bad" : ""); }
 
@@ -139,16 +141,17 @@ const SCRIPT = String.raw`
   function renderTop() {
     var c = counts();
     $("#count").innerHTML = "<strong>" + c.done.toLocaleString() + "</strong> of " + c.lines.toLocaleString() +
-      " lines reviewed · " + c.changed.toLocaleString() + " changed · " + c.notes.toLocaleString() + " with notes";
+      " done · " + c.changed.toLocaleString() + " changed";
     $("#bar").style.width = (c.lines ? (100 * c.done / c.lines) : 0) + "%";
   }
 
   function renderNav() {
     var nav = $("#nav"); nav.innerHTML = "";
     var secs = sections();
-    var groups = [["Start here", ["Key terms", "Headlines"]], ["Pages", null], ["Everywhere", ["Shared across the app"]]];
+    var fixed = ["Key terms", "Headlines", "Shared across the app"].concat(OUTSIDE);
+    var groups = [["Start here", ["Key terms", "Headlines"]], ["Pages", null], ["Everywhere", ["Shared across the app"]], ["Outside the app", OUTSIDE]];
     groups.forEach(function (g) {
-      var names = g[1] || secs.map(function (s) { return s.name; }).filter(function (n) { return n !== "Key terms" && n !== "Headlines" && n !== "Shared across the app"; });
+      var names = g[1] || secs.map(function (s) { return s.name; }).filter(function (n) { return fixed.indexOf(n) < 0; });
       nav.appendChild(el("div", "group", g[0]));
       names.forEach(function (n) {
         var s = secs.filter(function (x) { return x.name === n; })[0]; if (!s) return;
@@ -168,7 +171,6 @@ const SCRIPT = String.raw`
       var e = editOf(l.id);
       if (state.filter === "todo" && isDone(l.id)) return false;
       if (state.filter === "changed" && e.status !== "changed") return false;
-      if (state.filter === "notes" && !e.note) return false;
       if (state.filter === "flagged" && !(l.otherHebrew && l.otherHebrew.length)) return false;
       if (q) {
         var hay = l.forms.map(function (f) { return f.en + " " + f.he + " " + (e.forms[f.form] || ""); }).join(" ").toLowerCase();
@@ -200,7 +202,7 @@ const SCRIPT = String.raw`
         storePending(); flush();
       })
       .catch(function () {
-        savedLine("Not saved yet — will retry (your work is kept in this browser)", true);
+        savedLine("Not saved yet — will retry", true);
         setTimeout(flush, 5000);
       });
   }
@@ -220,8 +222,8 @@ const SCRIPT = String.raw`
     if (line.meaning) meta.appendChild(el("span", "", line.meaning));
     if (line.page && line.section !== line.page) meta.appendChild(el("span", "tag", line.page));
     if (line.kind && line.kind !== "Key term") meta.appendChild(el("span", "tag", line.kind));
-    if (line.keys && line.keys.length > 1) meta.appendChild(el("span", "tag", "Used in " + line.keys.length + " places"));
-    if (line.otherHebrew && line.otherHebrew.length) meta.appendChild(el("span", "tag flag", "Same English elsewhere: " + line.otherHebrew.join(" · ")));
+    if (line.keys && line.keys.length > 1) meta.appendChild(el("span", "tag", "×" + line.keys.length));
+    if (line.otherHebrew && line.otherHebrew.length) meta.appendChild(el("span", "tag flag", "Also: " + line.otherHebrew.join(" · ")));
     row.appendChild(meta);
 
     var edit = el("div", "edit");
@@ -230,7 +232,7 @@ const SCRIPT = String.raw`
     line.forms.forEach(function (f) {
       var ta = el("textarea", "he");
       ta.rows = 1; ta.dir = "rtl"; ta.lang = "he";
-      ta.placeholder = (FORM_LABEL[f.form] ? FORM_LABEL[f.form] + " " : "") + "Your version (empty keeps the current one)";
+      ta.placeholder = (FORM_LABEL[f.form] ? FORM_LABEL[f.form] + " " : "") + "Your version";
       ta.value = e.forms[f.form] || "";
       ta.oninput = function () {
         var cur = editOf(line.id);
@@ -243,13 +245,17 @@ const SCRIPT = String.raw`
       edit.appendChild(ta);
     });
     var note = el("textarea", "");
-    note.rows = 1; note.placeholder = "Note (optional)"; note.value = e.note || "";
+    note.rows = 1; note.placeholder = "Note"; note.value = e.note || "";
+    var addNote = el("button", "addnote", "+ Note"); addNote.type = "button";
+    if (e.note) addNote.hidden = true; else note.hidden = true;
+    addNote.onclick = function () { addNote.hidden = true; note.hidden = false; note.focus(); };
+    edit.appendChild(addNote);
     note.oninput = function () { var cur = editOf(line.id); state.edits[line.id] = { forms: cur.forms, note: note.value, status: cur.status }; save(line); renderTop(); };
     edit.appendChild(note);
     row.appendChild(edit);
 
     var actions = el("div", "actions");
-    var keep = el("button", "keep", "✓ Looks right");
+    var keep = el("button", "keep", "✓ Fine");
     var st = el("span", "state", "");
     keep.onclick = function () {
       var cur = editOf(line.id);
@@ -268,8 +274,8 @@ const SCRIPT = String.raw`
         // Against the Hebrew the app has now: a Hebrew singular may rightly leave {{count}} out.
         var model = b.f.he || b.f.en;
         if (placeholders(v) !== placeholders(model)) {
-          var need = model.match(/\{\{\s*\w+\s*\}\}/g);
-          msgs.push(need ? "Keep " + need.join(" ") + " exactly as written." : "This line has no {{…}} — leave them out.");
+          var need = model.match(TOKEN);
+          msgs.push(need ? "Keep " + need.join(" ") + " exactly as written." : "This line has no {…}. Leave them out.");
           bad = true;
         }
         var ref = b.f.he || b.f.en;
@@ -282,7 +288,7 @@ const SCRIPT = String.raw`
       var cur = editOf(line.id);
       keep.className = "keep" + (cur.status === "ok" ? " on" : "");
       keep.disabled = Object.keys(cur.forms).length > 0;
-      st.textContent = cur.status === "changed" ? "Changed" : cur.status === "ok" ? "Kept as is" : "";
+      st.textContent = cur.status === "changed" ? "Changed" : "";
       row.className = "row" + (isDone(line.id) ? " done" : "");
       renderTop(); renderNavCounts();
     }
@@ -323,7 +329,6 @@ const SCRIPT = String.raw`
   });
   var qTimer;
   $("#q").oninput = function (ev) { clearTimeout(qTimer); qTimer = setTimeout(function () { state.query = ev.target.value; state.shown = 120; renderList(); }, 200); };
-  $("#introToggle").onclick = function () { var i = $("#intro"); i.hidden = !i.hidden; };
 
   fetch(base + "/sheet.json").then(function (r) { return r.json(); }).then(function (data) {
     state.sheet = data.sheet;
@@ -331,6 +336,7 @@ const SCRIPT = String.raw`
     // A save that never reached the Worker (offline, a closed tab) is put back first.
     Object.keys(pending).forEach(function (id) { var p = pending[id]; state.edits[id] = { forms: p.forms, note: p.note, status: p.status }; });
     state.all = lines();
+    state.section = state.all.length ? state.all[0].section : "";
     render();
     if (Object.keys(pending).length) flush(); else savedLine("All changes saved");
   }).catch(function () { savedLine("Couldn't load the lines. Reload the page.", true); });
@@ -338,7 +344,7 @@ const SCRIPT = String.raw`
 })();
 `;
 
-export function renderReviewPage(counts: Record<string, number>, csvHref: string, jsonHref: string): string {
+export function renderReviewPage(counts: Record<string, number>, csvHref: string, _jsonHref?: string): string {
   const lines = counts.lines.toLocaleString("en-US");
   return `<!doctype html>
 <html lang="en">
@@ -357,36 +363,24 @@ export function renderReviewPage(counts: Record<string, number>, csvHref: string
   <div class="bar" aria-hidden="true"><i id="bar"></i></div>
   <div class="saved" id="saved" role="status" aria-live="polite">Loading…</div>
   <div class="dl">
-    <a class="btn" href="${csvHref}" download>Download spreadsheet</a>
-    <a class="btn" href="${jsonHref}" download>Download backup</a>
-    <button class="btn" id="introToggle" type="button">How this works</button>
+    <a class="btn" href="${csvHref}" download>Download</a>
   </div>
 </header>
 <div class="layout">
   <nav id="nav" aria-label="Sections"></nav>
   <main>
-    <section class="intro" id="intro">
-      <h2>Thank you for going over SongNook's Hebrew</h2>
-      <p>SongNook is a songwriting app for musicians: record ideas, write lyrics and chords, practise, share with the band. Every line the app shows in Hebrew is here once, grouped by the page it appears on.</p>
-      <ul>
-        <li><b>Start with Key terms.</b> They are the app's own words (sketch, take, collection…). Decide them first; the other lines should use the same words.</li>
-        <li><b>A line that reads well:</b> press <b>✓ Looks right</b>. <b>A line to fix:</b> type your version in the box; it counts as reviewed. Empty means keep the current Hebrew.</li>
-        <li><b>Notes are optional</b> — for anything worth explaining or a question.</li>
-        <li>Everything saves by itself as you type. "Used in N places" means one line covers several screens.</li>
-        <li><b>Keep {{count}}, {{title}} and the like exactly as written</b> (they become numbers and names). Keep it short: buttons one or two words.</li>
-        <li><b>Voice:</b> a calm, brief studio companion. No exclamation marks. Address the reader without gender where Hebrew allows (as the app does now).</li>
-        <li>Lines in a few forms (1 —, 2 —, more —) are counted as one line.</li>
-      </ul>
+    <section class="intro">
+      <p>Every Hebrew line in SongNook, once, by page. If a line reads well, press ✓ Fine. To fix it, type your version. Everything saves by itself.</p>
+      <p>Keep {{count}}, {name} and the like exactly as written. Keep buttons to a word or two.</p>
     </section>
-    <h1 id="title">Key terms</h1>
+    <h1 id="title"></h1>
     <p class="lede" id="lede"></p>
     <div class="tools">
-      <input id="q" type="search" placeholder="Search English or Hebrew in every section" aria-label="Search">
+      <input id="q" type="search" placeholder="Search" aria-label="Search">
       <button class="chip on" data-filter="all" type="button">All</button>
-      <button class="chip" data-filter="todo" type="button">Not yet reviewed</button>
+      <button class="chip" data-filter="todo" type="button">Not done</button>
       <button class="chip" data-filter="changed" type="button">Changed</button>
-      <button class="chip" data-filter="notes" type="button">With notes</button>
-      <button class="chip" data-filter="flagged" type="button">Translated differently elsewhere</button>
+      <button class="chip" data-filter="flagged" type="button">Two translations</button>
     </div>
     <div id="list"></div>
   </main>

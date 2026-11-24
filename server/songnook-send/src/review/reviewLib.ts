@@ -74,9 +74,9 @@ export function parseSave(body: unknown): { itemId: string; forms: Record<string
   return { itemId, forms, note, status };
 }
 
-/** `{{tokens}}` a line must keep. */
+/** `{{tokens}}` (the app) and `{tokens}` (the web pages) a line must keep. */
 export function placeholders(text: string): string[] {
-  return [...text.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]).sort();
+  return [...text.matchAll(/\{\{\s*(\w+)\s*\}\}|\{(\w+)\}/g)].map((m) => m[1] ?? m[2]).sort();
 }
 
 function csvCell(value: string): string {

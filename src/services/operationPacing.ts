@@ -6,6 +6,7 @@
  * Estimates are deliberately rough — they feed "about 2 minutes" copy, not progress math
  * (live progress/ETA comes from the process store's actual byte counts).
  */
+import { i18n } from "../i18n/instance";
 
 export type LibraryOperationKind = "backup" | "export" | "restore";
 
@@ -45,10 +46,8 @@ export function estimateLibraryOperationSeconds(
     return FIXED_OVERHEAD_SECONDS + Math.max(0, totalBytes) / bytesPerSecond;
 }
 
-/** "under a minute" / "about a minute" / "about N minutes" */
+/** "under a minute" / "about a minute" / "about N minutes", in the app's language. */
 export function formatDurationEstimate(seconds: number) {
-    if (!Number.isFinite(seconds) || seconds < 50) return "under a minute";
-    const minutes = Math.round(seconds / 60);
-    if (minutes <= 1) return "about a minute";
-    return `about ${minutes} minutes`;
+    if (!Number.isFinite(seconds) || seconds < 50) return i18n.t("process.underMinute");
+    return i18n.t("process.aboutMinutes", { count: Math.max(1, Math.round(seconds / 60)) });
 }
