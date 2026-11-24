@@ -196,6 +196,11 @@ Apple appends the same subscription paragraph as before (below, per language in
   portrait-only since 1.0.0, `app.json` orientation); device reach unchanged from 1.0.2 (0 lost),
   so it was ignored ("publishing is more critical"). If wanted later: mark the feature
   `required="false"` in the manifest via a config plugin.
+- **1.0.3 RELEASED 2026-11-24.** Apple: approved, the founder pressed Release. Google: went
+  live on approval the same day (Play Console: production active, latest release 22 (1.0.3),
+  "Last published on November 24, 2026", nothing left in review). No over-the-air update exists
+  for runtime 1.0.3 yet, so phones run the reviewed builds. The iPhone build was never run on a
+  real iPhone before release (simulator only; stereo unheard on iPhone).
 
 ```
 SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
