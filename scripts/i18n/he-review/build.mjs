@@ -134,6 +134,8 @@ const KINDS = ["Title", "On screen", "Button", "Menu", "Pop-up", "Message", "Emp
 function kindOf(context, file, key) {
   const c = context;
   if (/accessibilityLabel|accessibilityHint|A11y\b/.test(c) || /A11y$/.test(key)) return "Screen reader";
+  // A stepper's − and + are glyphs: their words only reach a screen reader (Stepper.tsx).
+  if (/(increment|decrement)Label=\{t\($/.test(c.slice(0, c.lastIndexOf(key) - 1).trimEnd())) return "Screen reader";
   if (/toast\(\s*[^)]*$|toast\(t\(/.test(c) || /toast\(/.test(c.slice(-120))) return "Message";
   if (/AppAlert\.|Alert\.alert|AppDialog/.test(c.slice(-200))) return "Pop-up";
   if (/EmptyState/.test(c)) return "Empty screen";

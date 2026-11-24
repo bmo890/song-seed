@@ -61,6 +61,7 @@ h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px}
 .uses{display:block;direction:ltr;text-align:right;font-size:12px;color:var(--ink-faint);margin-top:2px;font-family:"Plus Jakarta Sans",sans-serif}
 .ex{font-size:14.5px;padding-top:7px;color:var(--ink)}
 .ex small{display:block;direction:ltr;text-align:right;font-size:12.5px;color:var(--ink-faint);margin-top:3px;font-family:"Plus Jakarta Sans",sans-serif}
+.ex small.where{font-size:11.5px;color:var(--ink-faint);margin-top:4px;letter-spacing:.01em}
 .lines .en{font-weight:400}
 .lines .he{font-size:15.5px}
 input.in,textarea.in,input.note,textarea.note{width:100%;border:1px solid var(--rule);background:var(--card);border-radius:8px;padding:8px 10px}
@@ -205,7 +206,11 @@ const SCRIPT = String.raw`
     row.appendChild(he);
     var ex = el("div", "ex");
     ex.appendChild(el("span", "lbl", "In the app"));
-    if (r.example) { ex.appendChild(document.createTextNode(r.example.he)); ex.appendChild(el("small", "", r.example.en)); }
+    if (r.example) {
+      ex.appendChild(document.createTextNode(r.example.he));
+      ex.appendChild(el("small", "", r.example.en));
+      if (r.example.where) ex.appendChild(el("small", "where", r.example.where));
+    } else if (r.seen) ex.appendChild(el("small", "where", "Seen in: " + r.seen));
     else ex.appendChild(el("small", "", "—"));
     row.appendChild(ex);
     controls(row, r.id, false, r.he);
@@ -216,7 +221,9 @@ const SCRIPT = String.raw`
   function lineRow(s, n) {
     var row = el("div", "row");
     row.appendChild(el("div", "num", "S" + n));
-    row.appendChild(el("div", "en", s.en));
+    var en = el("div", "en", s.en);
+    if (s.where) en.appendChild(el("span", "mean", s.where));
+    row.appendChild(en);
     var he = el("div", "he");
     he.appendChild(el("span", "lbl", "Hebrew now"));
     he.appendChild(document.createTextNode(s.he));
@@ -311,7 +318,8 @@ export function renderTermsPage(total: number, csvHref: string, jsonHref: string
     <h1>Do these words sound like a musician?</h1>
     <p>SongNook is an app for songwriters and working musicians: record ideas, write lyrics and chords, rehearse the set. The Hebrew is already written. What we need is an ear: some words may sound like a dictionary, not like something a musician would actually say.</p>
     <ul>
-      <li><b>One row per word.</b> You see the English, the Hebrew the app uses now, and a real sentence from the app that uses it.</li>
+      <li><b>One row per word.</b> You see the English, the Hebrew the app uses now, and a real sentence from the app that uses it, with the page it's on.</li>
+      <li><b>The first group is the hardest:</b> words SongNook made up. There may be no dictionary word for them.</li>
       <li><b>If the Hebrew is right,</b> press <b>✓ Fine</b>. <b>If you'd say it differently,</b> type your word. We change it everywhere in the app.</li>
       <li><b>Notes are optional:</b> for "it depends", a question, or a better idea.</li>
       <li>At the end, <b>a few whole sentences</b>, only to check the tone sounds natural.</li>

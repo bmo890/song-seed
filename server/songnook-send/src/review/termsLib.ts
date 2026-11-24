@@ -17,9 +17,11 @@ export type TermRow = {
   he: string;
   alsoHe: readonly string[];
   uses: number;
-  example: { en: string; he: string } | null;
+  /** Where the word itself shows ("Player, Recorder · title"). */
+  seen: string | null;
+  example: { key: string; en: string; he: string; where: string | null } | null;
 };
-export type TermSentence = { id: string; key: string; en: string; he: string };
+export type TermSentence = { id: string; key: string; en: string; he: string; where: string | null };
 export type TermGroup = { id: string; title: string; lede: string };
 
 const SHEET = HE_TERMS as unknown as { builtAt: string; groups: TermGroup[]; rows: TermRow[]; sentences: TermSentence[] };
