@@ -46,9 +46,9 @@ main{padding:20px 24px 100px;max-width:1440px;margin:0 auto}
 h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px}
 .lede{color:var(--ink-soft);margin:0 0 10px}
 .table{border-top:1px solid var(--rule)}
-.row{display:grid;gap:14px;align-items:start;padding:12px 8px;border-bottom:1px solid var(--rule)}
-.words .row{grid-template-columns:36px minmax(150px,1fr) minmax(130px,.9fr) minmax(220px,1.6fr) minmax(170px,1.1fr) 92px minmax(150px,1fr)}
-.lines .row{grid-template-columns:36px minmax(220px,1.3fr) minmax(220px,1.3fr) minmax(220px,1.3fr) 92px minmax(150px,1fr)}
+.row{display:grid;gap:12px;align-items:start;padding:12px 8px;border-bottom:1px solid var(--rule)}
+.words .row{grid-template-columns:32px minmax(110px,1fr) minmax(100px,.8fr) minmax(170px,1.6fr) minmax(140px,1.1fr) 76px minmax(110px,1fr)}
+.lines .row{grid-template-columns:32px minmax(160px,1.3fr) minmax(160px,1.3fr) minmax(160px,1.3fr) 76px minmax(110px,1fr)}
 .head{position:sticky;top:61px;z-index:4;background:var(--paper);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);padding-top:10px;padding-bottom:8px}
 .row.ok{background:linear-gradient(90deg,var(--ok-wash),transparent 60%)}
 .row.changed{background:linear-gradient(90deg,var(--changed-wash),transparent 60%)}
@@ -71,7 +71,7 @@ textarea.in,textarea.note{resize:vertical;min-height:40px}
 .fine.on{background:var(--ok-wash);border-color:var(--ok);color:var(--ok);font-weight:600}
 .lbl{display:none}
 .empty{color:var(--ink-soft);padding:20px 8px}
-@media (max-width:1000px){
+@media (max-width:900px){
   .head{display:none}
   .words .row,.lines .row{grid-template-columns:1fr;gap:6px;padding:14px 4px}
   .num{padding-top:0}
@@ -146,7 +146,7 @@ const SCRIPT = String.raw`
     if (!isLine) input.type = "text";
     input.rows = isLine ? 2 : undefined;
     input.value = e.text;
-    input.placeholder = isLine ? "Leave empty if it reads right" : "Leave empty if it's right";
+    input.placeholder = isLine ? "Your version" : "Your word";
     input.setAttribute("aria-label", isLine ? "Your version" : "Your word");
     inWrap.appendChild(input);
 

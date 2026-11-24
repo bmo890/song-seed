@@ -75,7 +75,7 @@ function build(term) {
   const sentences = using
     .filter((l) => {
       const n = l.en.split(/\s+/).length;
-      return n >= 5 && n <= 16 && !/\{\{/.test(l.en) && !/a11y|A11y|dev|Dev|debug/.test(l.key) && !/\(dev\)/i.test(l.en);
+      return n >= 5 && n <= 16 && !/\{\{/.test(l.en) && !/a11y|A11y|dev|Dev|debug/.test(l.key) && !/\(dev\)|rebuild the app|native|\bnull\b|debug/i.test(l.en);
     })
     .sort((a, b) => a.en.length - b.en.length);
   const example = sentences[Math.floor(sentences.length / 3)] ?? null;
