@@ -43,7 +43,8 @@ main{padding:20px 24px 100px;max-width:1440px;margin:0 auto}
 .filters{display:flex;gap:8px;margin:0 0 8px;flex-wrap:wrap}
 .chip{border:1px solid var(--rule);background:none;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px}
 .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px}
+h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px;scroll-margin-top:76px}
+.jump{margin-inline-start:auto;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;max-width:100%}
 .lede{color:var(--ink-soft);margin:0 0 10px}
 .table{border-top:1px solid var(--rule)}
 .row{display:grid;gap:12px;align-items:start;padding:12px 8px;border-bottom:1px solid var(--rule)}
@@ -246,7 +247,7 @@ const SCRIPT = String.raw`
 
   function render() {
     var list = $("#list"); list.innerHTML = "";
-    var n = 0, any = false;
+    var n = 0, any = false, stops = [];
     state.sheet.groups.forEach(function (g) {
       var rows = state.sheet.rows.filter(function (r) { return r.group === g.id; });
       var startN = n;
@@ -254,7 +255,7 @@ const SCRIPT = String.raw`
       n += rows.length;
       if (!visible.length) return;
       any = true;
-      list.appendChild(el("h2", "", g.title));
+      var h = el("h2", "", g.title); list.appendChild(h); stops.push([g.title + " · " + visible.length, h]);
       if (g.lede) list.appendChild(el("p", "lede", g.lede));
       var t = el("div", "table words");
       t.appendChild(header(["#", "English", "Hebrew now", "In the app", "Your word", ""]));
@@ -264,7 +265,7 @@ const SCRIPT = String.raw`
     var lines = state.sheet.sentences.filter(function (s) { return shown(s.id); });
     if (lines.length) {
       any = true;
-      list.appendChild(el("h2", "", "A few whole sentences"));
+      var hs = el("h2", "", "A few whole sentences"); list.appendChild(hs); stops.push(["Sentences · " + lines.length, hs]);
       list.appendChild(el("p", "lede", "Only to hear the tone."));
       var t = el("div", "table lines");
       t.appendChild(header(["#", "English", "Hebrew now", "Your version", ""]));
@@ -272,6 +273,12 @@ const SCRIPT = String.raw`
       list.appendChild(t);
     }
     if (!any) list.appendChild(el("p", "empty", "Nothing here with this filter."));
+    // One quiet way around twelve groups: a list of them, each with its count.
+    var jump = $("#jump"); jump.innerHTML = "";
+    var first = document.createElement("option"); first.textContent = "Go to…"; first.value = ""; jump.appendChild(first);
+    stops.forEach(function (stop, i) { var o = document.createElement("option"); o.textContent = stop[0]; o.value = String(i); jump.appendChild(o); });
+    jump.onchange = function () { var stop = stops[Number(jump.value)]; if (jump.value !== "" && stop) stop[1].scrollIntoView({ block: "start" }); jump.value = ""; };
+    jump.hidden = stops.length < 2;
     renderTop();
   }
 
@@ -324,6 +331,7 @@ export function renderTermsPage(total: number, csvHref: string, _jsonHref?: stri
     <button class="chip on" data-filter="all" type="button">All</button>
     <button class="chip" data-filter="todo" type="button">Not done</button>
     <button class="chip" data-filter="changed" type="button">Changed</button>
+    <select class="jump" id="jump" aria-label="Go to a group"></select>
   </div>
   <div id="list"></div>
 </main>

@@ -89,7 +89,8 @@ function pinned(term) {
   for (const l of found) if (!visible(l.key)) PROBLEMS.push(`"${term.en}": pinned line ${l.key} is not shown in the app`);
   if (!found.length) throw new Error(`no catalog line for pinned keys of "${term.en}"`);
   const head = found[0];
-  const isSentence = (l) => l.en.split(/\s+/).length >= 3;
+  // Three real words: "Job / role" and "Collected · {{count}}" are labels, not sentences.
+  const isSentence = (l) => l.en.replace(/\{\{[^}]+\}\}/g, "").split(/\s+/).filter((w) => /\p{L}/u.test(w)).length >= 3;
   const example = term.he && isSentence(head) ? head : found.find((l, i) => i > 0 && isSentence(l)) ?? (isSentence(head) ? head : null);
   const current = term.he ?? clean(head.he);
   // Other short labels pinned for the word: the other Hebrew the app uses for it.
@@ -151,6 +152,8 @@ const rows = TERMS.map((term) => {
   }
   return row;
 });
+// Two rows with one id would share one saved answer.
+for (const [i, r] of rows.entries()) if (rows.findIndex((x) => x.id === r.id) !== i) PROBLEMS.push(`"${r.en}": its id ${r.id} is used twice`);
 const sentences = SENTENCE_KEYS.map((key) => {
   if (!en[key] || !he[key]) throw new Error(`no catalog line for sentence ${key}`);
   if (!visible(key)) PROBLEMS.push(`sentence ${key} is not shown in the app`);
