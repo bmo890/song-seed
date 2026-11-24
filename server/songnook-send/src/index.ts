@@ -25,6 +25,7 @@ import { pairing } from "./routes/pairing";
 import { wellKnown } from "./routes/wellknown";
 import { review } from "./review/reviewRoutes";
 import { backupToR2 } from "./review/reviewLib";
+import { backupTermsToR2 } from "./review/termsLib";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -186,6 +187,11 @@ export default {
       backupToR2(env.DB, env.BUCKET, Date.now())
         .then((n) => n && console.log(`review backup: ${n} lines`))
         .catch((err) => console.warn("review backup failed", err))
+    );
+    ctx.waitUntil(
+      backupTermsToR2(env.DB, env.BUCKET, Date.now())
+        .then((n) => n && console.log(`terms review backup: ${n} rows`))
+        .catch((err) => console.warn("terms review backup failed", err))
     );
   },
 };

@@ -1,15 +1,39 @@
 // Local preview of the Hebrew review page (the Worker's local dev cannot load its email
 // binding): the same page, lines and save rules, with saves kept in memory.
 //   node --experimental-strip-types scripts/review-preview.ts   → http://localhost:8790/review/he/local-preview-token
+//                                                                  and /review/he-terms/local-preview-token
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { parseSave, sheet, toCsv, toJson, type ReviewEdit } from "../src/review/reviewLib.ts";
 import { renderReviewPage } from "../src/review/reviewPage.ts";
+import { parseTermSave, termsCsv, termsJson, termsSheet, type TermEdit } from "../src/review/termsLib.ts";
+import { renderTermsPage } from "../src/review/termsPage.ts";
 
 const edits = new Map<string, ReviewEdit>();
 const base = "/review/he/local-preview-token";
+const termEdits = new Map<string, TermEdit>();
+const tbase = "/review/he-terms/local-preview-token";
 createServer(async (req, res) => {
   const url = req.url ?? "/";
+  if (url === tbase) {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(renderTermsPage(termsSheet.rows.length + termsSheet.sentences.length, `${tbase}/export.csv`, `${tbase}/export.json`));
+  }
+  if (url === `${tbase}/sheet.json`) {
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ sheet: termsSheet, edits: [...termEdits.values()] }));
+  }
+  if (url === `${tbase}/save` && req.method === "POST") {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const save = parseTermSave(JSON.parse(body));
+    if (!save) { res.writeHead(400); return res.end("bad"); }
+    termEdits.set(save.itemId, { item_id: save.itemId, forms: JSON.stringify(save.text ? { "": save.text } : {}), note: save.note, status: save.status, updated_at: Date.now() });
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end('{"ok":true}');
+  }
+  if (url === `${tbase}/export.csv`) { res.writeHead(200, { "content-type": "text/csv; charset=utf-8" }); return res.end(termsCsv(termEdits)); }
+  if (url === `${tbase}/export.json`) { res.writeHead(200, { "content-type": "application/json" }); return res.end(termsJson(termEdits)); }
   if (url === base) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(renderReviewPage(sheet.counts, `${base}/export.csv`, `${base}/export.json`));

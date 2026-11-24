@@ -105,6 +105,7 @@ player.sectionPrechorus
 player.sections
 player.setEdgePlayheadA11y
 player.setPinPlayhead
+player.sound
 player.stepUpHelpPresetsBody
 player.stepUpHelpPresetsLabel
 player.stepUpHelpSpeedBody
