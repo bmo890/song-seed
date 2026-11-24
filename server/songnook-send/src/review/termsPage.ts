@@ -2,7 +2,7 @@
  * The terms review page (founder, 2026-11-24: "each item should be a row, clear as day").
  * One row per word: English, the Hebrew the app uses now, a real sentence from the app,
  * a box for the word a musician would say, a Fine key, a note. Then a few whole sentences
- * to hear the tone. Saves each row a moment after typing stops; saves that cannot reach
+ * to hear the tone. A note opens under the word box. Saves each row a moment after typing stops; saves that cannot reach
  * the Worker wait in the browser and go out again. Downloads are always one click.
  */
 import { FONT_FACES } from "../pages/shell.ts";
@@ -35,7 +35,7 @@ button,input,textarea{font:inherit;color:inherit}
 .btn{border:0;background:var(--paper-deep);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px;font-weight:500;text-decoration:none;color:var(--ink)}
 .btn:hover{background:var(--rule)}
 main{padding:20px 24px 100px;max-width:1440px;margin:0 auto}
-.intro{background:var(--card);border-radius:12px;padding:18px 20px;margin:0 0 22px;max-width:900px}
+.intro{margin:4px 0 18px;max-width:760px}
 .intro h1{font-family:Lora,serif;font-weight:500;font-size:24px;margin:0 0 8px}
 .intro p{margin:0 0 8px}
 .intro ul{margin:6px 0 0;padding-left:20px}
@@ -47,8 +47,8 @@ h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px}
 .lede{color:var(--ink-soft);margin:0 0 10px}
 .table{border-top:1px solid var(--rule)}
 .row{display:grid;gap:12px;align-items:start;padding:12px 8px;border-bottom:1px solid var(--rule)}
-.words .row{grid-template-columns:32px minmax(110px,1fr) minmax(100px,.8fr) minmax(170px,1.6fr) minmax(140px,1.1fr) 76px minmax(110px,1fr)}
-.lines .row{grid-template-columns:32px minmax(160px,1.3fr) minmax(160px,1.3fr) minmax(160px,1.3fr) 76px minmax(110px,1fr)}
+.words .row{grid-template-columns:32px minmax(120px,1fr) minmax(100px,.8fr) minmax(180px,1.7fr) minmax(150px,1.2fr) 76px}
+.lines .row{grid-template-columns:32px minmax(160px,1.3fr) minmax(160px,1.3fr) minmax(160px,1.3fr) 76px}
 .head{position:sticky;top:61px;z-index:4;background:var(--paper);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);padding-top:10px;padding-bottom:8px}
 .row.ok{background:linear-gradient(90deg,var(--ok-wash),transparent 60%)}
 .row.changed{background:linear-gradient(90deg,var(--changed-wash),transparent 60%)}
@@ -58,10 +58,8 @@ h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px}
 .he,.ex,.in{direction:rtl;text-align:right;font-family:Heebo,"Plus Jakarta Sans",sans-serif}
 .he{font-size:17px;padding-top:6px}
 .also{display:block;font-size:12.5px;color:var(--ink-soft);margin-top:2px}
-.uses{display:block;direction:ltr;text-align:right;font-size:12px;color:var(--ink-faint);margin-top:2px;font-family:"Plus Jakarta Sans",sans-serif}
 .ex{font-size:14.5px;padding-top:7px;color:var(--ink)}
 .ex small{display:block;direction:ltr;text-align:right;font-size:12.5px;color:var(--ink-faint);margin-top:3px;font-family:"Plus Jakarta Sans",sans-serif}
-.ex small.where{font-size:11.5px;color:var(--ink-faint);margin-top:4px;letter-spacing:.01em}
 .lines .en{font-weight:400}
 .lines .he{font-size:15.5px}
 input.in,textarea.in,input.note,textarea.note{width:100%;border:1px solid var(--rule);background:var(--card);border-radius:8px;padding:8px 10px}
@@ -71,6 +69,10 @@ textarea.in,textarea.note{resize:vertical;min-height:40px}
 .fine{border:1px solid var(--rule);background:none;border-radius:8px;padding:8px 0;width:100%;cursor:pointer;font-size:13.5px;font-weight:500}
 .fine.on{background:var(--ok-wash);border-color:var(--ok);color:var(--ok);font-weight:600}
 .lbl{display:none}
+.addnote{border:0;background:none;padding:4px 0 0;cursor:pointer;font-size:12.5px;color:var(--ink-faint)}
+.addnote:hover{color:var(--ink)}
+textarea.note{margin-top:6px}
+.intro p{color:var(--ink-soft)}
 .empty{color:var(--ink-soft);padding:20px 8px}
 @media (max-width:900px){
   .head{display:none}
@@ -130,7 +132,6 @@ const SCRIPT = String.raw`
     var e = editOf(id);
     if (state.filter === "todo") return !e.status;
     if (state.filter === "changed") return e.status === "changed";
-    if (state.filter === "notes") return !!e.note;
     return true;
   }
 
@@ -142,7 +143,7 @@ const SCRIPT = String.raw`
   function controls(row, id, isLine, current) {
     var e = editOf(id);
     var inWrap = el("div");
-    inWrap.appendChild(el("span", "lbl", isLine ? "Your version" : "The word a musician would say"));
+    inWrap.appendChild(el("span", "lbl", isLine ? "Your version" : "Your word"));
     var input = el(isLine ? "textarea" : "input", "in");
     if (!isLine) input.type = "text";
     input.rows = isLine ? 2 : undefined;
@@ -159,14 +160,17 @@ const SCRIPT = String.raw`
     fine.title = "The current Hebrew is right";
     fineWrap.appendChild(fine);
 
-    var noteWrap = el("div");
-    noteWrap.appendChild(el("span", "lbl", "Note (optional)"));
     var note = el("textarea", "note");
-    note.rows = 1;
+    note.rows = 2;
     note.value = e.note;
-    note.placeholder = "Note (optional)";
+    note.placeholder = "Note";
     note.setAttribute("aria-label", "Note");
-    noteWrap.appendChild(note);
+    var addNote = el("button", "addnote", "+ Note");
+    addNote.type = "button";
+    if (e.note) addNote.hidden = true; else note.hidden = true;
+    addNote.addEventListener("click", function () { addNote.hidden = true; note.hidden = false; note.focus(); });
+    inWrap.appendChild(addNote);
+    inWrap.appendChild(note);
 
     input.addEventListener("input", function () {
       var cur = editOf(id);
@@ -189,7 +193,7 @@ const SCRIPT = String.raw`
       state.edits[id] = { text: cur.text, note: note.value, status: cur.status };
       save(id);
     });
-    row.appendChild(inWrap); row.appendChild(fineWrap); row.appendChild(noteWrap);
+    row.appendChild(inWrap); row.appendChild(fineWrap);
   }
 
   function wordRow(r, n) {
@@ -202,16 +206,17 @@ const SCRIPT = String.raw`
     he.appendChild(el("span", "lbl", "Hebrew now"));
     he.appendChild(document.createTextNode(r.he));
     if (r.alsoHe && r.alsoHe.length) he.appendChild(el("span", "also", "also: " + r.alsoHe.join(" · ")));
-    if (r.uses > 1) he.appendChild(el("span", "uses", "in about " + r.uses + " lines"));
     row.appendChild(he);
     var ex = el("div", "ex");
     ex.appendChild(el("span", "lbl", "In the app"));
     if (r.example) {
       ex.appendChild(document.createTextNode(r.example.he));
       ex.appendChild(el("small", "", r.example.en));
-      if (r.example.where) ex.appendChild(el("small", "where", r.example.where));
-    } else if (r.seen) ex.appendChild(el("small", "where", "Seen in: " + r.seen));
-    else ex.appendChild(el("small", "", "—"));
+      if (r.example.where) ex.title = r.example.where;
+    } else {
+      ex.appendChild(el("small", "", "—"));
+      if (r.seen) ex.title = r.seen;
+    }
     row.appendChild(ex);
     controls(row, r.id, false, r.he);
     paint(row, r.id);
@@ -222,7 +227,7 @@ const SCRIPT = String.raw`
     var row = el("div", "row");
     row.appendChild(el("div", "num", "S" + n));
     var en = el("div", "en", s.en);
-    if (s.where) en.appendChild(el("span", "mean", s.where));
+    if (s.where) en.title = s.where;
     row.appendChild(en);
     var he = el("div", "he");
     he.appendChild(el("span", "lbl", "Hebrew now"));
@@ -250,9 +255,9 @@ const SCRIPT = String.raw`
       if (!visible.length) return;
       any = true;
       list.appendChild(el("h2", "", g.title));
-      list.appendChild(el("p", "lede", g.lede));
+      if (g.lede) list.appendChild(el("p", "lede", g.lede));
       var t = el("div", "table words");
-      t.appendChild(header(["#", "English", "Hebrew now", "In the app", "The word a musician would say", "", "Note"]));
+      t.appendChild(header(["#", "English", "Hebrew now", "In the app", "Your word", ""]));
       rows.forEach(function (r, i) { if (shown(r.id)) t.appendChild(wordRow(r, startN + i + 1)); });
       list.appendChild(t);
     });
@@ -260,9 +265,9 @@ const SCRIPT = String.raw`
     if (lines.length) {
       any = true;
       list.appendChild(el("h2", "", "A few whole sentences"));
-      list.appendChild(el("p", "lede", "From the screens people use most. Only to hear whether the tone sounds natural; fix a line only if it sounds off."));
+      list.appendChild(el("p", "lede", "Only to hear the tone."));
       var t = el("div", "table lines");
-      t.appendChild(header(["#", "English", "Hebrew now", "Your version", "", "Note"]));
+      t.appendChild(header(["#", "English", "Hebrew now", "Your version", ""]));
       state.sheet.sentences.forEach(function (s, i) { if (shown(s.id)) t.appendChild(lineRow(s, i + 1)); });
       list.appendChild(t);
     }
@@ -276,7 +281,6 @@ const SCRIPT = String.raw`
       c.classList.add("on"); state.filter = c.getAttribute("data-filter"); render();
     });
   });
-  $("#introToggle").addEventListener("click", function () { var i = $("#intro"); i.hidden = !i.hidden; });
 
   fetch(base + "/sheet.json").then(function (r) { if (!r.ok) throw new Error(); return r.json(); }).then(function (data) {
     state.sheet = data.sheet;
@@ -292,7 +296,7 @@ const SCRIPT = String.raw`
 })();
 `;
 
-export function renderTermsPage(total: number, csvHref: string, jsonHref: string): string {
+export function renderTermsPage(total: number, csvHref: string, _jsonHref?: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -309,28 +313,17 @@ export function renderTermsPage(total: number, csvHref: string, jsonHref: string
   <div class="count" id="count">${total} rows</div>
   <div class="bar" aria-hidden="true"><i id="bar"></i></div>
   <div class="saved" id="saved" role="status" aria-live="polite">Loading…</div>
-  <a class="btn" href="${csvHref}" download>Download spreadsheet</a>
-  <a class="btn" href="${jsonHref}" download>Download backup</a>
-  <button class="btn" id="introToggle" type="button">How this works</button>
+  <a class="btn" href="${csvHref}" download>Download</a>
 </header>
 <main>
-  <section class="intro" id="intro">
+  <section class="intro">
     <h1>Do these words sound like a musician?</h1>
-    <p>SongNook is an app for songwriters and working musicians: record ideas, write lyrics and chords, rehearse the set. The Hebrew is already written. What we need is an ear: some words may sound like a dictionary, not like something a musician would actually say.</p>
-    <ul>
-      <li><b>One row per word.</b> You see the English, the Hebrew the app uses now, and a real sentence from the app that uses it, with the page it's on.</li>
-      <li><b>The first group is the hardest:</b> words SongNook made up. There may be no dictionary word for them.</li>
-      <li><b>If the Hebrew is right,</b> press <b>✓ Fine</b>. <b>If you'd say it differently,</b> type your word. We change it everywhere in the app.</li>
-      <li><b>Notes are optional:</b> for "it depends", a question, or a better idea.</li>
-      <li>At the end, <b>a few whole sentences</b>, only to check the tone sounds natural.</li>
-      <li>Everything saves by itself. You can stop and come back any time.</li>
-    </ul>
+    <p>If the Hebrew is right, press ✓ Fine. If you'd say it differently, type your word. Everything saves by itself.</p>
   </section>
   <div class="filters">
     <button class="chip on" data-filter="all" type="button">All</button>
-    <button class="chip" data-filter="todo" type="button">Not done yet</button>
+    <button class="chip" data-filter="todo" type="button">Not done</button>
     <button class="chip" data-filter="changed" type="button">Changed</button>
-    <button class="chip" data-filter="notes" type="button">With notes</button>
   </div>
   <div id="list"></div>
 </main>
