@@ -1,6 +1,7 @@
 import { StyleSheet, Text, type StyleProp, type TextStyle } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useHasProAccess, usePlanState, type ProFeature } from "../../domain/entitlements";
+import { isProFeature } from "../../domain/proCatalog";
 import { isReceivedIdea } from "./proUpsell";
 import { colors, text as textTokens } from "../../design/tokens";
 
@@ -10,12 +11,12 @@ import { colors, text as textTokens } from "../../design/tokens";
  * it is tapped: the word "Pro" in the eyebrow's small capitals, terracotta ink, no
  * fill and no lock glyph, set after the control's own word.
  *
- * It shows only to someone the door would stop: never to a Pro member, in the free
- * month, on a received parcel's song (those tools are free there), or while a
- * count-based allowance still has room (`atLimit: false`). So the mark and the gate
- * always agree; a call site never draws it by hand. One exception, founder 2026-11-16:
- * a count door passing `markInFreeMonth` wears it in the free month once past the free
- * allowance (new workspaces), so the extra is labelled before the month ends.
+ * It shows to someone the door would stop, and (founder, 2026-11-25: "people need to
+ * know what the features are that will be pro") in the free month too, in quiet grey
+ * ink: the door still opens, the mark only says what it will be. Never to a Pro member
+ * or a founding install, on a received parcel's song (those tools are free there), or
+ * while a count-based allowance still has room (`atLimit: false`). A call site never
+ * draws it by hand.
  *
  * Canon components take the mark themselves (`InkKey pro`, a `SegmentedControl`
  * option's `pro`, a `SelectionAction`'s `pro`); beside a plain label use `ProMark`.
@@ -27,19 +28,20 @@ export function useProLocked(
   const allowed = useHasProAccess(feature);
   const plan = usePlanState();
   if (options.atLimit === false) return false;
-  // A count door can wear the mark in the free month too (founder, 2026-11-16): a third
-  // workspace made then is a Pro extra, kept for good, and should be labelled before
-  // anyone relies on it. The gate still lets it through; only the mark shows.
-  if (options.markInFreeMonth && options.atLimit && plan.kind === "freeMonth") return true;
-  if (allowed) return false;
-  return !isReceivedIdea(options.ideaId);
+  if (isReceivedIdea(options.ideaId)) return false;
+  // The free month is the only reason this door opens: mark it anyway, quietly
+  // (ProMarkText greys it), so the month shows what Pro is.
+  if (plan.kind === "freeMonth") return isProFeature(feature);
+  return !allowed;
 }
 
-/** The mark itself, with no check: for a canon component whose caller already knows. */
+/** The mark itself, with no check: for a canon component whose caller already knows.
+ *  In the free month it is grey (what it will be); after, terracotta (what it is). */
 export function ProMarkText({ style }: { style?: StyleProp<TextStyle> }) {
   const { t } = useTranslation();
+  const trial = usePlanState().kind === "freeMonth";
   return (
-    <Text style={[s.mark, style]} accessibilityLabel={t("pro.markA11y")}>
+    <Text style={[s.mark, trial ? s.trial : null, style]} accessibilityLabel={t("pro.markA11y")}>
       {t("pro.mark")}
     </Text>
   );
@@ -68,5 +70,8 @@ const s = StyleSheet.create({
   mark: {
     ...textTokens.annotation,
     color: colors.primaryDeep,
+  },
+  trial: {
+    color: colors.textMuted,
   },
 });

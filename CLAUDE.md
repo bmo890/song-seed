@@ -63,6 +63,9 @@ The hard rules below are non-negotiable.
   the gate would stop (`useProLocked`), so mark and gate always agree; canon parts take
   it as a prop (`InkKey pro`, a tab's `pro`, a menu row's `pro`; Share rows get it from
   `shareExitGate`). Never draw it by hand, and never gate a door without it.
+  In the free month (founder, 2026-11-25: "people need to know what will be pro") every
+  Pro door wears the mark in grey (`textMuted`) and still opens; after the month it is
+  terracotta and gates. Never shown to Pro members or founding installs.
   One exception (2026-11-16): a count door may pass `markInFreeMonth` so it wears the
   mark during the free month once past the free allowance (new workspace beyond 2);
   extras made then are kept for good, fully usable; only making more is gated.
