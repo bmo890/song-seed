@@ -108,7 +108,10 @@ async function webItems() {
 // ── The iPhone's own permission questions (languages/he.json, next store build) ──
 function promptItems() {
   const app = JSON.parse(read("app.json")).expo;
-  const he = JSON.parse(read("languages/he.json"));
+  // iPhone-only keys sit under "ios": Android lint refuses translations of strings it
+  // has no default for (the 1.0.3 Android build failed on them, 2026-11-25).
+  const file = JSON.parse(read("languages/he.json"));
+  const he = file.ios ?? file;
   const photos = app.plugins.map((p) => (Array.isArray(p) ? p[1]?.photosPermission : null)).find((v) => typeof v === "string");
   const english = {
     NSMicrophoneUsageDescription: app.ios.infoPlist.NSMicrophoneUsageDescription,

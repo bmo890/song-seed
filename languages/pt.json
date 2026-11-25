@@ -1,5 +1,7 @@
 {
-  "NSMicrophoneUsageDescription": "O SongNook precisa de acesso ao microfone para você gravar ideias de músicas e memos de voz.",
-  "NSFaceIDUsageDescription": "O SongNook pede o Face ID apenas para confirmar a exclusão de todos os dados.",
-  "NSPhotoLibraryUsageDescription": "O SongNook abre os vídeos que você escolhe para trazer o som deles como clipes."
+  "ios": {
+    "NSMicrophoneUsageDescription": "O SongNook precisa de acesso ao microfone para você gravar ideias de músicas e memos de voz.",
+    "NSFaceIDUsageDescription": "O SongNook pede o Face ID apenas para confirmar a exclusão de todos os dados.",
+    "NSPhotoLibraryUsageDescription": "O SongNook abre os vídeos que você escolhe para trazer o som deles como clipes."
+  }
 }
