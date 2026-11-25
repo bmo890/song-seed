@@ -22,6 +22,7 @@ export type SettingsView =
   | "sharing"
   | "computer"
   | "about"
+  | "openData"
   | "export"
   | "import"
   | "storage";

@@ -9,6 +9,7 @@ import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { SettingsAboutView } from "../views/SettingsAboutView";
+import { SettingsOpenDataView } from "../views/SettingsOpenDataView";
 import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsLibraryView } from "../views/SettingsLibraryView";
@@ -45,13 +46,14 @@ export function SettingsScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* The serif section title lives in each view's PageIntro. On the overview the
-          header stays untitled (the PageIntro already says Settings); on subscreens
-          the header says Settings so the top of the page never changes rooms. */}
+      {/* The serif title lives in each view's PageIntro, so the nav row carries no
+          title of its own (two titles read as two pages, founder 2026-11-25). On a
+          subpage the chevron names where back lands, small, as on pushed pages. */}
       <ScreenHeader
-        title={screen.showSubscreen ? t("settings.title") : ""}
+        title=""
         leftIcon={screen.showSubscreen ? "back" : "hamburger"}
         onLeftPress={handleBackPress}
+        backLabel={screen.showSubscreen ? screen.backLabel : undefined}
       />
 
       {screen.view === "general" ? (
@@ -93,7 +95,9 @@ export function SettingsScreenContent() {
       ) : screen.view === "computer" ? (
         <SettingsComputerView />
       ) : screen.view === "about" ? (
-        <SettingsAboutView />
+        <SettingsAboutView onOpenOpenData={() => screen.setView("openData")} />
+      ) : screen.view === "openData" ? (
+        <SettingsOpenDataView />
       ) : (
         <SettingsOverviewView
           backupFlow={backupFlow}

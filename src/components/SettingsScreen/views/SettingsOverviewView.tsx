@@ -1,4 +1,4 @@
-import { Linking, Platform, ScrollView, View } from "react-native";
+import { Linking, Platform, ScrollView } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
@@ -17,8 +17,10 @@ type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 /**
  * Four doors (founder, 2026-10-21: fewer pages, less text). Once Pro can be
  * bought, the plan is a fifth: one row saying where you stand, opening the Pro
- * sheet (2026-10-27). Beneath them, two ways to talk back: a note to us and the
- * store's review page (founder, 2026-11-11).
+ * sheet (2026-10-27). Two ways to talk back: a note to us and the store's review
+ * page (founder, 2026-11-11). One unbroken list, in reading order: your plan, what
+ * you set, talking back, and Help & about last (founder, 2026-11-25: separate
+ * groups read as rows "splattered on the page").
  */
 export function SettingsOverviewView({
   backupFlow,
@@ -64,46 +66,38 @@ export function SettingsOverviewView({
     >
       <PageIntro title={t("settings.title")} />
 
-      {/* The plan, once Pro can be bought: where you stand, and the door to the Pro
-          sheet (prices, Restore). Nothing shows while everything is free. */}
-      {isPaywallLive() ? <PlanRow /> : null}
-
-      <View style={settingsScreenStyles.overviewSection}>
-        <SettingsGroup>
-          <LibraryActionCard
-            flat
-            icon="options-outline"
-            title={t("settings.preferences")}
-            onPress={onOpenPreferences}
-          />
-          <LibraryActionCard
-            flat
-            icon="archive-outline"
-            title={t("settings.dataStorage")}
-            busy={backupFlow.isBackingUp || backupFlow.isRestoring}
-            meta={libraryMeta}
-            onPress={onOpenLibrary}
-          />
-          <LibraryActionCard
-            flat
-            icon="help-circle-outline"
-            title={t("settings.helpAbout")}
-            onPress={onOpenAbout}
-          />
-        </SettingsGroup>
-      </View>
-
-      <View style={settingsScreenStyles.overviewSection}>
-        <SettingsGroup>
-          <LibraryActionCard
-            flat
-            icon="chatbubble-outline"
-            title={t("settingsAbout.sendFeedback")}
-            onPress={openFeedbackSheet}
-          />
-          <LibraryActionCard flat icon="star-outline" title={t("settings.rate")} onPress={rateApp} />
-        </SettingsGroup>
-      </View>
+      <SettingsGroup>
+        {/* The plan, once Pro can be bought: where you stand, and the door to the Pro
+            sheet (prices, Restore). Nothing shows while everything is free. */}
+        {isPaywallLive() ? <PlanRow /> : null}
+        <LibraryActionCard
+          flat
+          icon="options-outline"
+          title={t("settings.preferences")}
+          onPress={onOpenPreferences}
+        />
+        <LibraryActionCard
+          flat
+          icon="archive-outline"
+          title={t("settings.dataStorage")}
+          busy={backupFlow.isBackingUp || backupFlow.isRestoring}
+          meta={libraryMeta}
+          onPress={onOpenLibrary}
+        />
+        <LibraryActionCard
+          flat
+          icon="chatbubble-outline"
+          title={t("settingsAbout.sendFeedback")}
+          onPress={openFeedbackSheet}
+        />
+        <LibraryActionCard flat icon="star-outline" title={t("settings.rate")} onPress={rateApp} />
+        <LibraryActionCard
+          flat
+          icon="help-circle-outline"
+          title={t("settings.helpAbout")}
+          onPress={onOpenAbout}
+        />
+      </SettingsGroup>
     </ScrollView>
   );
 }
@@ -125,16 +119,12 @@ function PlanRow() {
   const { t } = useTranslation();
   const plan = usePlanState();
   return (
-    <View style={settingsScreenStyles.overviewSection}>
-      <SettingsGroup>
-        <LibraryActionCard
-          flat
-          icon="sparkles-outline"
-          title={t("pro.eyebrow")}
-          meta={planLabel(plan, t)}
-          onPress={() => openProUpsell()}
-        />
-      </SettingsGroup>
-    </View>
+    <LibraryActionCard
+      flat
+      icon="sparkles-outline"
+      title={t("pro.eyebrow")}
+      meta={planLabel(plan, t)}
+      onPress={() => openProUpsell()}
+    />
   );
 }

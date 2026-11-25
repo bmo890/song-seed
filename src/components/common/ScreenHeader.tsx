@@ -18,6 +18,10 @@ type Props = {
     leftIcon?: "hamburger" | "back" | "none";
     onLeftPress?: () => void;
     rightElement?: React.ReactNode;
+    /** Where back lands, for a page whose back switches a view inside one
+     *  screen (Settings' subpages) rather than popping a route. Routes never
+     *  pass it: their label comes from the route beneath (useOriginLabel). */
+    backLabel?: string;
 };
 
 export function ScreenHeader({
@@ -26,6 +30,7 @@ export function ScreenHeader({
     leftIcon = "hamburger",
     onLeftPress,
     rightElement,
+    backLabel,
 }: Props) {
     const { t } = useTranslation();
     const navigation = useNavigation();
@@ -49,7 +54,8 @@ export function ScreenHeader({
     // Back wears the name of where it lands (navigation law 2026-09-16) — the
     // route beneath this page in its stack. Pages that only switch an internal
     // view (Settings, Compilations) live in the drawer and get the bare chevron.
-    const originLabel = useOriginLabel(effectiveLeftIcon === "back");
+    const routeOriginLabel = useOriginLabel(effectiveLeftIcon === "back" && !backLabel);
+    const originLabel = effectiveLeftIcon === "back" ? backLabel || routeOriginLabel : null;
 
     function handleLeftPress() {
         if (onLeftPress) {
@@ -69,7 +75,11 @@ export function ScreenHeader({
             {leftIcon !== "none" ? (
                 <Press
                     haptic="none"
-                    style={effectiveLeftIcon === "hamburger" ? headerStyles.hamburgerBtn : headerStyles.backBtn}
+                    style={
+                        effectiveLeftIcon === "hamburger"
+                            ? headerStyles.hamburgerBtn
+                            : [headerStyles.backBtn, !title || place ? headerStyles.backBtnWide : null]
+                    }
                     onPress={handleLeftPress}
                     hitSlop={8}
                     accessibilityRole="button"
@@ -150,6 +160,10 @@ const headerStyles = StyleSheet.create({
         // Room for a name, never for a sentence — the title keeps the row.
         maxWidth: "38%",
         paddingEnd: 4,
+    },
+    // No centred title shares the row: the name may take most of it.
+    backBtnWide: {
+        maxWidth: "75%",
     },
     backLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",

@@ -16,13 +16,12 @@ import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
 import { openFeedbackSheet } from "../../common/feedbackSheetStore";
-import { OPEN_DATA_SOURCES } from "../../../config/openData";
 
 /**
  * Quiet closing page: the version to quote in a bug report, a way to reach out, and a
  * plain statement of where a SongNook library actually lives.
  */
-export function SettingsAboutView() {
+export function SettingsAboutView({ onOpenOpenData }: { onOpenOpenData: () => void }) {
   const { t } = useTranslation();
   const version = Constants.expoConfig?.version ?? "—";
   // Which over-the-air update this launch runs; nothing on the binary's own bundle.
@@ -144,23 +143,10 @@ export function SettingsAboutView() {
         </SettingsGroup>
       </View>
 
-      <View style={styles.settingsSection}>
-        <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>{t("settingsAbout.openData")}</Text>
-        </View>
-        <Text style={styles.settingsSectionHint}>{t("settingsAbout.openDataLine")}</Text>
-        <SettingsGroup>
-          {OPEN_DATA_SOURCES.map((source) => (
-            <AboutLinkRow
-              key={source.name}
-              label={source.name}
-              value={t(`settingsAbout.openDataUse.${source.use}`)}
-              icon="open-outline"
-              onPress={() => openLegal(source.url)}
-            />
-          ))}
-        </SettingsGroup>
-      </View>
+      {/* Credits are owed, not read (founder, 2026-11-25): one row to their own page. */}
+      <SettingsGroup>
+        <AboutLinkRow label={t("settingsAbout.openData")} onPress={onOpenOpenData} />
+      </SettingsGroup>
     </ScrollView>
   );
 }

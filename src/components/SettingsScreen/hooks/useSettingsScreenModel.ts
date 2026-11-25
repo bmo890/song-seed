@@ -39,6 +39,8 @@ export function useSettingsScreenModel() {
             ? t("sendComputer.title")
           : view === "about"
             ? t("settings.helpAbout")
+          : view === "openData"
+            ? t("settingsAbout.openData")
             : view === "export"
               ? t("settingsLibrary.exportArchive")
               : view === "import"
@@ -47,10 +49,23 @@ export function useSettingsScreenModel() {
                   ? t("settingsLibrary.storageRepair")
                   : t("settings.title");
   const showSubscreen = view !== "overview";
-  // The three doors return to the overview; everything reached from Data &
-  // storage (export, import, sent links, storage) returns there first.
+  // The three doors return to the overview; Open data returns to Help & about;
+  // everything reached from Data & storage (export, import, sent links, storage)
+  // returns there first.
   const backView: SettingsView =
-    view === "general" || view === "library" || view === "about" ? "overview" : "library";
+    view === "general" || view === "library" || view === "about"
+      ? "overview"
+      : view === "openData"
+        ? "about"
+        : "library";
+  // Back wears the name of where it lands (navigation law 2026-09-16), as the
+  // pushed pages do: "Settings", "Help & about" or "Data & storage".
+  const backLabel =
+    backView === "overview"
+      ? t("settings.title")
+      : backView === "about"
+        ? t("settings.helpAbout")
+        : t("settingsLibrary.title");
 
   return {
     view,
@@ -58,5 +73,6 @@ export function useSettingsScreenModel() {
     title,
     showSubscreen,
     backView,
+    backLabel,
   };
 }
