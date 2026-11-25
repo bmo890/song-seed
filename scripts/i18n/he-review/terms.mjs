@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, readCatalog, leaves } from "../catalog.mjs";
 import { GROUPS, TERMS, SENTENCE_KEYS } from "./terms.list.mjs";
+import { outsideItems } from "./outside.mjs";
 
 const PLURAL = /_(zero|one|two|few|many|other)$/;
 const en = Object.fromEntries(leaves(readCatalog("en")));
@@ -160,6 +161,96 @@ const sentences = SENTENCE_KEYS.map((key) => {
   return { id: `line:${key}`, key, en: en[key], he: he[key], where: whereOf(key) };
 });
 
+// ── Outside the app (founder, 2026-11-25): songnook.app, the Send pages, the store
+// listing, on the same page as their own sections, English beside each line. Each
+// line says where it shows, so a state the reviewer never sees still has context.
+const outside = await outsideItems();
+const sendGroupOf = (() => {
+  // The SendStrings type marks its parts with comments: shared chrome, the parcel page,
+  // sending from a computer. Read them so a new key lands in the right part.
+  const src = fs.readFileSync(path.join(ROOT, "server/songnook-send/src/pages/sendI18n.ts"), "utf8");
+  const block = src.slice(src.indexOf("export type SendStrings = {"), src.indexOf("\n};", src.indexOf("export type SendStrings = {")));
+  const map = new Map();
+  let part = "open";
+  for (const line of block.split("\n")) {
+    if (/\/\/\s*sending from a computer/.test(line)) part = "computer";
+    else if (/\/\/\s*(the parcel page|shared chrome)/.test(line)) part = "open";
+    const key = line.match(/^\s+([A-Za-z0-9]+)\??:/)?.[1];
+    if (key) map.set(key, part);
+  }
+  return (key) => map.get(key) ?? "open";
+})();
+/** When a Send line shows, for the ones a single visit never reaches. */
+const SEND_HINTS = [
+  [/^noKey/, "When a link is missing its key"],
+  [/^badKey/, "When a link's key doesn't match"],
+  [/^gone/, "When a link has expired or was removed"],
+  [/^(opening|tryAgain)$/, "While a parcel opens, or if it fails"],
+  [/^(newHere|scan|qrLabel)$/, "On a computer, or without the app"],
+  [/^(about|seeIt|moreAt)/, "The 'What's SongNook?' part"],
+  [/^(rawFiles|download)$/, "Downloading the raw files"],
+  [/^(pair|waiting|oneMoment|paired|unpair)/, "Pairing the browser with the phone"],
+  [/^(codeRanOut|newCode|tooManyCodes|noCode)$/, "When pairing goes wrong"],
+  [/^(ready|copy|copied)$/, "After the link is made"],
+  [/^(freeUsed|failed|onlyAudio|packageAlone)$/, "When a send can't go"],
+  [/^(freeLeft)$/, "How many free links are left"],
+];
+/** The website's parts, in the page's order (landingI18n.ts keys). */
+const SITE_PARTS = [
+  [/^(title|description|getApp|language|support|privacy|terms|appStoreAlt|playAlt|androidSoon)/, "Top of the page, menus, footer"],
+  [/^hero/, "The opening"],
+  [/^tour/, "The tour of the app"],
+  [/^band/, "For bands"],
+  [/^(learn|cards)/, "Learning songs"],
+  [/^yours/, "Your library is yours"],
+  [/^(plans|free|forever|proAdds)/, "Free and Pro"],
+  [/^closing/, "The closing"],
+];
+const hintOf = (table, key) => table.find(([re]) => re.test(key))?.[1] ?? null;
+const formWord = { one: "one", two: "two", other: "many", many: "many" };
+function outsideRows(filter, hint) {
+  return outside.filter(filter).flatMap((item) =>
+    item.forms.map((f) => ({
+      id: f.form ? `${item.id}#${f.form}` : item.id,
+      key: item.id,
+      en: f.en,
+      he: f.he,
+      where: [hint(item), f.form ? `(${formWord[f.form] ?? f.form})` : null].filter(Boolean).join(" ") || null,
+    }))
+  );
+}
+const sendKey = (item) => item.id.replace(/^web:send\./, "");
+const siteKey = (item) => item.id.replace(/^web:site\./, "");
+const web = [
+  {
+    id: "site",
+    title: "Website",
+    lede: "songnook.app, the page people read before they have the app. Open songnook.app/?lang=he to see it in place.",
+    rows: outsideRows((i) => i.section === "Website", (i) => hintOf(SITE_PARTS, siteKey(i))),
+  },
+  {
+    id: "send-open",
+    title: "Send: the page someone opens",
+    lede: "What a person sees when they open a SongNook Send link.",
+    rows: outsideRows((i) => i.section === "Send web page" && sendGroupOf(sendKey(i)) === "open", (i) => hintOf(SEND_HINTS, sendKey(i))),
+  },
+  {
+    id: "send-computer",
+    title: "Send: sending from a computer",
+    lede: "songnook.app/send, where someone sends songs from a computer.",
+    rows: outsideRows((i) => i.section === "Send web page" && sendGroupOf(sendKey(i)) === "computer", (i) => hintOf(SEND_HINTS, sendKey(i))),
+  },
+  {
+    id: "store",
+    title: "App Store and Google Play listing",
+    lede: "The store page. Keep the keywords line as commas with no spaces.",
+    rows: outsideRows((i) => i.section === "Store listing", (i) => i.kind),
+  },
+];
+for (const section of web) if (!section.rows.length) PROBLEMS.push(`outside section ${section.id} came out empty`);
+const allIds = [...rows.map((r) => r.id), ...sentences.map((x) => x.id), ...web.flatMap((w) => w.rows.map((r) => r.id))];
+for (const [i, id] of allIds.entries()) if (allIds.indexOf(id) !== i) PROBLEMS.push(`id ${id} is used twice`);
+
 if (PROBLEMS.length) {
   console.error(PROBLEMS.join("\n"));
   if (!process.argv.includes("--audit")) process.exit(1);
@@ -183,11 +274,14 @@ if (process.argv.includes("--audit")) {
   }
   console.log(`\n${rows.length} words, ${rows.filter((r) => !r.he).length} without a standalone label`);
 } else {
-  const out = { builtAt: new Date().toISOString().slice(0, 10), groups: GROUPS, rows, sentences };
+  const out = { builtAt: new Date().toISOString().slice(0, 10), groups: GROUPS, rows, sentences, web };
   const file = path.join(ROOT, "server/songnook-send/src/review/heTerms.generated.ts");
   fs.writeFileSync(
     file,
     "// GENERATED by scripts/i18n/he-review/terms.mjs — do not edit by hand.\n/* eslint-disable */\nexport const HE_TERMS = " + JSON.stringify(out) + " as const;\n"
   );
-  console.log(`wrote ${path.relative(ROOT, file)}: ${rows.length} words, ${sentences.length} sentences`);
+  console.log(
+    `wrote ${path.relative(ROOT, file)}: ${rows.length} words, ${sentences.length} sentences, ` +
+      web.map((w) => `${w.id} ${w.rows.length}`).join(", ")
+  );
 }

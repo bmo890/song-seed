@@ -43,7 +43,8 @@ main{padding:20px 24px 100px;max-width:1440px;margin:0 auto}
 .filters{display:flex;gap:8px;margin:0 0 8px;flex-wrap:wrap}
 .chip{border:1px solid var(--rule);background:none;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px}
 .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px;scroll-margin-top:76px}
+h2{font-family:Lora,serif;font-weight:500;font-size:22px;margin:30px 0 2px;scroll-margin-top:76px;color:var(--ink)}
+@media (min-width:1101px){ .jump{display:none} }
 .jump{margin-inline-start:auto;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:13px;max-width:100%}
 .lede{color:var(--ink-soft);margin:0 0 10px}
 .table{border-top:1px solid var(--rule)}
@@ -75,6 +76,32 @@ textarea.in,textarea.note{resize:vertical;min-height:40px}
 textarea.note{margin-top:6px}
 .intro p{color:var(--ink-soft)}
 .empty{color:var(--ink-soft);padding:20px 8px}
+/* The guide (founder, 2026-11-25: "a guide on the side so he knows where he is"). */
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:32px;align-items:start}
+.guide{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;padding:4px 4px 24px 0;font-size:13.5px}
+.guide .gtools{display:flex;gap:12px;margin:0 0 10px}
+.guide .gtools button{border:0;background:none;padding:0;cursor:pointer;color:var(--ink-faint);font-size:12.5px}
+.guide .gtools button:hover{color:var(--ink)}
+.guide .part{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 4px}
+.guide a{display:flex;justify-content:space-between;gap:10px;padding:5px 8px;border-radius:6px;color:var(--ink-soft);text-decoration:none;border-inline-start:2px solid transparent}
+.guide a:hover{background:var(--paper-deep);color:var(--ink)}
+.guide a.here{color:var(--ink);font-weight:600;border-inline-start-color:var(--terra);background:var(--paper-deep)}
+.guide .n{font-variant-numeric:tabular-nums;color:var(--ink-faint);font-weight:400;white-space:nowrap}
+.guide a.full .n{color:var(--ok);font-weight:600}
+.sec{margin-top:26px;scroll-margin-top:72px}
+.sec>button.sh{display:flex;align-items:baseline;gap:10px;width:100%;border:0;background:none;padding:6px 0;cursor:pointer;text-align:left}
+.sec>button.sh h2{margin:0;flex:0 1 auto}
+.sec>button.sh .chev{display:inline-block;width:8px;height:8px;flex:none;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:translateY(-3px) rotate(45deg);transition:transform .15s}
+.sec.closed>button.sh .chev{transform:translateY(-1px) rotate(-45deg)}
+.sec>button.sh .prog{margin-inline-start:auto;font-size:13px;color:var(--ink-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sec.full>button.sh .prog{color:var(--ok);font-weight:600}
+.sec.closed .body{display:none}
+.where{display:block;font-size:12.5px;color:var(--ink-faint);font-weight:400;margin-top:3px}
+@media (max-width:1100px){
+  .layout{grid-template-columns:1fr}
+  .guide{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .sec>button.sh .chev{transition:none} }
 @media (max-width:900px){
   .head{display:none}
   .words .row,.lines .row{grid-template-columns:1fr;gap:6px;padding:14px 4px}
@@ -100,7 +127,24 @@ const SCRIPT = String.raw`
   function storePending() { try { localStorage.setItem(LS, JSON.stringify(pending)); } catch (e) {} }
   function savedLine(t, bad) { var s = $("#saved"); s.textContent = t; s.className = "saved" + (bad ? " bad" : ""); }
   function editOf(id) { return state.edits[id] || { text: "", note: "", status: "" }; }
-  function allIds() { return state.sheet.rows.map(function (r) { return r.id; }).concat(state.sheet.sentences.map(function (s) { return s.id; })); }
+  var LS_CLOSED = "songnook-review-he-terms-closed";
+  var closed = {};
+  try { closed = JSON.parse(localStorage.getItem(LS_CLOSED) || "{}") || {}; } catch (e) { closed = {}; }
+  function storeClosed() { try { localStorage.setItem(LS_CLOSED, JSON.stringify(closed)); } catch (e) {} }
+  /** Every section in reading order: the word groups, the sentences, then outside the app. */
+  function sections() {
+    var out = state.sheet.groups.map(function (g) {
+      return { id: "g-" + g.id, part: "Words in the app", title: g.title, lede: g.lede, kind: "words",
+        items: state.sheet.rows.filter(function (r) { return r.group === g.id; }) };
+    });
+    out.push({ id: "sentences", part: "Words in the app", title: "A few whole sentences", lede: "Only to hear the tone.", kind: "lines", items: state.sheet.sentences });
+    (state.sheet.web || []).forEach(function (w) {
+      out.push({ id: "w-" + w.id, part: "Outside the app", title: w.title, lede: w.lede, kind: "web", items: w.rows });
+    });
+    return out;
+  }
+  function allIds() { var ids = []; sections().forEach(function (sec) { sec.items.forEach(function (it) { ids.push(it.id); }); }); return ids; }
+  function doneIn(sec) { var d = 0; sec.items.forEach(function (it) { if (editOf(it.id).status) d++; }); return d; }
 
   function renderTop() {
     var ids = allIds(), done = 0, changed = 0;
@@ -117,6 +161,7 @@ const SCRIPT = String.raw`
     timer = setTimeout(flush, 700);
     savedLine("Saving…");
     renderTop();
+    updateProgress();
   }
 
   function flush() {
@@ -224,11 +269,12 @@ const SCRIPT = String.raw`
     return row;
   }
 
-  function lineRow(s, n) {
+  function lineRow(s, n, showWhere) {
     var row = el("div", "row");
-    row.appendChild(el("div", "num", "S" + n));
+    row.appendChild(el("div", "num", String(n)));
     var en = el("div", "en", s.en);
-    if (s.where) en.title = s.where;
+    if (s.where && showWhere) en.appendChild(el("span", "where", s.where));
+    else if (s.where) en.title = s.where;
     row.appendChild(en);
     var he = el("div", "he");
     he.appendChild(el("span", "lbl", "Hebrew now"));
@@ -245,41 +291,101 @@ const SCRIPT = String.raw`
     return h;
   }
 
+  var secEls = {}, guideEls = {};
+  function updateProgress() {
+    sections().forEach(function (sec) {
+      var d = doneIn(sec), t = sec.items.length, full = d === t;
+      var se = secEls[sec.id], ge = guideEls[sec.id];
+      if (se) { se.classList.toggle("full", full); se.querySelector(".prog").textContent = full ? "✓ All done" : d + " / " + t; }
+      if (ge) { ge.classList.toggle("full", full); ge.querySelector(".n").textContent = full ? "✓" : d + " / " + t; }
+    });
+  }
+
   function render() {
     var list = $("#list"); list.innerHTML = "";
-    var n = 0, any = false, stops = [];
-    state.sheet.groups.forEach(function (g) {
-      var rows = state.sheet.rows.filter(function (r) { return r.group === g.id; });
+    var guide = $("#guide"); guide.innerHTML = "";
+    secEls = {}; guideEls = {};
+    var any = false, stops = [], n = 0, part = "";
+    var tools = el("div", "gtools");
+    var openAll = el("button", "", "Open all"); openAll.type = "button";
+    var closeAll = el("button", "", "Close all"); closeAll.type = "button";
+    openAll.onclick = function () { closed = {}; storeClosed(); render(); };
+    closeAll.onclick = function () { sections().forEach(function (sec) { closed[sec.id] = true; }); storeClosed(); render(); };
+    tools.appendChild(openAll); tools.appendChild(closeAll); guide.appendChild(tools);
+
+    sections().forEach(function (sec) {
       var startN = n;
-      var visible = rows.filter(function (r, i) { return shown(r.id); });
-      n += rows.length;
+      if (sec.kind === "words") n += sec.items.length;
+      if (sec.part !== part) { part = sec.part; guide.appendChild(el("div", "part", part)); }
+      var link = el("a"); link.href = "#" + sec.id;
+      link.appendChild(el("span", "", sec.title)); link.appendChild(el("span", "n", ""));
+      guide.appendChild(link); guideEls[sec.id] = link;
+
+      var visible = sec.items.filter(function (it) { return shown(it.id); });
+      link.onclick = function (ev) {
+        ev.preventDefault();
+        if (closed[sec.id]) { delete closed[sec.id]; storeClosed(); }
+        if (!secEls[sec.id]) { state.filter = "all"; document.querySelectorAll(".chip").forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-filter") === "all"); }); }
+        render();
+        var target = secEls[sec.id]; if (target) target.scrollIntoView({ block: "start" });
+      };
       if (!visible.length) return;
       any = true;
-      var h = el("h2", "", g.title); list.appendChild(h); stops.push([g.title + " · " + visible.length, h]);
-      if (g.lede) list.appendChild(el("p", "lede", g.lede));
-      var t = el("div", "table words");
-      t.appendChild(header(["#", "English", "Hebrew now", "In the app", "Your word", ""]));
-      rows.forEach(function (r, i) { if (shown(r.id)) t.appendChild(wordRow(r, startN + i + 1)); });
-      list.appendChild(t);
+
+      var box = el("section", "sec" + (closed[sec.id] ? " closed" : "")); box.id = sec.id;
+      var head = el("button", "sh"); head.type = "button";
+      head.setAttribute("aria-expanded", closed[sec.id] ? "false" : "true");
+      head.appendChild(el("span", "chev", ""));
+      head.appendChild(el("h2", "", sec.title));
+      head.appendChild(el("span", "prog", ""));
+      head.onclick = function () {
+        var shut = !box.classList.contains("closed");
+        box.classList.toggle("closed", shut); head.setAttribute("aria-expanded", shut ? "false" : "true");
+        if (shut) closed[sec.id] = true; else delete closed[sec.id];
+        storeClosed();
+      };
+      box.appendChild(head);
+      var body = el("div", "body");
+      if (sec.lede) body.appendChild(el("p", "lede", sec.lede));
+      var t = el("div", "table " + (sec.kind === "words" ? "words" : "lines"));
+      if (sec.kind === "words") {
+        t.appendChild(header(["#", "English", "Hebrew now", "In the app", "Your word", ""]));
+        sec.items.forEach(function (r, i) { if (shown(r.id)) t.appendChild(wordRow(r, startN + i + 1)); });
+      } else {
+        t.appendChild(header(["#", "English", "Hebrew now", "Your version", ""]));
+        sec.items.forEach(function (r, i) { if (shown(r.id)) t.appendChild(lineRow(r, (sec.kind === "lines" ? "S" : "") + (i + 1), sec.kind === "web")); });
+      }
+      body.appendChild(t); box.appendChild(body);
+      list.appendChild(box); secEls[sec.id] = box;
+      stops.push([sec.title, box]);
     });
-    var lines = state.sheet.sentences.filter(function (s) { return shown(s.id); });
-    if (lines.length) {
-      any = true;
-      var hs = el("h2", "", "A few whole sentences"); list.appendChild(hs); stops.push(["Sentences · " + lines.length, hs]);
-      list.appendChild(el("p", "lede", "Only to hear the tone."));
-      var t = el("div", "table lines");
-      t.appendChild(header(["#", "English", "Hebrew now", "Your version", ""]));
-      state.sheet.sentences.forEach(function (s, i) { if (shown(s.id)) t.appendChild(lineRow(s, i + 1)); });
-      list.appendChild(t);
-    }
     if (!any) list.appendChild(el("p", "empty", "Nothing here with this filter."));
-    // One quiet way around twelve groups: a list of them, each with its count.
+
+    // Small screens: the same sections as a "Go to…" list.
     var jump = $("#jump"); jump.innerHTML = "";
     var first = document.createElement("option"); first.textContent = "Go to…"; first.value = ""; jump.appendChild(first);
     stops.forEach(function (stop, i) { var o = document.createElement("option"); o.textContent = stop[0]; o.value = String(i); jump.appendChild(o); });
-    jump.onchange = function () { var stop = stops[Number(jump.value)]; if (jump.value !== "" && stop) stop[1].scrollIntoView({ block: "start" }); jump.value = ""; };
+    jump.onchange = function () {
+      var stop = stops[Number(jump.value)];
+      if (jump.value !== "" && stop) { stop[1].classList.remove("closed"); stop[1].scrollIntoView({ block: "start" }); }
+      jump.value = "";
+    };
     jump.hidden = stops.length < 2;
+
+    // Where am I: the guide marks the section at the top of the screen.
+    if (window.IntersectionObserver) {
+      if (state.io) state.io.disconnect();
+      var seen = {};
+      state.io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+        var here = null;
+        sections().some(function (sec) { if (seen[sec.id]) { here = sec.id; return true; } return false; });
+        Object.keys(guideEls).forEach(function (id) { guideEls[id].classList.toggle("here", id === here); });
+      }, { rootMargin: "-80px 0px -60% 0px" });
+      Object.keys(secEls).forEach(function (id) { state.io.observe(secEls[id]); });
+    }
     renderTop();
+    updateProgress();
   }
 
   document.querySelectorAll(".chip").forEach(function (c) {
@@ -310,13 +416,13 @@ export function renderTermsPage(total: number, csvHref: string, _jsonHref?: stri
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Hebrew words · SongNook</title>
+<title>Hebrew review · SongNook</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <style>${FONT_FACES}${CSS}</style>
 </head>
 <body>
 <header class="top">
-  <div class="brand">Song<b>Nook</b> · Hebrew words</div>
+  <div class="brand">Song<b>Nook</b> · Hebrew review</div>
   <div class="count" id="count">${total} rows</div>
   <div class="bar" aria-hidden="true"><i id="bar"></i></div>
   <div class="saved" id="saved" role="status" aria-live="polite">Loading…</div>
@@ -324,8 +430,9 @@ export function renderTermsPage(total: number, csvHref: string, _jsonHref?: stri
 </header>
 <main>
   <section class="intro">
-    <h1>Do these words sound like a musician?</h1>
-    <p>If the Hebrew is right, press ✓ Fine. If you'd say it differently, type your word. Everything saves by itself.</p>
+    <h1>Does the Hebrew sound right?</h1>
+    <p>First SongNook's key words, then the website and the Send pages. If the Hebrew is right, press ✓ Fine. If you'd say it differently, type your version. Everything saves by itself.</p>
+    <p>The list on the left shows every section and how much of it is done. Click a section's title to fold it away.</p>
   </section>
   <div class="filters">
     <button class="chip on" data-filter="all" type="button">All</button>
@@ -333,7 +440,10 @@ export function renderTermsPage(total: number, csvHref: string, _jsonHref?: stri
     <button class="chip" data-filter="changed" type="button">Changed</button>
     <select class="jump" id="jump" aria-label="Go to a group"></select>
   </div>
-  <div id="list"></div>
+  <div class="layout">
+    <nav class="guide" id="guide" aria-label="Sections"></nav>
+    <div id="list"></div>
+  </div>
 </main>
 <script>${SCRIPT}</script>
 </body>

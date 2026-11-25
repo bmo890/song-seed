@@ -23,10 +23,24 @@ export type TermRow = {
 };
 export type TermSentence = { id: string; key: string; en: string; he: string; where: string | null };
 export type TermGroup = { id: string; title: string; lede: string };
+/** A line outside the app (website, Send pages, store listing), founder 2026-11-25. */
+export type WebLine = { id: string; key: string; en: string; he: string; where: string | null };
+export type WebSection = { id: string; title: string; lede: string; rows: WebLine[] };
 
-const SHEET = HE_TERMS as unknown as { builtAt: string; groups: TermGroup[]; rows: TermRow[]; sentences: TermSentence[] };
+const SHEET = HE_TERMS as unknown as {
+  builtAt: string;
+  groups: TermGroup[];
+  rows: TermRow[];
+  sentences: TermSentence[];
+  web?: WebSection[];
+};
 export const termsSheet = SHEET;
-const KNOWN = new Set<string>([...SHEET.rows.map((r) => r.id), ...SHEET.sentences.map((s) => s.id)]);
+const WEB = SHEET.web ?? [];
+const KNOWN = new Set<string>([
+  ...SHEET.rows.map((r) => r.id),
+  ...SHEET.sentences.map((s) => s.id),
+  ...WEB.flatMap((w) => w.rows.map((r) => r.id)),
+]);
 
 export type TermEdit = { item_id: string; forms: string; note: string; status: string; updated_at: number };
 
@@ -98,6 +112,15 @@ export function termsCsv(edits: Map<string, TermEdit>): string {
       e ? new Date(e.updated_at).toISOString() : "",
     ]);
   });
+  WEB.forEach((section) =>
+    section.rows.forEach((r, i) => {
+      const e = edits.get(r.id);
+      rows.push([
+        `${section.id}-${i + 1}`, section.title, r.en, r.where ?? "", r.he, textOf(e), e?.status === "ok" ? "yes" : "",
+        e?.note ?? "", "", e ? new Date(e.updated_at).toISOString() : "",
+      ]);
+    })
+  );
   return "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
@@ -115,7 +138,19 @@ export function termsJson(edits: Map<string, TermEdit>): string {
       const e = edits.get(s.id)!;
       return { id: s.id, key: s.key, en: s.en, he: s.he, new: textOf(e), note: e.note, status: e.status, updatedAt: new Date(e.updated_at).toISOString() };
     });
-  return JSON.stringify({ review: TERMS_REVIEW_ID, sheetBuiltAt: SHEET.builtAt, exportedAt: new Date().toISOString(), words, sentences }, null, 2);
+  const outside = WEB.flatMap((section) =>
+    section.rows
+      .filter((r) => edits.has(r.id))
+      .map((r) => {
+        const e = edits.get(r.id)!;
+        return { id: r.id, section: section.title, en: r.en, he: r.he, new: textOf(e), note: e.note, status: e.status, updatedAt: new Date(e.updated_at).toISOString() };
+      })
+  );
+  return JSON.stringify(
+    { review: TERMS_REVIEW_ID, sheetBuiltAt: SHEET.builtAt, exportedAt: new Date().toISOString(), words, sentences, outside },
+    null,
+    2
+  );
 }
 
 /** The night's copy to R2, as for the full review. */

@@ -97,7 +97,10 @@ review.get("/he-terms/:token", async (c) => {
   const token = c.req.param("token");
   if (!(await termsAllowed(c.env, token))) return c.notFound();
   const here = `/review/he-terms/${encodeURIComponent(token)}`;
-  const total = termsSheet.rows.length + termsSheet.sentences.length;
+  const total =
+    termsSheet.rows.length +
+    termsSheet.sentences.length +
+    (termsSheet.web ?? []).reduce((sum, section) => sum + section.rows.length, 0);
   return new Response(renderTermsPage(total, `${here}/export.csv`, `${here}/export.json`), {
     headers: {
       ...PRIVATE_HEADERS,
