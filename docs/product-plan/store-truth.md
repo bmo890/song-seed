@@ -210,6 +210,9 @@ Apple appends the same subscription paragraph as before (below, per language in
   de las copias automáticas de la biblioteca." de: "Aktualisierungen bei den
   automatischen Bibliotheks-Backups." pt-BR: "Atualizações nos backups automáticos da
   biblioteca."
+  Founder uploaded vc 24 (2026-11-25, "take it from here"): production release 24 (1.0.3)
+  added from the library, notes in all six listings, 100% rollout, all countries, device
+  reach unchanged; sent for review (managed publishing off, so it goes live on approval).
 
 ```
 SongNook is for songwriters and working musicians, to write and develop songs and rehearse the set.
