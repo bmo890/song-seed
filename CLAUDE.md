@@ -190,6 +190,14 @@ iOS simulator with screenshots when feasible — never "should work".
   (`state/mediaCleanup.ts trashFilesOfDroppedClips`, flush first, 14-day
   trash), unless a clip that remains still uses them. Never drop versions or
   siblings a person didn't choose to drop.
+- Reinstalls (founder, 2026-11-25: "someone who reinstalls must never think they lost
+  everything"): the return note (`domain/returnNote.ts`, `services/returnNote.ts`) keeps
+  the last finished backup, founding and bought Pro where an uninstall can't reach
+  (iPhone Keychain; Android `files/songnook-return.json`, the ONLY file Google's cloud
+  backup carries). A fresh install that finds it shows "Welcome back" instead of the
+  intro. Never put library data in it, and never let a SongNook backup carry it.
+  Automatic backup is asked about once after the first idea (`AutomaticBackupAsk`);
+  Android offers "Keep app data" on uninstall (`hasFragileUserData`).
 
 ## Pricing & promises
 

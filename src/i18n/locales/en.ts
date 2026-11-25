@@ -634,6 +634,13 @@ export const en = {
     failedBody: "Part of the library could not be removed. Restart SongNook and try again.",
     authFailed: "Not confirmed. Nothing erased.",
   },
+  backupAsk: {
+    title: "Keep a backup?",
+    bodyIos: "SongNook keeps a copy of your library, updated each day, in a folder you choose. iCloud Drive keeps it safe.",
+    bodyAndroid: "SongNook keeps a copy of your library, updated each day, in a folder you choose. It survives deleting the app.",
+    notNow: "Not now",
+    choose: "Choose folder",
+  },
   backupReminder: {
     title: "Back up your library?",
     bodyNever: "This library has never been backed up.",
@@ -1519,6 +1526,12 @@ export const en = {
     notes: "Notes",
   },
   welcome: {
+    backTitle: "Welcome back",
+    backBody_one: "Your last backup is from {{date}}, with one idea.",
+    backBody_other: "Your last backup is from {{date}}, with {{count}} ideas.",
+    backBodyEmpty: "Your last backup is from {{date}}.",
+    backRestore: "Restore library",
+    backFresh: "Start fresh",
     restoreBackup: "Restore backup",
     tagline: "A quiet corner to finish songs.",
     getStarted: "Get started",

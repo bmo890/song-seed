@@ -71,3 +71,29 @@ export function isAutomaticBackupDue(prefs: AutomaticBackupPrefs, now = Date.now
 export function isAutomaticBackupOn(prefs: AutomaticBackupPrefs) {
     return prefs.frequency !== "off" && prefs.folder != null;
 }
+
+/**
+ * Asking once (founder, 2026-11-25: "someone who reinstalls must not find everything
+ * gone"). Automatic backup cannot start on its own: a phone lets an app write outside
+ * itself only into a folder the person picks. So after their first idea, once, when
+ * nothing else is on screen, the app asks.
+ */
+export function shouldAskAboutAutomaticBackup(state: {
+    asked: boolean;
+    ideaCount: number;
+    prefs: AutomaticBackupPrefs;
+    hasSeenWelcome: boolean;
+    recording: boolean;
+    folderAvailable: boolean;
+}) {
+    return (
+        !state.asked &&
+        state.folderAvailable &&
+        state.hasSeenWelcome &&
+        !state.recording &&
+        state.ideaCount >= 1 &&
+        // Off, or on but its folder is gone (Android forgets folder access when the app is
+        // deleted, so a restored library's backup would fail quietly): ask for one.
+        (!isAutomaticBackupOn(state.prefs) || state.prefs.lastError === "folderUnavailable")
+    );
+}

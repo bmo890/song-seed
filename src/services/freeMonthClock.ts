@@ -10,6 +10,7 @@ import {
   type FreeMonthNotice,
   type FreeMonthStatus,
 } from "../domain/freeMonth";
+import { noteFounding, readReturnNote } from "./returnNote";
 
 /**
  * Where the free month's dates and the founding flag live (domain/freeMonth.ts).
@@ -188,10 +189,16 @@ export async function syncFreeMonth(
     write(PAYWALL_SINCE_KEY, String(paywallSinceAt));
   }
 
-  // Founding (11-H1): from records no backup carries; "1" once, never "0".
-  const decision = decideFounding(flag.value, { startedAt, firstLaunchAtAtBirth }, releaseAt);
+  // Founding (11-H1): from records no backup carries; "1" once, never "0". A
+  // reinstall on Android loses the secure store; the return note (services/returnNote,
+  // carried by Android's own Google backup, never by a SongNook backup) brings it back.
+  let decision = decideFounding(flag.value, { startedAt, firstLaunchAtAtBirth }, releaseAt);
+  if (!decision.founding && (await readReturnNote().catch(() => null))?.founding) {
+    decision = { founding: true, store: "1" };
+  }
   if (decision.store) write(FOUNDING_KEY, decision.store);
   else if (flag.value === "1" && needsSecureCopy(flag)) write(FOUNDING_KEY, flag.value);
+  if (decision.founding) void noteFounding();
 
   await Promise.all(writes);
 

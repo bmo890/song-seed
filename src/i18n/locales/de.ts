@@ -668,6 +668,13 @@ export const de = {
     failedBody: "Ein Teil der Bibliothek ließ sich nicht entfernen. Starte SongNook neu und versuch es erneut.",
     authFailed: "Nicht bestätigt. Nichts gelöscht.",
   },
+  backupAsk: {
+    title: "Backup behalten?",
+    bodyIos: "SongNook hält eine Kopie deiner Bibliothek täglich aktuell, in einem Ordner deiner Wahl. In iCloud Drive ist sie sicher.",
+    bodyAndroid: "SongNook hält eine Kopie deiner Bibliothek täglich aktuell, in einem Ordner deiner Wahl. Sie bleibt, auch wenn du die App löschst.",
+    notNow: "Nicht jetzt",
+    choose: "Ordner wählen",
+  },
   backupReminder: {
     title: "Bibliothek sichern?",
     bodyNever: "Von dieser Bibliothek gibt es noch kein Backup.",
@@ -3189,6 +3196,12 @@ export const de = {
     notes: "Notizen",
   },
   welcome: {
+    backTitle: "Willkommen zurück",
+    backBody_one: "Dein letztes Backup ist vom {{date}}, mit einer Idee.",
+    backBody_other: "Dein letztes Backup ist vom {{date}}, mit {{count}} Ideen.",
+    backBodyEmpty: "Dein letztes Backup ist vom {{date}}.",
+    backRestore: "Bibliothek laden",
+    backFresh: "Neu anfangen",
     restoreBackup: "Backup laden",
     tagline: "Ein stiller Winkel, um Songs zu vollenden.",
     getStarted: "Loslegen",

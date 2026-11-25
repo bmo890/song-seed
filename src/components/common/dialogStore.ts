@@ -60,6 +60,11 @@ export const dialogStore = {
     _listeners.forEach((fn) => fn(_config));
   },
 
+  /** Whether a dialog is up, or a bottom sheet is (a question can wait for both). */
+  isBusy(): boolean {
+    return _config != null || _sheetHosts > 0;
+  },
+
   dismiss() {
     _config = _waiting.shift() ?? null;
     _listeners.forEach((fn) => fn(_config));

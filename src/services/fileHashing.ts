@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
 import { IncrementalBase64Sha256 } from "./streamingIntegrity";
+import { extractRangeNative, isNativeZipAvailable } from "../../modules/songnook-file-io";
 import {
     throwIfBackupCancelled,
     yieldToBackupUi,
@@ -46,6 +47,23 @@ export async function sha256OfFileBase64(
         });
         throwIfBackupCancelled(options?.signal);
         return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, base64);
+    }
+
+    // Past the cap, the native range pass streams the file and hashes its base64 form
+    // off the JS thread (the same digest). It writes a scratch copy, deleted at once. The
+    // JS stream below held the JS thread ~2.5 s per slice: a long rehearsal recording
+    // froze the app for minutes while automatic backup ran (2026-11-25).
+    if (isNativeZipAvailable() && FileSystem.cacheDirectory) {
+        const scratch = `${FileSystem.cacheDirectory}hash-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`;
+        try {
+            const result = await extractRangeNative(absUri, 0, sizeBytes, scratch, { signal: options?.signal, sha256: true });
+            if (result.sha256 && result.sizeBytes === sizeBytes) return result.sha256;
+        } catch (error) {
+            throwIfBackupCancelled(options?.signal);
+            console.warn("[backup] native hash failed; using the streaming hash", error);
+        } finally {
+            await FileSystem.deleteAsync(scratch, { idempotent: true }).catch(() => {});
+        }
     }
 
     console.warn(

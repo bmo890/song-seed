@@ -11,7 +11,19 @@ const mockDigestStringAsync = jest.fn(async (_algorithm: string, value: string) 
     createHash("sha256").update(value).digest("hex")
 );
 
+let mockNative = false;
+const mockExtract = jest.fn(async (uri: string, _offset: number, length: number) => {
+    const file = mockFiles.get(uri)!;
+    return { crc32: 0, sizeBytes: length, sha256: createHash("sha256").update(Buffer.from(file).toString("base64")).digest("hex") };
+});
+jest.mock("../../../modules/songnook-file-io", () => ({
+    isNativeZipAvailable: () => mockNative,
+    extractRangeNative: (uri: string, offset: number, length: number) => mockExtract(uri, offset, length),
+}));
+
 jest.mock("expo-file-system/legacy", () => ({
+    cacheDirectory: "file:///cache/",
+    deleteAsync: jest.fn(async () => {}),
     EncodingType: { Base64: "base64", UTF8: "utf8" },
     readAsStringAsync: (uri: string, options?: { encoding?: string }) =>
         mockReadAsStringAsync(uri, options),
@@ -86,6 +98,19 @@ describe("sha256OfFileBase64", () => {
         );
         expect(mockReadAsStringAsync).not.toHaveBeenCalled();
         expect(mockDigestStringAsync).not.toHaveBeenCalled();
+    });
+
+    it("hashes a file above the cap natively when the build can (no JS stream)", async () => {
+        const bytes = Uint8Array.from({ length: 3 * 1024 + 1 }, (_, index) => (index * 7 + 1) & 0xff);
+        mockFiles.set(URI, bytes);
+        mockNative = true;
+        try {
+            await expect(sha256OfFileBase64(URI, bytes.length, undefined, 1024)).resolves.toBe(expectedV1Digest(bytes));
+            expect(mockExtract).toHaveBeenCalledTimes(1);
+            expect(mockReadAsStringAsync).not.toHaveBeenCalled();
+        } finally {
+            mockNative = false;
+        }
     });
 
     it("both paths agree on the same content", async () => {

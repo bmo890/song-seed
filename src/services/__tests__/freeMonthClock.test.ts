@@ -5,6 +5,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isFoundingMember } from "../../domain/entitlements";
 import { setSecureStoreForTests, syncFreeMonth } from "../freeMonthClock";
+import { noteFounding, readReturnNote, resetReturnNoteForTests } from "../returnNote";
 
 const DAY = 24 * 60 * 60 * 1000;
 const TESTER_START = Date.UTC(2026, 8, 20); // a TestFlight tester since September
@@ -27,8 +28,18 @@ beforeEach(async () => {
       keychain.set(key, value);
     },
   });
+  // The return note's own store: kept apart so a test can lose one and not the other.
+  returnNotes = new Map();
+  resetReturnNoteForTests({
+    getItemAsync: async (key) => returnNotes.get(key) ?? null,
+    setItemAsync: async (key, value) => {
+      returnNotes.set(key, value);
+    },
+  });
   await AsyncStorage.clear();
 });
+
+let returnNotes: Map<string, string>;
 
 /** Deleting the app (or swapping TestFlight for the App Store build): AsyncStorage goes, the Keychain stays. */
 const reinstall = () => AsyncStorage.clear();
@@ -61,6 +72,27 @@ describe("founding testers stay founding (11-H1)", () => {
     await syncFreeMonth(TESTER_START, RELEASE + 2 * DAY, RELEASE);
     expect(isFoundingMember()).toBe(false);
     expect(keychain.has("songnook.founding")).toBe(false);
+  });
+
+  it("leaves a return note, and comes back from it when a reinstall wiped the secure store (Android)", async () => {
+    await syncFreeMonth(TESTER_START, RELEASE + DAY, RELEASE);
+    expect(isFoundingMember()).toBe(true);
+    expect((await readReturnNote())?.founding).toBe(true);
+    // Android wipes its secure store on uninstall; Google's backup brings the note back.
+    keychain.clear();
+    await reinstall();
+    await syncFreeMonth(null, RELEASE + 9 * DAY, RELEASE);
+    expect(isFoundingMember()).toBe(true);
+    expect(keychain.get("songnook.founding")).toBe("1");
+  });
+
+  it("is not founding on a reinstall with no note and no secure store", async () => {
+    await syncFreeMonth(TESTER_START, RELEASE + DAY, RELEASE);
+    keychain.clear();
+    returnNotes.clear();
+    await reinstall();
+    await syncFreeMonth(null, RELEASE + 9 * DAY, RELEASE);
+    expect(isFoundingMember()).toBe(false);
   });
 
   it("writes nothing when the Keychain is locked (a launch in the background)", async () => {

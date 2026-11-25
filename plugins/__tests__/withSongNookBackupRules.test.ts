@@ -10,28 +10,35 @@ it("is registered in the Expo config so every prebuild applies it", () => {
     expect(appJson.expo.plugins).toContain("./plugins/withSongNookBackupRules");
 });
 
-it("points the manifest at both rule files and keeps device transfer allowed", () => {
+it("points the manifest at both rule files, keeps device transfer, and offers to keep data on uninstall", () => {
     const manifest = plugin.applyBackupAttributes({
         manifest: { application: [{ $: { "android:name": ".MainApplication", "android:allowBackup": "true" } }] },
     });
     expect(manifest.manifest.application[0].$).toMatchObject({
         "android:name": ".MainApplication",
         "android:allowBackup": "true",
+        "android:hasFragileUserData": "true",
         "android:fullBackupContent": "@xml/songnook_backup_rules",
         "android:dataExtractionRules": "@xml/songnook_data_extraction_rules",
     });
 });
 
-it("sends nothing to the cloud and everything but temp files on a device transfer", () => {
+it("sends only the return note to the cloud and everything but temp files on a device transfer", () => {
     const rules: string = plugin.dataExtractionRulesXml();
     const cloud = rules.slice(rules.indexOf("<cloud-backup>"), rules.indexOf("</cloud-backup>"));
     const transfer = rules.slice(rules.indexOf("<device-transfer>"), rules.indexOf("</device-transfer>"));
-    for (const domain of ["root", "file", "database", "sharedpref", "external"]) {
-        expect(cloud).toContain(`<exclude domain="${domain}" path="." />`);
-    }
-    expect(cloud).not.toContain("<include");
+    // An <include> list backs up nothing else: no database, no audio, no settings.
+    expect(cloud.match(/<include /g)).toHaveLength(1);
+    expect(cloud).toContain('<include domain="file" path="songnook-return.json" />');
     expect(transfer).toContain('path="songnook/backup-tmp/"');
     expect(transfer).toContain('path="songnook/trash/"');
     expect(transfer).not.toContain('path="songnook/audio');
-    expect(plugin.fullBackupContentXml()).toContain('<exclude domain="file" path="." />');
+    const legacy: string = plugin.fullBackupContentXml();
+    expect(legacy.match(/<include /g)).toHaveLength(1);
+    expect(legacy).toContain('<include domain="file" path="songnook-return.json" />');
+});
+
+it("names the same file the app writes", () => {
+    const { RETURN_NOTE_FILE } = require("../../src/services/returnNote");
+    expect(plugin.RETURN_NOTE_FILE).toBe(RETURN_NOTE_FILE);
 });

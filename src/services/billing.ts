@@ -2,6 +2,7 @@ import { NativeModules, Platform } from "react-native";
 import { useSyncExternalStore } from "react";
 import type { CustomerInfo, PurchasesPackage } from "react-native-purchases";
 import { isPaywallLive, proEntitlement } from "../domain/entitlements";
+import { notePro } from "./returnNote";
 
 /**
  * Billing through RevenueCat (wired 2026-10-24). Pro ships with v1 behind a 30-day free
@@ -93,6 +94,8 @@ function applyCustomerInfo(info: CustomerInfo) {
         ownedListeners.forEach((listener) => listener());
     }
     proEntitlement.set(active != null);
+    // Remembered past an uninstall, so a returning person is offered it back.
+    if (active) void notePro();
 }
 
 /** The purchase behind this person's Pro, or null when they haven't bought (free,
@@ -166,8 +169,28 @@ export async function getBillingAppUserId(): Promise<string | null> {
     }
 }
 
+let initializing: Promise<void> | null = null;
+
 /** Once per launch: configure RevenueCat, follow the entitlement live, fetch prices. */
-export async function initBilling(): Promise<void> {
+export function initBilling(): Promise<void> {
+    // A run that ended unconfigured (no native side, a failure) may be tried again.
+    initializing ??= configureBilling().finally(() => {
+        if (!configured) initializing = null;
+    });
+    return initializing;
+}
+
+/**
+ * A returning person's Pro, asked of the store account after a reinstall (the return
+ * note says they had bought it). Only ever from their own tap: on iPhone the store may
+ * ask them to sign in.
+ */
+export async function restoreReturningPro(): Promise<BillingResult> {
+    await initBilling();
+    return restorePurchases();
+}
+
+async function configureBilling(): Promise<void> {
     if (configured) return;
     // Nothing is for sale until the paywall is live, so release builds don't contact
     // RevenueCat before then (store-truth.md D1). Dev builds keep the Test Store flow.

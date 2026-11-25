@@ -33,6 +33,7 @@ import {
   type WelcomeImportProgress,
 } from "../../services/welcomeImport";
 import { useTranslation } from "react-i18next";
+import { currentFormatLocale } from "../../i18n/formatLocale";
 
 /**
  * First-run (and replayable) tour, rebuilt 2026-10-25 (founder: "more understandable",
@@ -166,6 +167,49 @@ function CoverPane({ onRestore }: { onRestore?: () => void }) {
         <Button label={t("welcome.restoreBackup")} variant="quiet" onPress={onRestore} />
       ) : null}
     </View>
+  );
+}
+
+/**
+ * A fresh install that finds the return note (domain/returnNote.ts): someone who had
+ * SongNook before. Instead of the intro, the way home: one primary action, Restore, and
+ * a quiet way to start fresh (founder, 2026-11-25: a reinstall must never look like
+ * everything is lost).
+ */
+export function WelcomeBack({
+  backupAt,
+  ideaCount,
+  onRestore,
+  onFresh,
+}: {
+  backupAt: number;
+  ideaCount: number;
+  onRestore: () => void;
+  onFresh: () => void;
+}) {
+  const { t } = useTranslation();
+  let date: string;
+  try {
+    date = new Intl.DateTimeFormat(currentFormatLocale(), { dateStyle: "medium" }).format(new Date(backupAt));
+  } catch {
+    date = new Date(backupAt).toLocaleDateString();
+  }
+  return (
+    <SafeAreaView style={s.screen} accessibilityViewIsModal>
+      <View style={[s.pane, s.coverPane]}>
+        <CoverScene />
+        <Text style={s.coverName} accessibilityRole="header">
+          {t("welcome.backTitle")}
+        </Text>
+        <Text style={s.coverTagline}>
+          {ideaCount > 0 ? t("welcome.backBody", { date, count: ideaCount }) : t("welcome.backBodyEmpty", { date })}
+        </Text>
+      </View>
+      <View style={[s.footer, s.backFooter]}>
+        <Button label={t("welcome.backRestore")} variant="primary" style={s.cta} onPress={onRestore} />
+        <Button label={t("welcome.backFresh")} variant="quiet" onPress={onFresh} />
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -456,6 +500,11 @@ const s = StyleSheet.create({
     lineHeight: 24,
     color: colors.textStrong,
     textAlign: "center",
+  },
+  backFooter: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: spacing.sm,
   },
   coverLanguage: {
     marginTop: spacing.xl,

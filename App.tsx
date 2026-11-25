@@ -155,7 +155,11 @@ import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
 import { loadSparkTries } from "./src/services/sparkTries";
 import { loadProUse } from "./src/services/proUse";
-import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
+import { WelcomeBack, WelcomeFlow } from "./src/components/common/WelcomeFlow";
+import { AutomaticBackupAsk } from "./src/components/common/AutomaticBackupAsk";
+import { readReturnNote } from "./src/services/returnNote";
+import { shouldWelcomeBack, type ReturnNote } from "./src/domain/returnNote";
+import { restoreReturningPro } from "./src/services/billing";
 import { useLibraryBackupFlow } from "./src/components/SettingsScreen/hooks/useLibraryBackupFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { startupHasSetAside, startupSetAsideWorkspaceId } from "./src/services/crashSetAside";
@@ -904,9 +908,45 @@ function WelcomeGate() {
 }
 
 /** The intro with its door back for a new phone (audit G6): "Restore backup" leaves the
- *  intro and opens the same Restore as Settings → Library (a .zip or the backup folder). */
+ *  intro and opens the same Restore as Settings → Library (a .zip or the backup folder).
+ *  Someone coming back after an uninstall (the return note knows their last backup)
+ *  sees "Welcome back" instead of the intro (founder, 2026-11-25). */
 function WelcomeWithRestore({ onDone }: { onDone: () => void }) {
   const backupFlow = useLibraryBackupFlow();
+  // undefined while the note is read (a few ms; nothing shows rather than the intro
+  // flashing past), then the note or null.
+  const [note, setNote] = useState<ReturnNote | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void readReturnNote()
+      .catch(() => null)
+      .then((read) => {
+        if (!live) return;
+        setNote(read);
+        // Android asks the store account without a sign-in sheet, so a bought Pro comes
+        // back at once; on iPhone it waits for the person's own tap (Restore below).
+        if (read?.pro && Platform.OS === "android") void restoreReturningPro();
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const ideaCount = useStore((s) => s.workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0));
+  if (note === undefined) return null;
+  if (shouldWelcomeBack(note, { hasSeenWelcome: false, ideaCount })) {
+    return (
+      <WelcomeBack
+        backupAt={note.backup.at}
+        ideaCount={note.backup.ideaCount}
+        onRestore={() => {
+          onDone();
+          if (note.pro && Platform.OS === "ios") void restoreReturningPro();
+          void backupFlow.handleRestoreFrom(note.backup.kind);
+        }}
+        onFresh={onDone}
+      />
+    );
+  }
   return (
     <WelcomeFlow
       onDone={onDone}
@@ -1280,6 +1320,7 @@ function AppContent() {
       </NavigationContainer>
       <RestoreRestartGate />
       <WelcomeGate />
+      <AutomaticBackupAsk />
       </FullPlayerProvider>
       </RootCommitProfiler>
       )}

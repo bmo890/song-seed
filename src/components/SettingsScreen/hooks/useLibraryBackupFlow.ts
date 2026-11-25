@@ -25,6 +25,8 @@ import {
 } from "../../../services/disasterRecoveryRestore";
 import { openFolderRestoreSource } from "../../../services/automaticBackup";
 import { pickBackupFolder } from "../../../services/backupFolderPicker";
+import { noteBackupFinished } from "../../../services/returnNote";
+import { isBlankLibrary } from "../../../domain/returnNote";
 import {
     cancelAutomaticBackup,
     runAutomaticBackupNow,
@@ -330,8 +332,16 @@ export function useLibraryBackupFlow() {
 
             const recordSuccessfulBackup = () => {
                 haptic.success();
-                setLastSuccessfulBackupAt(Date.now());
+                const finishedAt = Date.now();
+                setLastSuccessfulBackupAt(finishedAt);
                 setLastSuccessfulBackupFileName(backupFileName);
+                // A fresh install after an uninstall offers this backup back.
+                void noteBackupFinished({
+                    at: finishedAt,
+                    kind: "file",
+                    where: backupFileName,
+                    ideaCount: useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0),
+                });
                 // The alert is the single success surface — clear the process instead of
                 // stacking a terminal takeover behind the dialog.
                 useProcessStore.getState().dismiss(processId);
@@ -508,6 +518,11 @@ export function useLibraryBackupFlow() {
      */
     const confirmReplaceWithBackup = (backup: { createdAt: number; ideaCount: number }) =>
         new Promise<boolean>((resolve) => {
+            // Nothing here to lose (a fresh install): no warning about what is removed.
+            if (isBlankLibrary(useStore.getState())) {
+                resolve(true);
+                return;
+            }
             const date = Number.isFinite(backup.createdAt)
                 ? new Date(backup.createdAt).toLocaleDateString(currentFormatLocale(), {
                       month: "short",
@@ -534,6 +549,13 @@ export function useLibraryBackupFlow() {
 
     /** Merge or replace: the same question for a file and for the folder. */
     const askRestoreMode = (target: RestoreTarget, sizeLine: string) => {
+        // A blank library (a fresh install, a returning person) has nothing to keep:
+        // the question would only be noise, and a merge would leave the empty starter
+        // "My Songs" beside the restored one. The backup becomes the library.
+        if (isBlankLibrary(useStore.getState())) {
+            void runRestore(target, "replace");
+            return;
+        }
         AppAlert.custom(
             t("settingsBackup.restoreTitle"),
             t("settingsBackup.restoreBody", { size: sizeLine }),
@@ -610,6 +632,13 @@ export function useLibraryBackupFlow() {
                 },
             },
         ]);
+    };
+
+    /** Straight to where the last backup went (the return note knows): no chooser. */
+    const handleRestoreFrom = async (kind: "file" | "folder") => {
+        if (useProcessStore.getState().process?.status === "running") return;
+        if (kind === "folder" && isBackupFolderAvailable()) await restoreFromFolder();
+        else await restoreFromFile();
     };
 
     const restoreFromFile = async () => {
@@ -726,6 +755,7 @@ export function useLibraryBackupFlow() {
         isRestoring,
         restoreProgressLabel: isRestoring && activeProcess ? formatProcessProgress(activeProcess.progress) : null,
         handleRestore,
+        handleRestoreFrom,
         copyLastBackupFileName: async () => {
             if (!lastSuccessfulBackupFileName) {
                 return false;

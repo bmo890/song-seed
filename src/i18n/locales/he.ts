@@ -663,6 +663,13 @@ export const he = {
     failedBody: "לא ניתן היה להסיר חלק מהספרייה. הפעילו את SongNook מחדש ונסו שוב.",
     authFailed: "לא אושר. לא נמחק דבר.",
   },
+  backupAsk: {
+    title: "לשמור גיבוי?",
+    bodyIos: "SongNook שומר עותק של הספרייה שלכם, מתעדכן כל יום, בתיקייה שתבחרו. תיקייה של iCloud Drive שומרת אותו מחוץ לטלפון.",
+    bodyAndroid: "SongNook שומר עותק של הספרייה שלכם, מתעדכן כל יום, בתיקייה שתבחרו. הוא נשאר גם אם האפליקציה נמחקת.",
+    notNow: "לא עכשיו",
+    choose: "בחירת תיקייה",
+  },
   backupReminder: {
     title: "לגבות את הספרייה?",
     bodyNever: "הספרייה הזו מעולם לא גובתה.",
@@ -1578,6 +1585,13 @@ export const he = {
     notes: "הערות",
   },
   welcome: {
+    backTitle: "ברוכים השבים",
+    backBody_one: "הגיבוי האחרון שלכם מ־{{date}}, עם רעיון אחד.",
+    backBody_two: "הגיבוי האחרון שלכם מ־{{date}}, עם שני רעיונות.",
+    backBody_other: "הגיבוי האחרון שלכם מ־{{date}}, עם {{count}} רעיונות.",
+    backBodyEmpty: "הגיבוי האחרון שלכם מ־{{date}}.",
+    backRestore: "שחזור הספרייה",
+    backFresh: "להתחיל מחדש",
     restoreBackup: "שחזור גיבוי",
     tagline: "פינה שקטה לסיים בה שירים.",
     getStarted: "בואו נתחיל",

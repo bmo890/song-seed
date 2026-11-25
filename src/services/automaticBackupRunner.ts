@@ -12,6 +12,7 @@ import { waitForIdleInteractions } from "./interactionGate";
 import { claimLibraryOperation, runningLibraryOperation } from "./libraryOperationGate";
 import { AutoBackupError, runFolderBackup } from "./automaticBackup";
 import { isBackupFolderAvailable } from "../../modules/songnook-file-io";
+import { noteBackupFinished } from "./returnNote";
 
 /** Whether a run is in flight right now (not persisted; drives the status line). */
 export const useAutomaticBackupRunStore = create<{ running: boolean }>(() => ({ running: false }));
@@ -83,6 +84,15 @@ export async function runAutomaticBackupNow({ userStarted = false }: { userStart
             lastAttemptAt: startedAt,
             ...(complete ? { lastCompletedAt: startedAt, lastError: null } : { lastError: "incomplete" }),
         });
+        if (complete) {
+            // A fresh install after an uninstall offers this folder back.
+            void noteBackupFinished({
+                at: startedAt,
+                kind: "folder",
+                where: prefs.folder?.name ?? null,
+                ideaCount: useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0),
+            });
+        }
         if (userStarted) {
             if (complete) haptic.success();
             else haptic.error();
