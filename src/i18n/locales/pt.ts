@@ -2476,6 +2476,7 @@ export const pt = {
     findEvolution: "Encontrar na Evolução",
   },
   wordSparks: {
+    progress: "Etapa {{step}} de {{total}}",
     nothingSendTitle: "Nada para enviar",
     finish: "Concluir",
     finished: "Concluída",

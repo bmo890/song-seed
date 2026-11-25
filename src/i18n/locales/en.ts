@@ -1405,6 +1405,7 @@ export const en = {
     findEvolution: "Find in Evolution view",
   },
   wordSparks: {
+    progress: "Step {{step}} of {{total}}",
     nothingSendTitle: "Nothing to send",
     finish: "Finish",
     finished: "Finished",

@@ -191,13 +191,17 @@ function SparkListItem<T extends { id: string; title: string }>({
   methodName,
   untitled,
   meta,
-  stepLabel,
+  doneLabel,
+  progress,
 }: SparkItemProps<T> & {
   icon: keyof typeof Ionicons.glyphMap;
   methodName: string;
   untitled: boolean;
   meta: string;
-  stepLabel: string;
+  /** "Finished" / "In Lyric Pad": said in words. */
+  doneLabel: string | null;
+  /** Otherwise, how far along it is: step (1-based) of total. */
+  progress: { step: number; total: number };
 }) {
   return (
     <Press
@@ -236,10 +240,35 @@ function SparkListItem<T extends { id: string; title: string }>({
         <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
+      ) : doneLabel ? (
+        <Text style={noteStyles.sparkStep}>{doneLabel}</Text>
       ) : (
-        <Text style={noteStyles.sparkStep}>{stepLabel}</Text>
+        <SparkProgress step={progress.step} total={progress.total} />
       )}
     </Press>
+  );
+}
+
+/**
+ * How far an unfinished spark has come (founder, 2026-11-25: step names such as
+ * "Page" or "Verbs" read as nothing on their own): one short segment per step, the
+ * ones reached in ink, the rest a quiet track. The spark reopens where it was left.
+ */
+function SparkProgress({ step, total }: { step: number; total: number }) {
+  const { t } = useTranslation();
+  return (
+    <View
+      style={noteStyles.sparkProgress}
+      accessible
+      accessibilityLabel={t("wordSparks.progress", { step, total })}
+    >
+      {Array.from({ length: total }, (_, index) => (
+        <View
+          key={index}
+          style={[noteStyles.sparkProgressSegment, index < step ? noteStyles.sparkProgressDone : null]}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -259,12 +288,7 @@ function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
   const meta = listing
     ? t("notepad.sparkWords", { count: words })
     : t("notepad.sparkPairs", { count: spark.pairings.length });
-  const stepLabel =
-    spark.step === "setup"
-      ? t("wordLadder.verbs")
-      : spark.step === "nouns"
-        ? t("wordLadder.nouns")
-        : t(`wordSparks.${spark.step === "pairs" ? "pair" : spark.step}`);
+  const ladderSteps = ["setup", "nouns", "pairs", "draft", "revise"] as const;
   return (
     <SparkListItem
       {...props}
@@ -272,7 +296,8 @@ function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
       methodName={t("wordSparks.wordLadder")}
       untitled={UNTITLED_TITLES.has(spark.title)}
       meta={meta}
-      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? stepLabel}
+      doneLabel={sparkDoneLabel(spark, hasPadPage)}
+      progress={{ step: ladderSteps.indexOf(spark.step) + 1, total: ladderSteps.length }}
     />
   );
 }
@@ -289,7 +314,7 @@ function CutUpListItem(props: SparkItemProps<CutUpSpark>) {
     spark.step === "source" || spark.step === "chunk" || onTable === 0
       ? t("notepad.sparkLines", { count: lines })
       : t("notepad.sparkScraps", { count: onTable });
-  const step = spark.step === "chunk" ? "cut" : spark.step === "board" ? "arrange" : spark.step;
+  const cutUpSteps = ["source", "chunk", "board", "draft"] as const;
   return (
     <SparkListItem
       {...props}
@@ -297,7 +322,8 @@ function CutUpListItem(props: SparkItemProps<CutUpSpark>) {
       methodName={t("wordSparks.cutUp")}
       untitled={UNTITLED_TITLES.has(spark.title)}
       meta={meta}
-      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? t(`wordSparks.${step}`)}
+      doneLabel={sparkDoneLabel(spark, hasPadPage)}
+      progress={{ step: cutUpSteps.indexOf(spark.step) + 1, total: cutUpSteps.length }}
     />
   );
 }
@@ -314,7 +340,8 @@ function MagpieListItem(props: SparkItemProps<MagpieSpark>) {
       methodName={t("wordSparks.magpie")}
       untitled={spark.title === t("magpie.untitledSpark")}
       meta={t("notepad.sparkWords", { count: spark.fragments.length })}
-      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? t(`wordSparks.${spark.step}`)}
+      doneLabel={sparkDoneLabel(spark, hasPadPage)}
+      progress={{ step: spark.step === "build" ? 2 : 1, total: 2 }}
     />
   );
 }
@@ -863,6 +890,20 @@ const noteStyles = StyleSheet.create({
     ...textTokens.caption,
     fontFamily: "PlusJakartaSans_500Medium",
     color: colors.textStrong,
+  },
+  sparkProgress: {
+    flexDirection: "row",
+    gap: 3,
+    width: 52,
+  },
+  sparkProgressSegment: {
+    flex: 1,
+    height: 3,
+    borderRadius: radii.xs,
+    backgroundColor: colors.surfaceHigh,
+  },
+  sparkProgressDone: {
+    backgroundColor: colors.textSecondary,
   },
 });
 

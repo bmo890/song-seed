@@ -1463,6 +1463,7 @@ export const he = {
     findEvolution: "איתור בתצוגת ההתפתחות",
   },
   wordSparks: {
+    progress: "שלב {{step}} מתוך {{total}}",
     nothingSendTitle: "אין מה לשלוח",
     finish: "סיום",
     finished: "הסתיים",

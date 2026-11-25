@@ -2477,6 +2477,7 @@ export const es = {
     findEvolution: "Buscar en la vista Evolución",
   },
   wordSparks: {
+    progress: "Paso {{step}} de {{total}}",
     nothingSendTitle: "Nada que enviar",
     finish: "Terminar",
     finished: "Terminada",

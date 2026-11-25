@@ -2371,6 +2371,7 @@ export const de = {
     findEvolution: "In der Entwicklung finden",
   },
   wordSparks: {
+    progress: "Schritt {{step}} von {{total}}",
     nothingSendTitle: "Nichts zu senden",
     finish: "Abschließen",
     finished: "Fertig",
