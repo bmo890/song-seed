@@ -9,18 +9,24 @@ import {
 import type { MagpieLanguage } from "../types";
 
 /**
- * App-wide Magpie preferences, set once in the book sheet and inherited by every
- * new Borrowed Words: which Hebrew (Ben-Yehuda) genres to draw from (at least one
+ * App-wide Magpie preferences, set in the book sheet and inherited by every new
+ * Borrowed Words: which Hebrew (Ben-Yehuda) genres to draw from (at least one
  * always selected), and the language of the books (null = follow Settings → word
  * tools). Satellite store, mirroring the chart-prefs pattern.
+ *
+ * The book language lasts only until the app closes (founder, 2026-11-25): a
+ * detour into another language's shelf is for now, and on the next launch new
+ * sparks follow Settings again. It is never stored, so it never rides a backup,
+ * and a value stored by an older build is dropped as the store loads.
  */
 
 type PersistedMagpiePrefsState = {
   heGenres: MagpieHeGenre[];
-  bookLanguage: MagpieLanguage | null;
 };
 
 export type MagpiePrefsStore = PersistedMagpiePrefsState & {
+  /** This session only; null = follow Settings → word tools. */
+  bookLanguage: MagpieLanguage | null;
   setHeGenres: (genres: MagpieHeGenre[]) => void;
   toggleHeGenre: (genre: MagpieHeGenre) => void;
   /** null = follow Settings → word tools again. */
@@ -70,13 +76,13 @@ export const useMagpiePrefsStore = create<MagpiePrefsStore>()(
       name: STORE_NAME,
       version: STORE_VERSION,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ heGenres: state.heGenres, bookLanguage: state.bookLanguage }),
+      partialize: (state) => ({ heGenres: state.heGenres }),
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<PersistedMagpiePrefsState> | undefined;
         return {
           ...currentState,
           heGenres: sanitizeGenres(persisted?.heGenres),
-          bookLanguage: sanitizeBookLanguage(persisted?.bookLanguage),
+          bookLanguage: null,
         };
       },
     }

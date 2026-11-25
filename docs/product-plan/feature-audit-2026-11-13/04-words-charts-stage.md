@@ -379,7 +379,7 @@ Two steps: Page, Build. Called "Magpie" in code. Everything below works inside a
 | Collected pile | Your words sit under the page with a count; tap one to remove it (Undo in the toast). | Free | components/MagpieScreen/components/MagpiePageStep.tsx |
 | New page | Another random page from the same book. | Free · needs internet | components/MagpieScreen/hooks/useMagpieScreenModel.ts |
 | New book | A different book. | Free · needs internet | components/MagpieScreen/hooks/useMagpieScreenModel.ts |
-| Find books in | Choose English, Spanish, German, Portuguese or Hebrew books. Remembered for new sparks. | Free | state/useMagpiePrefsStore.ts |
+| Find books in | Choose English, Spanish, German, Portuguese or Hebrew books. New sparks keep it until the app closes, then follow Settings. | Free | state/useMagpiePrefsStore.ts |
 | English, Spanish, German, Portuguese shelves | Hand-picked books fetched straight from Project Gutenberg. No SongNook server. | Free · needs internet | domain/magpieBooks.ts |
 | Hebrew shelf | Books from Project Ben-Yehuda, through SongNook's own server (keyed, capped at 50 calls a minute). | Free · Hebrew · needs internet | domain/magpieBenYehuda.ts |
 | Hebrew source genres | Pull Hebrew pages from Prose, Memoir, Letters, Fables; at least one stays on. | Free · Hebrew | state/useMagpiePrefsStore.ts |

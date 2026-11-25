@@ -146,8 +146,8 @@ export function useMagpieScreenModel() {
     }
   }, [spark, load]);
 
-  // The book language is a quiet choice at the foot of the book sheet: it is
-  // remembered for every new Borrowed Words, and this one clears its page (in the
+  // The book language is a quiet choice at the foot of the book sheet: new
+  // Borrowed Words keep it until the app closes, and this one clears its page (in the
   // old language) and draws a book from the new shelf. Choosing the language
   // Settings → word tools already gives clears the override, so the sheet can
   // always hand the choice back to Settings (Auto follows the app language).
