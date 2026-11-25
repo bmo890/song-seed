@@ -13,6 +13,7 @@ import { useHasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { STEREO_WIDEST_SIDEWAYS, useStereoSupport } from "../../../services/stereoSupport";
 import { useTranslation } from "react-i18next";
+import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 
 /**
  * Preferences (2026-10-21): General and Recording in one page, each choice a
@@ -84,7 +85,12 @@ export function SettingsGeneralView() {
               { value: "auto" as const, label: t("settings.automatic") },
               ...WORD_TOOL_LANGUAGES.map((code) => ({ value: code, label: languageLabel(code) })),
             ]}
-            onChange={setWordLanguage}
+            onChange={(value) => {
+              setWordLanguage(value);
+              // Settings is the master: a book language picked inside Borrowed
+              // Words gives way, so new sparks follow this choice.
+              useMagpiePrefsStore.getState().setBookLanguage(null);
+            }}
           />
           <ValueRow
             title={t("settings.openTo")}

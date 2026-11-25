@@ -33,11 +33,12 @@ import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { drawMagpiePage, warmMagpieStash } from "../../../services/magpieStash";
 import { restoreRemovedItem } from "../../../domain/undoPatch";
 import { useTranslation } from "react-i18next";
+import { resolveWordLanguage } from "../../../domain/wordLanguage";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };
 
 export function useMagpieScreenModel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const sparkId = route.params?.sparkId as string | undefined;
@@ -147,16 +148,20 @@ export function useMagpieScreenModel() {
 
   // The book language is a quiet choice at the foot of the book sheet: it is
   // remembered for every new Borrowed Words, and this one clears its page (in the
-  // old language) and draws a book from the new shelf.
+  // old language) and draws a book from the new shelf. Choosing the language
+  // Settings → word tools already gives clears the override, so the sheet can
+  // always hand the choice back to Settings (Auto follows the app language).
   const setBookLanguagePref = useMagpiePrefsStore((s) => s.setBookLanguage);
+  const wordLanguagePref = useStore((s) => s.wordLanguage);
   const setBookLanguage = useCallback(
     (language: MagpieLanguage) => {
-      setBookLanguagePref(language);
+      const settingsLanguage = resolveWordLanguage(wordLanguagePref, i18n.language);
+      setBookLanguagePref(language === settingsLanguage ? null : language);
       if (!spark || spark.language === language) return;
       apply({ language, book: null, pageText: "" });
       void load("book", { language });
     },
-    [spark, apply, load, setBookLanguagePref]
+    [spark, apply, load, setBookLanguagePref, wordLanguagePref, i18n.language]
   );
 
   // Changing the Hebrew genre selection is an app-wide preference; in Hebrew mode

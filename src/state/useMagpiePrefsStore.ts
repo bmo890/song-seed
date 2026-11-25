@@ -23,7 +23,8 @@ type PersistedMagpiePrefsState = {
 export type MagpiePrefsStore = PersistedMagpiePrefsState & {
   setHeGenres: (genres: MagpieHeGenre[]) => void;
   toggleHeGenre: (genre: MagpieHeGenre) => void;
-  setBookLanguage: (language: MagpieLanguage) => void;
+  /** null = follow Settings → word tools again. */
+  setBookLanguage: (language: MagpieLanguage | null) => void;
 };
 
 const STORE_NAME = "songnook-magpie-prefs";
