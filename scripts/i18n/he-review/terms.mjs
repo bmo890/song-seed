@@ -208,8 +208,16 @@ const SITE_PARTS = [
 ];
 const hintOf = (table, key) => table.find(([re]) => re.test(key))?.[1] ?? null;
 const formWord = { one: "one", two: "two", other: "many", many: "many" };
+/** Single standard words a reviewer needn't weigh (founder, 2026-11-25: "someone" on
+ *  the Send page "clearly doesn't need to be in there"). They stay as they are. */
+const OUTSIDE_SKIP = new Set([
+  "web:send.someone", "web:send.report", "web:send.copy", "web:send.copied", "web:send.clear", "web:send.remove",
+  "web:send.moveUp", "web:send.moveDown", "web:send.download", "web:send.tryAgain", "web:send.from", "web:send.titleLabel",
+  "web:send.orChoose", "web:send.sendTitle",
+  "web:site.language", "web:site.support", "web:site.privacy", "web:site.terms",
+]);
 function outsideRows(filter, hint) {
-  return outside.filter(filter).flatMap((item) =>
+  return outside.filter((item) => !OUTSIDE_SKIP.has(item.id) && filter(item)).flatMap((item) =>
     item.forms.map((f) => ({
       id: f.form ? `${item.id}#${f.form}` : item.id,
       key: item.id,
