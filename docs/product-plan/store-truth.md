@@ -201,10 +201,10 @@ Apple appends the same subscription paragraph as before (below, per language in
   "Last published on November 24, 2026", nothing left in review). No over-the-air update exists
   for runtime 1.0.3 yet, so phones run the reviewed builds. The iPhone build was never run on a
   real iPhone before release (simulator only; stereo unheard on iPhone).
-- **Android 1.0.3 (versionCode 23), 2026-11-25:** reinstall safety (Keep app data on
+- **Android 1.0.3 (versionCode 24; 23 was the failed build), 2026-11-25:** reinstall safety (Keep app data on
   uninstall; the return note through Google backup). First attempt (ea51d8d6) failed
   Android lint: the iPhone permission texts in `languages/*.json` reached Android as
-  stray translations; they now sit under `"ios"` (96b8055f). Rebuilt as ec4df25a.
+  stray translations; they now sit under `"ios"` (96b8055f). Rebuilt as ec4df25a, FINISHED: https://expo.dev/artifacts/eas/7WWWzWwvB_YKOHYsf2HVHIOq7mrVdeYk84TJhVjPxsA.aab (founder uploads by hand).
   Play "What's new" (founder's wording, 2026-11-25): "Updates to automatic library
   backups." he: "עדכונים לגיבוי האוטומטי של הספרייה." es (419 + ES): "Actualizaciones
   de las copias automáticas de la biblioteca." de: "Aktualisierungen bei den
