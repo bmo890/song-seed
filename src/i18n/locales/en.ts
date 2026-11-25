@@ -1273,7 +1273,7 @@ export const en = {
     editSong: "Edit sketch",
     editClip: "Edit clip",
     playAll: "Play all",
-    writeWithTape: "Write with the tape",
+    writeWithTape: "Write along",
     makeSong: "Make sketch",
     deleteSong: "Delete sketch",
     deleteClip: "Delete clip",

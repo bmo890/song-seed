@@ -2239,7 +2239,7 @@ export const de = {
     editSong: "Skizze bearbeiten",
     editClip: "Clip bearbeiten",
     playAll: "Alle abspielen",
-    writeWithTape: "Zum Band schreiben",
+    writeWithTape: "Mitschreiben",
     makeSong: "Skizze anlegen",
     deleteSong: "Skizze löschen",
     deleteClip: "Clip löschen",

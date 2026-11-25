@@ -26,7 +26,7 @@ import type { TFunction } from "i18next";
 
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
-  /** Leads the toolbar row ("Write with the tape" on the sketch's tab). */
+  /** Leads the toolbar row ("Write along" on the sketch's tab). */
   toolbarLeading?: React.ReactNode;
 };
 

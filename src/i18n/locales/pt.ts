@@ -2340,7 +2340,7 @@ export const pt = {
     editSong: "Editar esboço",
     editClip: "Editar clipe",
     playAll: "Tocar tudo",
-    writeWithTape: "Escrever com a fita",
+    writeWithTape: "Escrever junto",
     makeSong: "Criar esboço",
     deleteSong: "Excluir esboço",
     deleteClip: "Excluir clipe",

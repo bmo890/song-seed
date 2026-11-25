@@ -2341,7 +2341,7 @@ export const es = {
     editSong: "Editar boceto",
     editClip: "Editar clip",
     playAll: "Reproducir todo",
-    writeWithTape: "Escribir con la cinta",
+    writeWithTape: "Escribir a la par",
     makeSong: "Crear boceto",
     deleteSong: "Eliminar boceto",
     deleteClip: "Eliminar clip",

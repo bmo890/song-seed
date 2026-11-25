@@ -41,7 +41,7 @@ export const TERMS = [
   { group: "own", en: "stand alone", he: "עומד בפני עצמו", keys: ["songDetail.clipMovedRoot", "songDetail.startThread", "takesHelp.branchLabel", "songDetail.alreadyRootBody"], meaning: "Takes one version out and makes it a take of its own." },
   { group: "own", en: "group", keys: ["songDetail.groupShort"], meaning: "In a sketch: takes gathered under one name, like \"acoustic\" or \"band version\", so a long list of takes stays in order." },
   { group: "own", en: "Make sketch", keys: ["songDetail.makeSong"], meaning: "Turns a clip, or several clips, into a sketch: they become the takes of one song in progress." },
-  { group: "own", en: "tape", keys: ["songDetail.writeWithTape", "metronome.visualHint"], meaning: "The moving strip of the recording in the player, under the playhead. \"Write with the tape\" opens the lyrics with the take playing, so you write along as you listen." },
+  { group: "own", en: "Write along", keys: ["songDetail.writeWithTape"], meaning: "A button on a sketch's lyrics: it opens the lyrics in the player with the take playing, so you write words while you listen." },
   { group: "own", en: "song", meaning: "A finished song. A sketch becomes a song once it's done." },
   { group: "own", en: "layer", meaning: "An extra recording on top of a take: a harmony, a second guitar, a backing vocal. It plays together with the take, and can be soloed, muted or mixed in." },
   { group: "own", en: "guide", ex: "recording.headphonesHint", keys: ["recording.guide"], meaning: "The take you hear in your headphones while you record a layer over it." },
